@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.8.0] – 2026-06-25
+### Hinzugefügt
+- **Fertige Installer für macOS · Windows · Linux** (PyInstaller via GitHub Actions, automatisch ans
+  Release gehängt) — kein Python mehr nötig. Download auf der Releases-Seite.
+- Gebündeltes Binary dient als GUI **und** (über `--cli`) als Pipeline-Backend.
+### Behoben
+- cv2-Rekursionsfehler im gebündelten Binary (Pfad-Verschmutzung im frozen-Modus).
+
 ## [1.7.0] – 2026-06-25
 ### Geändert
 - **Umbenannt von „StackForge" zu „ForgePix"** — der alte Name war auf GitHub/PyPI mehrfach belegt.

@@ -76,7 +76,18 @@ diese Einstellungen gewählt hat.“*
 Profis können optional **Siril verbinden** (falls installiert) als alternative Astro‑Engine und
 an **GraXpert / StarNet++** weitergeben — nichts davon ist Pflicht.
 
-## Installation
+## Download (fertige Pakete)
+
+Vorgebaute Pakete für **macOS · Windows · Linux** gibt es auf der
+[**Releases-Seite**](https://github.com/samuelvoltarius/ForgePix/releases) (kein Python nötig):
+
+- **macOS:** `ForgePix-macOS.zip` → entpacken, `ForgePix.app` öffnen.
+- **Windows:** `ForgePix-Windows.zip` → entpacken, `ForgePix.exe` starten.
+- **Linux:** `ForgePix-Linux.tar.gz` → entpacken, `./ForgePix/ForgePix` starten.
+
+> Erststart unter macOS/Windows: ggf. „trotzdem öffnen" (App ist (noch) nicht signiert).
+
+## Aus dem Quellcode
 
 ```bash
 python3 -m pip install -r requirements.txt

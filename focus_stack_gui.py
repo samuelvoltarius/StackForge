@@ -12,8 +12,10 @@ Start:  python3 focus_stack_gui.py
 import os
 import sys
 
-# Projekt-Root (dieses Verzeichnis) auf den Importpfad — falls von woanders gestartet
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Projekt-Root auf den Importpfad — NUR im Quellcode-Modus. Im gebündelten Binary
+# (PyInstaller) würde das den Pfad verschmutzen und cv2 doppelt auflösen (Rekursionsfehler).
+if not getattr(sys, "frozen", False):
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ui.main_window import MainWindow, THEME, main, APP_NAME, ICON, ICON_PNG  # noqa: F401
 from ui.components import (  # noqa: F401  (Rück-Export für bestehende Skripte/Tests)
@@ -23,4 +25,12 @@ from ui.components import (  # noqa: F401  (Rück-Export für bestehende Skripte
 )
 
 if __name__ == "__main__":
-    main()
+    # Im gebündelten Binary (PyInstaller) ist `sys.executable` das Binary selbst, nicht python.
+    # Damit der GUI-Subprozess die Pipeline starten kann, dient `--cli` als zweiter Einstiegspunkt:
+    #   forgepix --cli --input … → ruft focus_cull_stack.main() statt der GUI.
+    if len(sys.argv) > 1 and sys.argv[1] == "--cli":
+        import focus_cull_stack
+        sys.argv = [sys.argv[0]] + sys.argv[2:]
+        focus_cull_stack.main()
+    else:
+        main()

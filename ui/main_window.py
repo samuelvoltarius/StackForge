@@ -1292,7 +1292,11 @@ class MainWindow(QMainWindow):
         self.proc.setProcessChannelMode(QProcess.MergedChannels)
         self.proc.readyReadStandardOutput.connect(self._on_output)
         self.proc.finished.connect(self._on_finished)
-        self.proc.start(sys.executable, ["-u"] + args)
+        if getattr(sys, "frozen", False):
+            # Gebündeltes Binary: sich selbst im CLI-Modus aufrufen (args[0] = SCRIPT-Pfad weglassen)
+            self.proc.start(sys.executable, ["--cli"] + args[1:])
+        else:
+            self.proc.start(sys.executable, ["-u"] + args)
         self.run_btn.setEnabled(False); self.auto_btn.setEnabled(False); self.stop_btn.setEnabled(True)
         self._set_status(tr("Läuft …"), color="#d4a72c", bg="#2a2510")
 

@@ -1,0 +1,87 @@
+name: build
+
+# Baut native ForgePix-Pakete für macOS, Windows und Linux mit PyInstaller.
+# Läuft bei jedem Tag (v*) und manuell; hängt die Artefakte ans GitHub-Release.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            sep: ":"
+            iconflag: "--icon assets/ForgePix.icns"
+            pkg: ForgePix-macOS
+          - os: windows-latest
+            sep: ";"
+            iconflag: ""
+            pkg: ForgePix-Windows
+          - os: ubuntu-latest
+            sep: ":"
+            iconflag: ""
+            pkg: ForgePix-Linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: System-Abhängigkeiten (Linux, für Qt)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libdbus-1-3
+
+      - name: Python-Abhängigkeiten
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy "opencv-python-headless>=4.8" "PySide6>=6.5" rawpy tifffile imagecodecs psdtags requests pyinstaller
+
+      - name: Build (PyInstaller)
+        shell: bash
+        run: |
+          pyinstaller --noconfirm --windowed --name ForgePix ${{ matrix.iconflag }} \
+            --add-data "lang${{ matrix.sep }}lang" \
+            --add-data "assets/forgepix_512.png${{ matrix.sep }}assets" \
+            --hidden-import focus_cull_stack --hidden-import focus_analysis \
+            --hidden-import stacker --hidden-import astro --hidden-import astro_quality \
+            --hidden-import longexp --hidden-import mosaic --hidden-import siril_engine \
+            --hidden-import tools_engine --hidden-import constants --hidden-import i18n \
+            --hidden-import ui.main_window --hidden-import ui.components \
+            focus_stack_gui.py
+
+      - name: Paketieren
+        shell: bash
+        run: |
+          cd dist
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            zip -ry "../${{ matrix.pkg }}.zip" ForgePix.app
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            7z a "../${{ matrix.pkg }}.zip" ForgePix
+          else
+            tar czf "../${{ matrix.pkg }}.tar.gz" ForgePix
+          fi
+
+      - name: Artefakt hochladen (CI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.pkg }}
+          path: |
+            ForgePix-*.zip
+            ForgePix-*.tar.gz
+
+      - name: Ans Release anhängen
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ForgePix-*.zip
+            ForgePix-*.tar.gz

@@ -6,3 +6,8 @@ assets/ForgePix.iconset/
 .DS_Store
 /tmp/
 *.log
+
+# PyInstaller-Build
+build/
+dist/
+*.spec
