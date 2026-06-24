@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+testdata/
+*/stack_work/
+assets/StackForge.iconset/
+.DS_Store
+/tmp/
+*.log
