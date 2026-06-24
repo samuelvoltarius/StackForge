@@ -246,7 +246,7 @@ def write_layered_tiff(out_path, named_layers, flat_bgr=None):
         info=[PsdString(PsdKey.UNICODE_LAYER_NAME, name)],
     ) for name, rgb in reversed(imgs)]
     isd = TiffImageSourceData(
-        name="StackForge", psdformat=PsdFormat.LE32BIT,
+        name="ForgePix", psdformat=PsdFormat.LE32BIT,
         layers=PsdLayers(key=key, has_transparency=False, layers=layers),
         usermask=PsdUserMask(colorspace=PsdColorSpaceType.RGB, components=(65535, 0, 0, 0), opacity=50),
         info=[PsdEmpty(PsdKey.PATTERNS),

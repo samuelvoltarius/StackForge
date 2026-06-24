@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-focus_analysis.py — Fokus-Intelligenz für StackForge (klassisch, erklärbar, kein ML).
+focus_analysis.py — Fokus-Intelligenz für ForgePix (klassisch, erklärbar, kein ML).
 
 Alles dreht sich um eine pro-Frame Kachel-Schärfekarte (Varianz des Laplace je Kachel):
 

@@ -2,12 +2,12 @@
 """
 tools_engine.py — OPTIONALE Anbindung an externe Astro-Tools (GraXpert, StarNet++).
 
-StackForge bleibt eigenständig. Wer GraXpert und/oder StarNet++ installiert hat, kann das
+ForgePix bleibt eigenständig. Wer GraXpert und/oder StarNet++ installiert hat, kann das
 fertige (32-bit-lineare) Ergebnis mit EINEM Klick durchschicken statt es von Hand zu öffnen:
   • GraXpert   — Hintergrund-/Gradienten-Entfernung (KI), per Kommandozeile.
   • StarNet++   — Sterne entfernen (starless) bzw. Sternmaske, per Kommandozeile.
 
-Kein fremder Code wird kopiert — die Programme werden nur aufgerufen → StackForge bleibt MIT.
+Kein fremder Code wird kopiert — die Programme werden nur aufgerufen → ForgePix bleibt MIT.
 Ist ein Tool nicht installiert, fällt die GUI auf „im Dateimanager zeigen“ zurück.
 """
 import os

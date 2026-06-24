@@ -1,6 +1,6 @@
-# StackForge — User Guide
+# ForgePix — User Guide
 
-StackForge turns a **series of photos** into **one better image**: fully sharp (Macro),
+ForgePix turns a **series of photos** into **one better image**: fully sharp (Macro),
 low-noise (Astro), stitched (Mosaic), or with a long-exposure look (no ND filter). The
 automatic mode makes sensible decisions and **explains them**. AI is optional — without a
 server everything runs on a built-in heuristic.
@@ -25,7 +25,7 @@ server everything runs on a built-in heuristic.
 
 ```bash
 python3 -m pip install -r requirements.txt
-python3 focus_stack_gui.py        # or double-click StackForge.app (macOS)
+python3 focus_stack_gui.py        # or double-click ForgePix.app (macOS)
 ```
 
 Requires Python 3.9+. RAW via `rawpy`, FITS via `astropy` (optional). External tools
@@ -147,11 +147,11 @@ EXIF (camera/lens/date) is carried over to all outputs.
 
 - **🌌 GraXpert** (result bar, sky modules): remove background/gradient. Found → one click +
   automatic re-import; otherwise reveal the file in the file manager.
-- **⭐ StarNet++**: remove stars (starless). Needs 16-bit TIF — StackForge hands over the right
+- **⭐ StarNet++**: remove stars (starless). Needs 16-bit TIF — ForgePix hands over the right
   file automatically.
 - **Siril**: selectable as an alternative astro engine.
 
-None of this is required — StackForge is self-contained.
+None of this is required — ForgePix is self-contained.
 
 ---
 
@@ -205,7 +205,7 @@ Use more frames (10–30+). Set virtual exposure to 100%.
 On an Alt-Az mount choose "translation + field rotation". Let bad subs be dropped.
 
 **Very large stack / little RAM.**
-StackForge streams from disk automatically; lower `--ram-budget-gb` if needed.
+ForgePix streams from disk automatically; lower `--ram-budget-gb` if needed.
 
 **RAW before-preview missing in compare (non-macro).**
 Some RAWs can't render a quick preview — JPG/TIFF always work.

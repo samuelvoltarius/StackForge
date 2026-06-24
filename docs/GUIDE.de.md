@@ -1,6 +1,6 @@
-# StackForge — Anleitung
+# ForgePix — Anleitung
 
-StackForge verwandelt eine **Serie von Fotos** in **ein besseres Bild**: durchgehend scharf
+ForgePix verwandelt eine **Serie von Fotos** in **ein besseres Bild**: durchgehend scharf
 (Makro), rauscharm (Astro), zusammengesetzt (Mosaik) oder mit Langzeit-Look (ohne ND-Filter).
 Die Automatik trifft sinnvolle Entscheidungen und **erklärt sie**. KI ist optional — ohne
 Server läuft alles über eine eingebaute Heuristik.
@@ -25,7 +25,7 @@ Server läuft alles über eine eingebaute Heuristik.
 
 ```bash
 python3 -m pip install -r requirements.txt
-python3 focus_stack_gui.py        # oder StackForge.app (macOS) doppelklicken
+python3 focus_stack_gui.py        # oder ForgePix.app (macOS) doppelklicken
 ```
 
 Benötigt Python 3.9+. RAW-Unterstützung über `rawpy`, FITS über `astropy` (optional).
@@ -149,11 +149,11 @@ gemerkt.
 
 - **🌌 GraXpert** (Ergebnis-Leiste, bei Himmels-Modulen): Hintergrund/Gradient entfernen.
   Gefunden → Ein-Klick + automatischer Reimport; sonst Datei im Dateimanager zeigen.
-- **⭐ StarNet++**: Sterne entfernen (starless). Braucht 16-bit-TIF — StackForge übergibt
+- **⭐ StarNet++**: Sterne entfernen (starless). Braucht 16-bit-TIF — ForgePix übergibt
   automatisch die richtige Datei.
 - **Siril**: im Astro-Bereich als alternative Engine wählbar.
 
-Nichts davon ist Pflicht — StackForge ist eigenständig.
+Nichts davon ist Pflicht — ForgePix ist eigenständig.
 
 ---
 
@@ -208,7 +208,7 @@ Mehr Aufnahmen (10–30+). Virtuelle Belichtung auf 100 %.
 Bei Alt-Az-Montierung „Translation + Feldrotation" wählen. Schlechte Subs aussortieren lassen.
 
 **Sehr großer Stack / wenig RAM.**
-StackForge streamt automatisch von der Platte; bei Bedarf `--ram-budget-gb` senken.
+ForgePix streamt automatisch von der Platte; bei Bedarf `--ram-budget-gb` senken.
 
 **RAW-Vorher-Vorschau fehlt im Vergleich (Nicht-Makro).**
 Bei manchen RAWs kann die Schnellvorschau nicht gerendert werden — mit JPG/TIFF klappt es immer.

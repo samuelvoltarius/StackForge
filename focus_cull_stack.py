@@ -587,7 +587,7 @@ def run_own_engine(selected_dir, work_dir, args):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="StackForge — Fokus-Stacking (eigene Engine)")
+    ap = argparse.ArgumentParser(description="ForgePix — Fokus-Stacking (eigene Engine)")
     ap.add_argument("--input", required=True, help="Ordner mit den Aufnahmen")
     ap.add_argument("--work", help="Arbeits-/Projektordner (Default: <input>/../stack_work)")
     ap.add_argument("--dip-ratio", type=float, default=0.4,

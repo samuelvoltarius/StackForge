@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-StackForge — Engine-Tests (reine Logik, ohne GUI). Laufen mit der Standardbibliothek:
+ForgePix — Engine-Tests (reine Logik, ohne GUI). Laufen mit der Standardbibliothek:
 
     python3 -m unittest discover -s tests        # oder: python3 tests/test_engines.py
 

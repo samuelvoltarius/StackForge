@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ui_components.py — wiederverwendbare GUI-Bausteine von StackForge.
+ui_components.py — wiederverwendbare GUI-Bausteine von ForgePix.
 Hilfsfunktionen (Vorschau, Plattform-Öffnen, ?-Hilfe) + Bild-Anpassung (Camera-Raw)
 + Dialoge (Vergleich, Retusche, Bearbeiten) + Kurven-/Canvas-Widgets.
 Bewusst aus dem GUI-Monolithen ausgelagert.

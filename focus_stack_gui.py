@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-focus_stack_gui.py — Starter für StackForge.
+focus_stack_gui.py — Starter für ForgePix.
 
 Die Oberfläche liegt modular im Paket `ui/` (ui/main_window.py + ui/components.py).
 Diese Datei ist nur der Einstiegspunkt und re-exportiert die öffentlichen Namen,

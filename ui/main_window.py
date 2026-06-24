@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-ui/main_window.py — StackForge-Hauptfenster (PySide6).
+ui/main_window.py — ForgePix-Hauptfenster (PySide6).
 
 Start-Auswahl der Module, Schritt-für-Schritt-Wizard, alle Einstellungen, Live-Log
 und Ergebnis-Vorschau. Ruft focus_cull_stack.py als Subprozess auf (streamt stdout/stderr live).
-Einstiegspunkt: focus_stack_gui.py (dünner Launcher) bzw. StackForge.app.
+Einstiegspunkt: focus_stack_gui.py (dünner Launcher) bzw. ForgePix.app.
 """
 import os
 import hashlib
@@ -42,9 +42,9 @@ FRAME_RE = re.compile(r"\b(\d+)\s*/\s*(\d+)\b")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Projekt-Root (ui/ liegt darunter)
 SCRIPT = os.path.join(HERE, "focus_cull_stack.py")
 SHINESTACKER = os.path.join(os.path.dirname(sys.executable), "shinestacker")
-ICON = os.path.join(HERE, "assets", "StackForge.icns")
-ICON_PNG = os.path.join(HERE, "assets", "stackforge_512.png")
-APP_NAME = "StackForge"
+ICON = os.path.join(HERE, "assets", "ForgePix.icns")
+ICON_PNG = os.path.join(HERE, "assets", "forgepix_512.png")
+APP_NAME = "ForgePix"
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
 
@@ -74,7 +74,7 @@ class _AnalyzeWorker(QThread):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("StackForge — Fokus-Stacking mit KI")
+        self.setWindowTitle("ForgePix — Fokus-Stacking mit KI")
         self.resize(1440, 900)  # großzügig, damit nichts abgeschnitten ist
         if os.path.isfile(ICON):
             self.setWindowIcon(QIcon(ICON))
@@ -118,7 +118,7 @@ class MainWindow(QMainWindow):
         # Titel-Block: Name groß + Untertitel darunter (wirkt hochwertiger)
         tblock = QVBoxLayout(); tblock.setSpacing(0)
         trow = QHBoxLayout(); trow.setSpacing(6)
-        title = QLabel("StackForge"); title.setStyleSheet("font-size:21px;font-weight:800;letter-spacing:0.3px;")
+        title = QLabel("ForgePix"); title.setStyleSheet("font-size:21px;font-weight:800;letter-spacing:0.3px;")
         ver = QLabel(f"v{_VER}"); ver.setStyleSheet("color:#6f6a85;font-size:11px;")
         trow.addWidget(title); trow.addWidget(ver); trow.addStretch(1)
         subtitle = QLabel(tr("Computational Photography Suite"))
@@ -201,7 +201,7 @@ class MainWindow(QMainWindow):
             btn = QPushButton("…"); btn.setFixedWidth(36)
             btn.clicked.connect(lambda _=False, e=edit: self._pick_file_into(e))
             gt.addWidget(QLabel(lab), r, 0); gt.addWidget(edit, r, 1); gt.addWidget(btn, r, 2)
-        gt.addWidget(help_btn("Pfade zu deinen installierten Tools. Leer lassen = StackForge sucht "
+        gt.addWidget(help_btn("Pfade zu deinen installierten Tools. Leer lassen = ForgePix sucht "
                               "selbst (PATH + übliche Orte). GraXpert/StarNet → Ein-Klick in der "
                               "Ergebnis-Leiste; Siril → wählbare Astro-Engine. Alles optional."), 0, 3)
         self._settings_lay.addWidget(g_tools)
@@ -383,7 +383,7 @@ class MainWindow(QMainWindow):
         ar.addWidget(QLabel("Flat"), 7, 0); ar.addWidget(self.astro_flat, 7, 1, 1, 1); ar.addWidget(fbtn, 7, 2)
         ar.addWidget(QLabel("Bias"), 8, 0); ar.addWidget(self.astro_bias, 8, 1, 1, 1); ar.addWidget(bbtn, 8, 2)
         ar.addWidget(QLabel("Engine"), 9, 0); ar.addWidget(self.astro_engine, 9, 1, 1, 2)
-        ar.addWidget(help_btn("„Eigene“ = StackForge selbst (Standard, kein Fremdprogramm). "
+        ar.addWidget(help_btn("„Eigene“ = ForgePix selbst (Standard, kein Fremdprogramm). "
                               "„Siril“ = optional dein installiertes Siril fernsteuern "
                               "(Konvertieren→Registrieren→Stacken). Pfad im Setup-Menü → "
                               "„Externe Tools“."), 9, 3)
@@ -781,7 +781,7 @@ class MainWindow(QMainWindow):
 
     def _on_language(self, _i):
         code = self._lang_codes[self.lang_box.currentIndex()]
-        QSettings("ServeOne", "StackForge").setValue("language", code)
+        QSettings("ServeOne", "ForgePix").setValue("language", code)
         QMessageBox.information(self, tr("Sprache:"),
                                 "Die Sprache wird beim nächsten Start angewendet.\n"
                                 "Language will be applied on next start.")
@@ -841,7 +841,7 @@ class MainWindow(QMainWindow):
         # Top-Bar: Einstellungen schon am Start erreichbar (Sprache/Anfänger-Profi/KI)
         topbar = QHBoxLayout(); topbar.addStretch(1)
         info_btn = QPushButton(tr("ℹ️  Was ist das?"))
-        info_btn.setToolTip(tr("Kurz erklärt, was StackForge macht."))
+        info_btn.setToolTip(tr("Kurz erklärt, was ForgePix macht."))
         info_btn.clicked.connect(self._show_about)
         wset_btn = QPushButton(tr("⚙  Einstellungen"))
         wset_btn.setToolTip(tr("Sprache, Anfänger/Profi, KI-Server — schon vor dem Start einstellbar."))
@@ -861,7 +861,7 @@ class MainWindow(QMainWindow):
             logo = QLabel(); logo.setAlignment(Qt.AlignCenter)
             logo.setPixmap(QPixmap(ICON_PNG).scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
             lay.addWidget(logo); lay.addSpacing(8)
-        head = QLabel("StackForge")
+        head = QLabel("ForgePix")
         head.setStyleSheet("font-size:32px;font-weight:800;letter-spacing:0.5px;")
         head.setAlignment(Qt.AlignCenter); lay.addWidget(head)
         tag = QLabel(tr("Fotos rein – fertiges Bild raus."))
@@ -995,10 +995,10 @@ class MainWindow(QMainWindow):
         dlg.show(); self._sc_dlg = dlg
 
     def _show_about(self):
-        """Kurze, klare Erklärung was StackForge ist und kann (für Einsteiger)."""
+        """Kurze, klare Erklärung was ForgePix ist und kann (für Einsteiger)."""
         html = tr(
-            "<h3>Was ist StackForge?</h3>"
-            "<p>StackForge macht aus <b>vielen Fotos ein besseres Bild</b> — vollautomatisch, "
+            "<h3>Was ist ForgePix?</h3>"
+            "<p>ForgePix macht aus <b>vielen Fotos ein besseres Bild</b> — vollautomatisch, "
             "und es <b>erklärt dabei, was es tut</b>.</p>"
             "<p><b>🔬 Makro:</b> mehrere Nahaufnahmen mit wanderndem Fokus → ein durchgehend "
             "scharfes Bild.<br>"
@@ -1013,7 +1013,7 @@ class MainWindow(QMainWindow):
             "und verändert nie heimlich Pixel.</p>"
             "<p style='color:#9aa09a'>Mehr in der Anleitung (docs/GUIDE) und mit dem „?“ an jeder "
             "Einstellung. Tastenkürzel: F1.</p>")
-        dlg = QDialog(self); dlg.setWindowTitle(tr("Über StackForge")); dlg.resize(520, 460)
+        dlg = QDialog(self); dlg.setWindowTitle(tr("Über ForgePix")); dlg.resize(520, 460)
         lay = QVBoxLayout(dlg)
         lbl = QLabel(html); lbl.setWordWrap(True); lbl.setTextFormat(Qt.RichText); lbl.setAlignment(Qt.AlignTop)
         sc = QScrollArea(); sc.setWidgetResizable(True); sc.setWidget(lbl); lay.addWidget(sc)
@@ -1437,7 +1437,7 @@ class MainWindow(QMainWindow):
         if code == 0:
             self._show_result()
             self._set_status(tr("Fertig ✓"), color="#4caf50", bg="#1b2a1b")
-            self._notify("StackForge", "Stack fertig 🎉" if self.result_path else "Lauf fertig")
+            self._notify("ForgePix", "Stack fertig 🎉" if self.result_path else "Lauf fertig")
         else:
             self._set_status(tr("Abgebrochen / Fehler"), color="#e5534b", bg="#2a1414")
 
@@ -2201,12 +2201,12 @@ class MainWindow(QMainWindow):
         }
 
     def _save_settings(self):
-        st = QSettings("ServeOne", "StackForge")
+        st = QSettings("ServeOne", "ForgePix")
         for k, (_set, get) in self._settings_map().items():
             st.setValue(k, get())
 
     def _restore_settings(self):
-        st = QSettings("ServeOne", "StackForge")
+        st = QSettings("ServeOne", "ForgePix")
         bool_keys = {"raw_dev", "raw_half", "vlm_on", "astro_fits", "astro_cosmetic", "astro_qc",
                      "reject_blurry"}
         for k, (setter, _g) in self._settings_map().items():
@@ -2236,12 +2236,12 @@ class MainWindow(QMainWindow):
         if wk and wk.isRunning():
             wk.wait(4000)
         self._save_settings()
-        QSettings("ServeOne", "StackForge").setValue("geometry", self.saveGeometry())
+        QSettings("ServeOne", "ForgePix").setValue("geometry", self.saveGeometry())
         super().closeEvent(e)
 
 
 THEME = """
-/* StackForge — Anthrazit + Chili-Grün (GreenChili). Statusfarben: grün=gut, gelb=Warnung,
+/* ForgePix — Anthrazit + Chili-Grün (GreenChili). Statusfarben: grün=gut, gelb=Warnung,
    rot=Problem, blau=Info. Akzent #4caf50-Familie. */
 QWidget { background:#16171a; color:#e8eae6; font-size:13px; }
 QMainWindow, QDialog { background:#16171a; }
@@ -2329,7 +2329,7 @@ QMenu::item:selected { background:#4caf50; border-radius:6px; }
 def main():
     app = QApplication(sys.argv)
     # Sprache aus den Einstellungen laden, BEVOR die Oberfläche gebaut wird
-    set_language(QSettings("ServeOne", "StackForge").value("language", "de"))
+    set_language(QSettings("ServeOne", "ForgePix").value("language", "de"))
     app.setApplicationName(APP_NAME)
     app.setApplicationDisplayName(APP_NAME)
     app.setStyleSheet(THEME)

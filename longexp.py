@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-longexp.py — Langzeitbelichtungs-Modul für StackForge.
+longexp.py — Langzeitbelichtungs-Modul für ForgePix.
 
 Aus mehreren „normalen“ Aufnahmen (Serie/Burst vom Stativ) eine Langzeitbelichtung rechnen —
 ohne ND-Filter. Vier fotografische Modi:

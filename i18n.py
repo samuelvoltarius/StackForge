@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-i18n.py — winzige Mehrsprachigkeit für StackForge.
+i18n.py — winzige Mehrsprachigkeit für ForgePix.
 
 Prinzip: der deutsche Text IST der Schlüssel. `tr("Starten")` gibt in der aktiven
 Sprache die Übersetzung zurück; fehlt sie, kommt der deutsche Text.

@@ -1,16 +1,16 @@
-# StackForge ⚡
+# ForgePix ⚡
 
 *[🇩🇪 Deutsche Version](README.de.md)*
 
-![tests](https://github.com/samuelvoltarius/StackForge/actions/workflows/tests.yml/badge.svg)
-[![release](https://img.shields.io/github/v/release/samuelvoltarius/StackForge?include_prereleases)](https://github.com/samuelvoltarius/StackForge/releases)
+![tests](https://github.com/samuelvoltarius/ForgePix/actions/workflows/tests.yml/badge.svg)
+[![release](https://img.shields.io/github/v/release/samuelvoltarius/ForgePix?include_prereleases)](https://github.com/samuelvoltarius/ForgePix/releases)
 [![license: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 **Focus Stacking + Astro + Long Exposure.** Drop your photos in, get a finished image out — in
 the best possible quality for further editing. Self‑contained, free (MIT), cross‑platform
 (Windows / macOS / Linux).
 
-## Why StackForge?
+## Why ForgePix?
 
 > - ✓ **Analyses focus series**
 > - ✓ **Removes rejects automatically**
@@ -83,7 +83,7 @@ python3 -m pip install -r requirements.txt
 python3 focus_stack_gui.py
 ```
 
-- **macOS:** double‑click `StackForge.app` (optional `exiftool` for EXIF copy).
+- **macOS:** double‑click `ForgePix.app` (optional `exiftool` for EXIF copy).
 - **Windows:** `run.bat`  ·  **Linux:** `./run.sh`
 
 ## First steps

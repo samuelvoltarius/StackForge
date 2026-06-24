@@ -2,11 +2,11 @@
 """
 siril_engine.py — OPTIONALE Anbindung an Siril (falls installiert).
 
-StackForge bleibt eigenständig (eigene Engine = Standard). Wer Siril hat, kann es
-als Astro-Engine wählen — StackForge schreibt ein Siril-Skript (.ssf) und ruft
+ForgePix bleibt eigenständig (eigene Engine = Standard). Wer Siril hat, kann es
+als Astro-Engine wählen — ForgePix schreibt ein Siril-Skript (.ssf) und ruft
 `siril-cli` auf (Konvertieren → Registrieren → Rejection-Stacking → Speichern).
 
-Kein Siril-Code wird kopiert (nur das Programm aufgerufen) → StackForge bleibt MIT.
+Kein Siril-Code wird kopiert (nur das Programm aufgerufen) → ForgePix bleibt MIT.
 """
 import os
 import shutil

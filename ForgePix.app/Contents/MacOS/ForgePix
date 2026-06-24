@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Projekt-Wurzel = drei Ebenen über dieser Datei (…/StackForge.app/Contents/MacOS/ → Projekt)
+# Projekt-Wurzel = drei Ebenen über dieser Datei (…/ForgePix.app/Contents/MacOS/ → Projekt)
 DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$DIR"
 # Bevorzugt die Framework-Python (hat sicher PySide6), sonst system-python3

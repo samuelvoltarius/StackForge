@@ -2,14 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>StackForge</string>
-  <key>CFBundleDisplayName</key><string>StackForge</string>
-  <key>CFBundleIdentifier</key><string>at.serveone.stackforge</string>
+  <key>CFBundleName</key><string>ForgePix</string>
+  <key>CFBundleDisplayName</key><string>ForgePix</string>
+  <key>CFBundleIdentifier</key><string>at.serveone.forgepix</string>
   <key>CFBundleVersion</key><string>1.0</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleExecutable</key><string>StackForge</string>
-  <key>CFBundleIconFile</key><string>StackForge</string>
+  <key>CFBundleExecutable</key><string>ForgePix</string>
+  <key>CFBundleIconFile</key><string>ForgePix</string>
   <key>NSHighResolutionCapable</key><true/>
 </dict>
 </plist>

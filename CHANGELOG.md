@@ -1,16 +1,22 @@
 # Changelog
 
-Alle nennenswerten Änderungen an StackForge. Format orientiert an
+Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
+
+## [1.7.0] – 2026-06-25
+### Geändert
+- **Umbenannt von „StackForge" zu „ForgePix"** — der alte Name war auf GitHub/PyPI mehrfach belegt.
+  ForgePix ist auf PyPI und GitHub verifiziert frei. App, Icons, Bundle, Repo, Docs durchgängig umgestellt.
+- Ordner aufgeräumt: veraltete Screenshots entfernt, Asset-Dateien umbenannt.
 
 ## [1.6.0] – 2026-06-25
 ### Geändert (foto-zentriertes Layout)
 - **Bild groß oben, Log klein unten** — das Ergebnis bekommt die Hauptfläche, der Log ist Nebensache.
 - **Echte Statuszeile** statt grünem Strich: Bereit · Ordner geladen · Läuft · Analysiere · Stacke · Fertig
   (farbcodiert, aus dem Live-Log abgeleitet).
-- **Größerer Header:** Logo + „StackForge" + Untertitel „Computational Photography Suite".
-- **README:** „Warum StackForge?"-Bullets geschärft + **Bilderstrecke** (Input → Analyse → Fokus-Map →
+- **Größerer Header:** Logo + „ForgePix" + Untertitel „Computational Photography Suite".
+- **README:** „Warum ForgePix?"-Bullets geschärft + **Bilderstrecke** (Input → Analyse → Fokus-Map →
   Ergebnis) mit echten Fotos; Screenshots auf das neue Layout aktualisiert.
 
 ## [1.5.0] – 2026-06-25
@@ -21,7 +27,7 @@ Alle nennenswerten Änderungen an StackForge. Format orientiert an
 - **Hauptfenster:** deutlich **größere Bildfläche** (~⅔), leeres Ergebnis als klare Drag-&-Drop-Zone,
   viele Buttons in ein **„🛠 Werkzeuge“-Menü** aufgeräumt (nur Vorher/Nachher · Bearbeiten · Export sichtbar).
 - **Editor:** größeres **Histogramm** und größere **Bildfläche**.
-- **README** komplett aufpoliert: „Warum StackForge?“-Sektion + Screenshot-Galerie (6 Ansichten).
+- **README** komplett aufpoliert: „Warum ForgePix?“-Sektion + Screenshot-Galerie (6 Ansichten).
 - **Schieberegler** gethemt (v1.4.1).
 
 ## [1.4.1] – 2026-06-25

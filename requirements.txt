@@ -1,4 +1,4 @@
-# StackForge — Kern-Abhängigkeiten (leicht, frei, plattformübergreifend)
+# ForgePix — Kern-Abhängigkeiten (leicht, frei, plattformübergreifend)
 # Installation:  python3 -m pip install -r requirements.txt
 PySide6>=6.5
 opencv-python>=4.8
@@ -16,7 +16,7 @@ pyobjc-framework-Cocoa; sys_platform == "darwin"
 # NICHT nötig für den Kern:
 #  - shinestacker      → nur falls man die alte Vergleichs-Engine nutzen will
 #  - torch/transformers→ nur falls man später ein eingebautes lokales KI-Modell will
-# StackForge läuft komplett ohne KI (Automatik nutzt dann Heuristik).
+# ForgePix läuft komplett ohne KI (Automatik nutzt dann Heuristik).
 #
 # EXTERNE PROGRAMME (separat installieren, KEIN pip — alle OPTIONAL):
 #  - exiftool   → für „📷 Aus Foto lesen (EXIF)" im DOF-Rechner   (brew install exiftool)

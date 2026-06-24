@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-astro.py — Astro-Stacking-Modul für StackForge (Siril-inspiriert, eigenständig).
+astro.py — Astro-Stacking-Modul für ForgePix (Siril-inspiriert, eigenständig).
 
 ANDERER Algorithmus als Fokus-Stacking: Ziel = Rauschen senken (SNR), nicht Schärfentiefe.
 Pipeline:

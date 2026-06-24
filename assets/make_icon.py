@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rastert stackforge.svg zu PNGs + baut macOS .icns."""
+"""Rastert forgepix.svg zu PNGs + baut macOS .icns."""
 import os
 import subprocess
 import sys
@@ -10,7 +10,7 @@ from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QApplication
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SVG = os.path.join(HERE, "stackforge.svg")
+SVG = os.path.join(HERE, "forgepix.svg")
 
 
 def render(size, out):
@@ -26,15 +26,15 @@ def render(size, out):
 def main():
     QApplication(sys.argv)
     # Fenster-/Dock-Icon
-    render(512, os.path.join(HERE, "stackforge_512.png"))
-    render(256, os.path.join(HERE, "stackforge_256.png"))
+    render(512, os.path.join(HERE, "forgepix_512.png"))
+    render(256, os.path.join(HERE, "forgepix_256.png"))
     # .iconset für iconutil
-    iconset = os.path.join(HERE, "StackForge.iconset")
+    iconset = os.path.join(HERE, "ForgePix.iconset")
     os.makedirs(iconset, exist_ok=True)
     for base in (16, 32, 128, 256, 512):
         render(base, os.path.join(iconset, f"icon_{base}x{base}.png"))
         render(base * 2, os.path.join(iconset, f"icon_{base}x{base}@2x.png"))
-    icns = os.path.join(HERE, "StackForge.icns")
+    icns = os.path.join(HERE, "ForgePix.icns")
     subprocess.run(["iconutil", "-c", "icns", iconset, "-o", icns], check=True)
     print("OK:", icns)
 
