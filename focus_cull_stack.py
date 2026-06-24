@@ -1090,9 +1090,12 @@ def process(args, input_dir, work_dir):
             for i, f in enumerate(frames):
                 if i in bad and f.keep:
                     f.keep = False
-                    f.reasons.append(f"verwackelt/unscharf (Schärfe {int(bad[i]*100)}% vom Serien-Maximum)")
+                    f.reasons.append(f"verwackelt: Schärfewert {int(bad[i]*100)}% (Median Serie 100%)")
             if bad:
                 print(f"== Verwackelt-Filter: {len(bad)} Frame(s) aussortiert ==")
+                for i in sorted(bad):
+                    print(f"   ✗ Bild {i + 1} ({frames[i].name}) entfernt — "
+                          f"Schärfewert {int(bad[i]*100)}% vom Serien-Median")
         except Exception as e:
             print(f"  (Verwackelt-Filter übersprungen: {e})", file=sys.stderr)
 

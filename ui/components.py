@@ -50,7 +50,7 @@ class CompareSlider(QWidget):
         p.setClipRect(QRect(r.x(), r.y(), divx - r.x(), r.height()))
         p.drawPixmap(r, self.before)
         p.restore()
-        p.setPen(QPen(QColor("#8a5cff"), 3))
+        p.setPen(QPen(QColor("#5cc85c"), 3))
         p.drawLine(divx, r.y(), divx, r.bottom())
         p.setPen(QColor("white"))
         p.drawText(r.x() + 10, r.y() + 22, "VORHER (schärfster Einzel-Frame)")
@@ -189,7 +189,7 @@ class CurveWidget(QWidget):
             p.drawLine(int(x), 0, int(x), self.height()); p.drawLine(0, int(y), self.width(), int(y))
         pts = sorted(self.points)
         xs = [q[0] for q in pts]; ys = [q[1] for q in pts]
-        p.setPen(QPen(QColor("#8a5cff"), 2))
+        p.setPen(QPen(QColor("#5cc85c"), 2))
         prev = None
         for i in range(101):
             xx = i / 100.0
@@ -284,7 +284,7 @@ class AdjustDialog(QDialog):
         last_group = None
         for key, lbl, group in self.SLIDERS:
             if group != last_group:
-                gl = QLabel(group); gl.setStyleSheet("color:#b69bff;font-weight:bold;margin-top:6px;")
+                gl = QLabel(group); gl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:6px;")
                 side.addWidget(gl); last_group = group
             row = QHBoxLayout()
             name = QLabel(lbl); name.setMinimumWidth(86)
@@ -296,14 +296,14 @@ class AdjustDialog(QDialog):
             side.addLayout(row)
 
         # --- Tonwertkurve ---
-        cl = QLabel("Tonwertkurve"); cl.setStyleSheet("color:#b69bff;font-weight:bold;margin-top:8px;")
+        cl = QLabel("Tonwertkurve"); cl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:8px;")
         side.addWidget(cl)
         self.curve_widget = CurveWidget(self._on_curve)
         side.addWidget(self.curve_widget)
         side.addWidget(QLabel("Klick = Punkt, ziehen, Doppelklick entfernt."))
 
         # --- HSL pro Farbe ---
-        hl = QLabel("Farben (HSL)"); hl.setStyleSheet("color:#b69bff;font-weight:bold;margin-top:8px;")
+        hl = QLabel("Farben (HSL)"); hl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:8px;")
         side.addWidget(hl)
         self.hsl_band = QComboBox(); self.hsl_band.addItems(list(HSL_BANDS.keys()))
         self.hsl_band.currentTextChanged.connect(self._load_hsl_band)
@@ -317,7 +317,7 @@ class AdjustDialog(QDialog):
             r.addWidget(n); r.addWidget(sld, 1); side.addLayout(r)
 
         # --- Geometrie ---
-        gl = QLabel("Geometrie"); gl.setStyleSheet("color:#b69bff;font-weight:bold;margin-top:8px;")
+        gl = QLabel("Geometrie"); gl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:8px;")
         side.addWidget(gl)
         self.geo_sliders = {}
         for key, lbl, lo, hi in [("angle", "Drehen", -45, 45), ("top", "Beschnitt oben", 0, 45),
@@ -608,7 +608,7 @@ def help_btn(text):
     b.setCursor(Qt.PointingHandCursor)
     b.setStyleSheet("QToolButton{border:none;border-radius:10px;color:#7a7490;"
                     "background:#232231;font-weight:600;} "
-                    "QToolButton:hover{background:#7c5cff;color:#ffffff;}")
+                    "QToolButton:hover{background:#4caf50;color:#ffffff;}")
     rich = f"<div style='max-width:340px;white-space:normal'>{text}</div>"
     b.setToolTip(rich)
     b.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), rich, b))

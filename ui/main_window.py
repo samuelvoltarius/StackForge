@@ -137,9 +137,9 @@ class MainWindow(QMainWindow):
         self.mode_box.currentIndexChanged.connect(lambda _i: self._apply_visibility())
         header.addWidget(self.mode_box)
         header.addSpacing(12)
-        kbd_btn = QPushButton("⌨")
+        kbd_btn = QPushButton("⌨️")
         kbd_btn.setToolTip(tr("Tastenkürzel anzeigen (F1)"))
-        kbd_btn.setFixedWidth(40)
+        kbd_btn.setFixedWidth(44)
         kbd_btn.clicked.connect(self._show_shortcuts)
         header.addWidget(kbd_btn)
         setup_btn = QPushButton(tr("⚙  Setup"))
@@ -148,7 +148,7 @@ class MainWindow(QMainWindow):
         header.addWidget(setup_btn)
         outer.addLayout(header)
         accent = QFrame(); accent.setFixedHeight(2)
-        accent.setStyleSheet("background:#7c5cff;border:none;border-radius:1px;")
+        accent.setStyleSheet("background:#4caf50;border:none;border-radius:1px;")
         outer.addWidget(accent)
 
         # Sprache — wandert ins Setup-Menü
@@ -200,7 +200,7 @@ class MainWindow(QMainWindow):
         self.STEP_NAMES = [tr("1 · Fotos"), tr("2 · Auswahl & Ausrichtung"),
                            tr("3 · Ergebnis-Optionen")]
         self.crumb = QLabel()
-        self.crumb.setStyleSheet("font-weight:bold;color:#b69bff;")
+        self.crumb.setStyleSheet("font-weight:bold;color:#7bd36a;")
         lv.addWidget(self.crumb)
 
         self.wizard = QStackedWidget()
@@ -280,7 +280,7 @@ class MainWindow(QMainWindow):
         mk_info = QLabel(tr("Makro/Fokus: mehrere Nahaufnahmen mit Fokus von vorn nach hinten → "
                             "ein durchgehend scharfes Bild. Empfohlen: 10–40 Aufnahmen (so viele, "
                             "bis alles scharf abgedeckt ist), Stativ, gleiche Belichtung."))
-        mk_info.setWordWrap(True); mk_info.setStyleSheet("color:#9b90b5;font-size:11px;")
+        mk_info.setWordWrap(True); mk_info.setStyleSheet("color:#9aa09a;font-size:11px;")
         pgv.addWidget(mk_info)
         p1.addWidget(self.preset_group)
 
@@ -386,7 +386,7 @@ class MainWindow(QMainWindow):
         as_info = QLabel(tr("Astro: viele Aufnahmen desselben Himmelsausschnitts → Rauschen mitteln. "
                             "Empfohlen: 20–100+ Lights (mehr = weniger Rauschen) · Darks 15–30 · "
                             "Flats 15–30 · Bias 30+. Optional als Ordner/Datei angeben."))
-        as_info.setWordWrap(True); as_info.setStyleSheet("color:#9b90b5;font-size:11px;")
+        as_info.setWordWrap(True); as_info.setStyleSheet("color:#9aa09a;font-size:11px;")
         ar.addWidget(as_info, 14, 0, 1, 4)
         p1.addWidget(g_astro)
 
@@ -416,7 +416,7 @@ class MainWindow(QMainWindow):
         hy_info = QLabel(tr("Hybrid: Mosaik = überlappende Kacheln (Mond/Sonne) zusammensetzen, "
                             "~30 % Überlappung, 4–20+ Kacheln. Fokus+Astro = je Fokus-Position "
                             "mehrere Shots (5–15) in einem Unterordner, mehrere Positionen."))
-        hy_info.setWordWrap(True); hy_info.setStyleSheet("color:#9b90b5;font-size:11px;")
+        hy_info.setWordWrap(True); hy_info.setStyleSheet("color:#9aa09a;font-size:11px;")
         mg.addWidget(hy_info, 3, 0, 1, 4)
         self.hybrid_kind.currentIndexChanged.connect(lambda _i: self._hybrid_kind_changed())
         p1.addWidget(g_mos)
@@ -464,7 +464,7 @@ class MainWindow(QMainWindow):
                               "Begründung. Du kannst den Vorschlag jederzeit überstimmen."), 3, 3)
         le_info = QLabel(tr("Empfohlen: Glatt 10–30 · Lichtspuren 30–300+ (lückenlos) · "
                             "Störer entfernen 8–20 · Aufhellen 10–60. Vom Stativ, gleiche Belichtung."))
-        le_info.setWordWrap(True); le_info.setStyleSheet("color:#9b90b5;font-size:11px;")
+        le_info.setWordWrap(True); le_info.setStyleSheet("color:#9aa09a;font-size:11px;")
         lg.addWidget(le_info, 4, 0, 1, 4)
         p1.addWidget(g_le)
 
@@ -832,7 +832,7 @@ class MainWindow(QMainWindow):
         head.setStyleSheet("font-size:30px;font-weight:bold;")
         head.setAlignment(Qt.AlignCenter)
         sub = QLabel(tr("Was möchtest du stacken? Modul wählen — später jederzeit über „◀ Module“ wechselbar."))
-        sub.setStyleSheet("color:#b69bff;font-size:14px;")
+        sub.setStyleSheet("color:#7bd36a;font-size:14px;")
         sub.setAlignment(Qt.AlignCenter)
         lay.addWidget(head); lay.addWidget(sub); lay.addSpacing(18)
 
@@ -860,8 +860,8 @@ class MainWindow(QMainWindow):
             btn.setStyleSheet(
                 "QPushButton{font-size:17px;font-weight:bold;text-align:center;"
                 "border:1px solid #4a3a6e;border-radius:12px;padding:14px;background:#241a38;}"
-                "QPushButton:hover{background:#3c2d5e;border-color:#8a5cff;}")
-            d = QLabel(desc); d.setWordWrap(True); d.setStyleSheet("color:#9b90b5;font-size:12px;")
+                "QPushButton:hover{background:#3c2d5e;border-color:#5cc85c;}")
+            d = QLabel(desc); d.setWordWrap(True); d.setStyleSheet("color:#9aa09a;font-size:12px;")
             cell = QWidget(); cv = QVBoxLayout(cell); cv.setContentsMargins(0, 0, 0, 0)
             cv.addWidget(btn); cv.addWidget(d)
             btn.clicked.connect(lambda _=False, t=idx: self._choose_module(t))
@@ -882,17 +882,24 @@ class MainWindow(QMainWindow):
     # ---------- Tastatursteuerung ----------
     # Hinweis: Qt bildet "Ctrl+…" auf macOS automatisch auf ⌘ ab.
     SHORTCUTS = [
+        ("Leertaste", "Vorher / Nachher"),
+        ("← →", "Bild im Filmstreifen wechseln"),
+        ("A", "Reihe analysieren"),
+        ("S", "Stack / Automatik starten"),
+        ("E", "Editor (Camera-Raw)"),
+        ("G", "Geister-Karte"),
+        ("F", "Fokus-Map"),
+        ("R", "Retusche"),
+        ("—", "—"),
         ("Ctrl+O", "Eingabe-Ordner wählen"),
         ("Ctrl+Return", "Automatik starten (beste Qualität)"),
         ("Ctrl+Shift+Return", "Manuell starten (Profi)"),
+        ("Ctrl+E", "Exportieren"),
         ("Esc", "Stop / zurück zur Modul-Auswahl"),
         ("Ctrl+1 … Ctrl+4", "Modul: Makro / Astro / Hybrid / Langzeit"),
         ("Ctrl+B", "Anfänger ⟷ Profi umschalten"),
         ("Ctrl+M", "Zur Modul-Auswahl"),
         ("Ctrl+,", "Setup-Menü"),
-        ("Ctrl+E", "Ergebnis bearbeiten (Camera-Raw)"),
-        ("Ctrl+Shift+A", "Reihe analysieren (Fokus)"),
-        ("Ctrl+D", "DOF-Rechner / Shooting-Assistent"),
         ("Ctrl+] / Ctrl+[", "Wizard: weiter / zurück"),
         ("F1 / Ctrl+/", "Diese Tastenkürzel anzeigen"),
     ]
@@ -909,7 +916,7 @@ class MainWindow(QMainWindow):
         sc("Ctrl+,", self.settings_dialog.show)
         sc("Ctrl+B", lambda: self.mode_box.setCurrentIndex(1 - self.mode_box.currentIndex()))
         sc("Ctrl+M", lambda: self.top_stack.setCurrentIndex(0))
-        sc("Ctrl+E", lambda: self.open_adjust() if self.adjust_btn.isEnabled() else None)
+        sc("Ctrl+E", self.export_result)
         sc("Ctrl+Shift+A", lambda: self.analyze_series() if not self.is_astro and not self.is_hybrid
            and not self.is_longexp else None)
         sc("Ctrl+D", self.open_dof)
@@ -934,7 +941,7 @@ class MainWindow(QMainWindow):
                              ("Enter", "⏎"), ("Esc", "⎋")):
                     k = k.replace(a, b)
             return k
-        rows = "".join(f"<tr><td style='padding:3px 14px 3px 0;color:#b6a9ff;'><b>{disp(k)}</b></td>"
+        rows = "".join(f"<tr><td style='padding:3px 14px 3px 0;color:#7bd36a;'><b>{disp(k)}</b></td>"
                        f"<td style='padding:3px 0;'>{tr(v)}</td></tr>" for k, v in self.SHORTCUTS)
         dlg = QDialog(self); dlg.setWindowTitle(tr("Tastenkürzel")); dlg.resize(420, 440)
         lay = QVBoxLayout(dlg)
@@ -1010,16 +1017,27 @@ class MainWindow(QMainWindow):
 
     # ---------- Drag & Drop ----------
     def dragEnterEvent(self, e):
-        if e.mimeData().hasUrls() and any(os.path.isdir(u.toLocalFile())
+        if e.mimeData().hasUrls() and any(os.path.isdir(u.toLocalFile()) or
+                                          os.path.isfile(u.toLocalFile())
                                           for u in e.mimeData().urls()):
             e.acceptProposedAction()
 
     def dropEvent(self, e):
+        """Ordner (oder Datei → deren Ordner) fallen lassen → übernehmen und, im Makro,
+        direkt die Reihen-Analyse starten."""
         for u in e.mimeData().urls():
             p = u.toLocalFile()
-            if os.path.isdir(p):
-                self.in_edit.setText(p)
-                self._append(f"📂 Ordner per Drag&Drop: {p}\n")
+            folder = p if os.path.isdir(p) else (os.path.dirname(p) if os.path.isfile(p) else None)
+            if folder:
+                # Modul-Auswahl offen? -> in den Arbeitsbereich wechseln
+                if self.top_stack.currentIndex() == 0:
+                    self.top_stack.setCurrentIndex(1)
+                self.in_edit.setText(folder)
+                self._append(f"📂 Ordner per Drag&Drop: {folder}\n")
+                makro = not (getattr(self, "is_astro", False) or getattr(self, "is_hybrid", False)
+                             or getattr(self, "is_longexp", False))
+                if makro and self.mode_box.currentIndex() == 1:  # Profi-Makro: gleich analysieren
+                    self.analyze_series()
                 break
 
     # ---------- Ordnerauswahl ----------
@@ -1482,6 +1500,8 @@ class MainWindow(QMainWindow):
         if not frames:
             return
         shown = frames[:80]
+        self._strip_paths = [fr.get("path") for fr in shown if fr.get("path")]
+        self._strip_idx = 0
         for fr in shown:
             thumb = self._thumb_png(fr.get("path"))
             btn = QToolButton()
@@ -1717,7 +1737,7 @@ class MainWindow(QMainWindow):
         lay = QVBoxLayout(dlg)
         info = QLabel(tr("Farbe = aus welchem Foto (Reihenfolge) die schärfsten Details kommen. "
                          "Blau = frühe, Rot = späte Aufnahmen. Gleichmäßiger Verlauf = saubere Reihe."))
-        info.setWordWrap(True); info.setStyleSheet("color:#9b90b5;font-size:11px;")
+        info.setWordWrap(True); info.setStyleSheet("color:#9aa09a;font-size:11px;")
         lay.addWidget(info)
         pic = QLabel(); pic.setAlignment(Qt.AlignCenter)
         pic.setPixmap(QPixmap(p).scaled(680, 500, Qt.KeepAspectRatio, Qt.SmoothTransformation))
@@ -1750,7 +1770,7 @@ class MainWindow(QMainWindow):
             form.addWidget(QLabel(lab), r, 0); form.addWidget(wdg, r, 1)
         lay.addLayout(form)
         out = QLabel(); out.setWordWrap(True); out.setTextFormat(Qt.RichText)
-        out.setStyleSheet("background:#1c1b25;border-radius:8px;padding:10px;")
+        out.setStyleSheet("background:#202227;border-radius:8px;padding:10px;")
         lay.addWidget(out)
 
         def compute():
@@ -1899,6 +1919,63 @@ class MainWindow(QMainWindow):
         self._retouch_dlg = dlg
         self._append(f"\n✏️ Retusche-Editor geöffnet ({len(srcs)} Quellfotos).\n")
 
+    def keyPressEvent(self, e):
+        """Foto-Einzeltasten — feuern nur, wenn KEIN Textfeld den Fokus hat
+        (Qt liefert die Taste sonst direkt ans Eingabefeld). Modul-Auswahl ausgenommen."""
+        if self.top_stack.currentIndex() != 1 or (e.modifiers() & ~Qt.KeypadModifier):
+            return super().keyPressEvent(e)
+        k = e.key()
+        makro = not (getattr(self, "is_astro", False) or getattr(self, "is_hybrid", False)
+                     or getattr(self, "is_longexp", False))
+        if k == Qt.Key_Space and self.cmp_btn.isEnabled():
+            self.open_compare()
+        elif k == Qt.Key_A and makro:
+            self.analyze_series()
+        elif k == Qt.Key_S:
+            self.run(auto=self.mode_box.currentIndex() == 0)
+        elif k == Qt.Key_E and self.adjust_btn.isEnabled():
+            self.open_adjust()
+        elif k == Qt.Key_G and self.ghost_btn.isEnabled():
+            self.open_ghostmap()
+        elif k == Qt.Key_F:
+            (self.show_focus_map if getattr(self, "_analyze_paths", None) else self.analyze_series)()
+        elif k == Qt.Key_R and self.retouch_btn.isEnabled() and self.retouch_btn.isVisible():
+            self.open_retouch()
+        elif k in (Qt.Key_Left, Qt.Key_Right):
+            self._step_filmstrip(-1 if k == Qt.Key_Left else 1)
+        else:
+            return super().keyPressEvent(e)
+
+    def _step_filmstrip(self, d):
+        paths = getattr(self, "_strip_paths", None)
+        if not paths:
+            return
+        self._strip_idx = (getattr(self, "_strip_idx", 0) + d) % len(paths)
+        self._set_preview(paths[self._strip_idx])
+
+    def export_result(self):
+        """Aktuelles Ergebnis exportieren: teilbares JPG + gewählte Presets, dann Ordner zeigen."""
+        if not self.result_path or cv2 is None:
+            QMessageBox.information(self, tr("Exportieren"), tr("Erst ein Ergebnis erzeugen.")); return
+        try:
+            import focus_cull_stack as F
+        except Exception as e:
+            QMessageBox.warning(self, tr("Exportieren"), f"{e}"); return
+        stack_dir = os.path.dirname(self.result_path)
+        export_dir = os.path.join(self._work_dir(), "export")
+        chosen = [k for k, cb in self.exp_targets.items() if cb.isChecked()]
+        try:
+            F.export_web_jpg(stack_dir, export_dir)
+            if chosen:
+                F.export_targets(stack_dir, export_dir, chosen)
+        except Exception as e:
+            QMessageBox.warning(self, tr("Exportieren"), f"{e}"); return
+        n = len(os.listdir(export_dir)) if os.path.isdir(export_dir) else 0
+        self._append(f"\n📦 Exportiert ({', '.join(chosen) if chosen else 'Web-JPG'}) → "
+                     f"{export_dir} ({n} Datei(en))\n")
+        if os.path.isdir(export_dir):
+            reveal_in_files(export_dir)
+
     def resizeEvent(self, e):
         super().resizeEvent(e)
         src = getattr(self, "_preview_src", None)
@@ -1974,69 +2051,71 @@ class MainWindow(QMainWindow):
 
 
 THEME = """
-QWidget { background:#0f0e15; color:#e9e7f0; font-size:13px; }
-QMainWindow, QDialog { background:#0f0e15; }
+/* StackForge — Anthrazit + Chili-Grün (GreenChili). Statusfarben: grün=gut, gelb=Warnung,
+   rot=Problem, blau=Info. Akzent #4caf50-Familie. */
+QWidget { background:#16171a; color:#e8eae6; font-size:13px; }
+QMainWindow, QDialog { background:#16171a; }
 
-/* Karten/Gruppen — sichtbar abgehobene Flächen auf dunklem Canvas */
+/* Karten/Gruppen — sichtbar abgehobene Flächen auf Anthrazit */
 QGroupBox {
-    background:#1c1b27; border:1px solid #302d40; border-radius:12px;
+    background:#202227; border:1px solid #30343a; border-radius:12px;
     margin-top:20px; padding:16px 12px 12px 12px; font-weight:600; }
 QGroupBox::title {
     subcontrol-origin:margin; subcontrol-position:top left; left:14px; padding:3px 8px;
-    color:#b6a9ff; font-size:12px; font-weight:700; background:#0f0e15; }
+    color:#7bd36a; font-size:12px; font-weight:700; background:#16171a; }
 QGroupBox::indicator { width:18px; height:18px; }
 
 QLabel { background:transparent; }
 
-/* Eingaben — flach, mit Akzent-Fokus */
+/* Eingaben — flach, mit Grün-Fokus */
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QPlainTextEdit {
-    background:#232231; border:1px solid #312f40; border-radius:8px; padding:6px 8px; color:#e9e7f0;
-    selection-background-color:#7c5cff; }
+    background:#26282e; border:1px solid #34383f; border-radius:8px; padding:6px 8px; color:#e8eae6;
+    selection-background-color:#4caf50; }
 QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
-    border:1px solid #7c5cff; background:#26243580; }
-QPlainTextEdit { background:#100f16; border:1px solid #232231; }
+    border:1px solid #5cc85c; background:#282b30; }
+QPlainTextEdit { background:#101113; border:1px solid #26282e; }
 QComboBox::drop-down { border:none; width:22px; }
 QComboBox QAbstractItemView {
-    background:#1c1b25; border:1px solid #312f40; border-radius:8px;
-    selection-background-color:#7c5cff; outline:none; padding:4px; }
+    background:#202227; border:1px solid #34383f; border-radius:8px;
+    selection-background-color:#4caf50; outline:none; padding:4px; }
 
 /* Standard-Buttons — flach, weicher Rand */
 QPushButton {
-    background:#262433; border:1px solid #353244; border-radius:9px; padding:8px 14px; color:#e9e7f0; }
-QPushButton:hover { background:#302d40; border-color:#4a4660; }
-QPushButton:pressed { background:#3a3550; }
-QPushButton:disabled { color:#6a6580; background:#1d1c26; border-color:#262433; }
+    background:#2a2d33; border:1px solid #3a3e45; border-radius:9px; padding:8px 14px; color:#e8eae6; }
+QPushButton:hover { background:#33373e; border-color:#4a4f57; }
+QPushButton:pressed { background:#3c4149; }
+QPushButton:disabled { color:#6a6e73; background:#1d1f23; border-color:#26282e; }
 
-/* Primär-Aktion (objectName 'primary') — gefüllter Akzent */
+/* Primär-Aktion (objectName 'primary') — gefülltes Chili-Grün */
 QPushButton#primary {
-    background:#7c5cff; border:1px solid #7c5cff; color:#ffffff; font-weight:700; }
-QPushButton#primary:hover { background:#8f74ff; border-color:#8f74ff; }
-QPushButton#primary:pressed { background:#6a4ae0; }
-QPushButton#primary:disabled { background:#3a3358; border-color:#3a3358; color:#9a93b8; }
+    background:#4caf50; border:1px solid #4caf50; color:#0d1f0e; font-weight:700; }
+QPushButton#primary:hover { background:#5cc85c; border-color:#5cc85c; }
+QPushButton#primary:pressed { background:#3f9942; }
+QPushButton#primary:disabled { background:#2f4630; border-color:#2f4630; color:#8aa88c; }
 
 QCheckBox { spacing:7px; }
 QCheckBox::indicator {
-    width:18px; height:18px; border-radius:5px; border:1px solid #3a3850; background:#232231; }
-QCheckBox::indicator:hover { border-color:#7c5cff; }
-QCheckBox::indicator:checked { background:#7c5cff; border-color:#7c5cff; }
+    width:18px; height:18px; border-radius:5px; border:1px solid #3c4047; background:#26282e; }
+QCheckBox::indicator:hover { border-color:#5cc85c; }
+QCheckBox::indicator:checked { background:#4caf50; border-color:#4caf50; }
 
 QProgressBar {
-    border:none; border-radius:7px; background:#232231; text-align:center; height:16px; color:#cfc9e0; }
-QProgressBar::chunk { background:#7c5cff; border-radius:7px; }
+    border:none; border-radius:7px; background:#26282e; text-align:center; height:16px; color:#cfd2cd; }
+QProgressBar::chunk { background:#4caf50; border-radius:7px; }
 
 QSplitter::handle { background:transparent; width:10px; }
 
 QScrollBar:vertical { background:transparent; width:10px; margin:2px; }
-QScrollBar::handle:vertical { background:#332f44; border-radius:5px; min-height:30px; }
-QScrollBar::handle:vertical:hover { background:#454060; }
+QScrollBar::handle:vertical { background:#34383f; border-radius:5px; min-height:30px; }
+QScrollBar::handle:vertical:hover { background:#474c54; }
 QScrollBar::add-line, QScrollBar::sub-line { height:0; }
 QScrollBar:horizontal { background:transparent; height:10px; margin:2px; }
-QScrollBar::handle:horizontal { background:#332f44; border-radius:5px; min-width:30px; }
+QScrollBar::handle:horizontal { background:#34383f; border-radius:5px; min-width:30px; }
 
 QToolTip {
-    background:#26243a; color:#e9e7f0; border:1px solid #4a4470; border-radius:8px; padding:6px 8px; }
-QMenu { background:#1c1b25; border:1px solid #312f40; border-radius:8px; padding:4px; }
-QMenu::item:selected { background:#7c5cff; border-radius:6px; }
+    background:#26282e; color:#e8eae6; border:1px solid #4a7d4a; border-radius:8px; padding:6px 8px; }
+QMenu { background:#202227; border:1px solid #312f40; border-radius:8px; padding:4px; }
+QMenu::item:selected { background:#4caf50; border-radius:6px; }
 """
 
 
