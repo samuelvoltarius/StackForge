@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
-focus_stack_gui.py — GUI fuer focus_cull_stack.py (PySide6).
+ui/main_window.py — StackForge-Hauptfenster (PySide6).
 
-Ordnerauswahl + alle Einstellungen + Live-Log + Ergebnis-Vorschau.
-Ruft focus_cull_stack.py als Subprozess auf (streamt stdout/stderr live).
-
-Start:  python3 focus_stack_gui.py
+Start-Auswahl der Module, Schritt-für-Schritt-Wizard, alle Einstellungen, Live-Log
+und Ergebnis-Vorschau. Ruft focus_cull_stack.py als Subprozess auf (streamt stdout/stderr live).
+Einstiegspunkt: focus_stack_gui.py (dünner Launcher) bzw. StackForge.app.
 """
 import os
 import re
@@ -72,31 +71,35 @@ class MainWindow(QMainWindow):
         root = QWidget()
         self.top_stack.addWidget(root)                  # Index 1
         outer = QVBoxLayout(root)
+        outer.setContentsMargins(16, 12, 16, 14)
+        outer.setSpacing(12)
 
         # Header mit Logo + Name
         header = QHBoxLayout()
+        header.setSpacing(8)
         self.modules_btn = QPushButton(tr("◀ Module"))
         self.modules_btn.setToolTip(tr("Zur Modul-Auswahl zurück"))
         self.modules_btn.clicked.connect(lambda: self.top_stack.setCurrentIndex(0))
         header.addWidget(self.modules_btn)
         logo = QLabel()
         if os.path.isfile(ICON_PNG):
-            logo.setPixmap(QPixmap(ICON_PNG).scaled(40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            logo.setPixmap(QPixmap(ICON_PNG).scaled(34, 34, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         title = QLabel("StackForge")
-        title.setStyleSheet("font-size:22px;font-weight:bold;")
-        sub = QLabel(tr("Fokus-Stacking mit KI"))
-        sub.setStyleSheet("color:#888;")
-        header.addWidget(logo); header.addWidget(title); header.addSpacing(10)
-        header.addWidget(sub); header.addStretch(1)
-        header.addWidget(QLabel(tr("Aufgabe:")))
+        title.setStyleSheet("font-size:20px;font-weight:700;letter-spacing:0.3px;")
+        header.addSpacing(4)
+        header.addWidget(logo); header.addSpacing(8); header.addWidget(title)
+        header.addStretch(1)
+        task_lbl = QLabel(tr("Aufgabe:")); task_lbl.setStyleSheet("color:#908aa0;")
+        header.addWidget(task_lbl)
         self.task_box = QComboBox()
         self.task_box.addItems([tr("🔬 Makro (Fokus)"), tr("🌌 Astro (Sterne)"),
                                 tr("🌗 Hybrid (Mosaik)"), tr("📷 Langzeitbelichtung")])
         # 0=Makro, 1=Astro, 2=Hybrid, 3=Langzeit
         self.task_box.currentIndexChanged.connect(lambda _i: self._set_task())
         header.addWidget(self.task_box)
-        header.addSpacing(12)
-        header.addWidget(QLabel(tr("Modus:")))
+        header.addSpacing(14)
+        mode_lbl = QLabel(tr("Modus:")); mode_lbl.setStyleSheet("color:#908aa0;")
+        header.addWidget(mode_lbl)
         self.mode_box = QComboBox()
         self.mode_box.addItems([tr("🌱 Anfänger"), tr("🛠️ Profi")])  # 0=Anfänger, 1=Profi
         self.mode_box.currentIndexChanged.connect(lambda _i: self._apply_visibility())
@@ -137,7 +140,8 @@ class MainWindow(QMainWindow):
         for r, (lab, edit) in enumerate([("GraXpert", self.graxpert_path),
                                          ("StarNet++", self.starnet_path),
                                          ("Siril", self.siril_path)]):
-            btn = QPushButton("…"); btn.clicked.connect(lambda _=False, e=edit: self._pick_file_into(e))
+            btn = QPushButton("…"); btn.setFixedWidth(36)
+            btn.clicked.connect(lambda _=False, e=edit: self._pick_file_into(e))
             gt.addWidget(QLabel(lab), r, 0); gt.addWidget(edit, r, 1); gt.addWidget(btn, r, 2)
         gt.addWidget(help_btn("Pfade zu deinen installierten Tools. Leer lassen = StackForge sucht "
                               "selbst (PATH + übliche Orte). GraXpert/StarNet → Ein-Klick in der "
@@ -149,7 +153,8 @@ class MainWindow(QMainWindow):
 
         # ---- linke Spalte: Schritt-für-Schritt-Wizard ----
         left = QWidget()
-        left.setMaximumWidth(540)
+        left.setMinimumWidth(500)
+        left.setMaximumWidth(600)
         lv = QVBoxLayout(left)
 
         self.STEP_NAMES = [tr("1 · Fotos"), tr("2 · Auswahl & Ausrichtung"),
@@ -211,8 +216,9 @@ class MainWindow(QMainWindow):
         self.auto_btn = QPushButton("⚡  Automatik — beste Qualität (ein Klick)")
         self.auto_btn.setToolTip("Ordner wählen, hier klicken. Die KI bestimmt alle Einstellungen, "
                                  "RAW läuft in 16-bit, Ebenen-TIFF fürs Weiterbearbeiten wird erzeugt.")
-        self.auto_btn.setMinimumHeight(44)
-        self.auto_btn.setStyleSheet("font-weight:bold;font-size:14px;")
+        self.auto_btn.setMinimumHeight(46)
+        self.auto_btn.setObjectName("primary")
+        self.auto_btn.setStyleSheet("font-size:14px;")
         self.auto_btn.clicked.connect(lambda: self.run(auto=True))
         p1.addWidget(self.auto_btn)
         hint = QLabel("Ein Klick genügt. Für mehr Kontrolle mit „Weiter →“ durch die Schritte.")
@@ -279,6 +285,7 @@ class MainWindow(QMainWindow):
         self.astro_kappa = QDoubleSpinBox(); self.astro_kappa.setRange(1.0, 5.0)
         self.astro_kappa.setSingleStep(0.1); self.astro_kappa.setValue(2.5)
         self.astro_register = QCheckBox("Sterne ausrichten"); self.astro_register.setChecked(True)
+        self.astro_qc = QCheckBox(tr("Schlechte Subs automatisch aussortieren")); self.astro_qc.setChecked(True)
         self.astro_stretch = QCheckBox("Vorschau strecken (asinh)"); self.astro_stretch.setChecked(True)
         self.astro_bg = QCheckBox("Hintergrund/Gradient entfernen")
         self.astro_fits = QCheckBox("Auch als FITS speichern")
@@ -292,9 +299,9 @@ class MainWindow(QMainWindow):
         self.astro_dark = QLineEdit(); self.astro_dark.setPlaceholderText("optional: Dark-Ordner/-Datei")
         self.astro_flat = QLineEdit(); self.astro_flat.setPlaceholderText("optional: Flat-Ordner/-Datei")
         self.astro_bias = QLineEdit(); self.astro_bias.setPlaceholderText("optional: Bias-Ordner/-Datei")
-        dbtn = QPushButton("…"); dbtn.clicked.connect(lambda: self._pick_into(self.astro_dark))
-        fbtn = QPushButton("…"); fbtn.clicked.connect(lambda: self._pick_into(self.astro_flat))
-        bbtn = QPushButton("…"); bbtn.clicked.connect(lambda: self._pick_into(self.astro_bias))
+        dbtn = QPushButton("…"); dbtn.setFixedWidth(36); dbtn.clicked.connect(lambda: self._pick_into(self.astro_dark))
+        fbtn = QPushButton("…"); fbtn.setFixedWidth(36); fbtn.clicked.connect(lambda: self._pick_into(self.astro_flat))
+        bbtn = QPushButton("…"); bbtn.setFixedWidth(36); bbtn.clicked.connect(lambda: self._pick_into(self.astro_bias))
         # Engine: eigene oder optional Siril (Pfad steht im Setup-Menü unter „Externe Tools“)
         self.astro_engine = QComboBox()
         self.astro_engine.addItem(tr("Eigene"), "own")
@@ -305,38 +312,42 @@ class MainWindow(QMainWindow):
                               "„max“ = Strichspuren."), 0, 3)
         ar.addWidget(QLabel("Kappa"), 1, 0); ar.addWidget(self.astro_kappa, 1, 1, 1, 2)
         ar.addWidget(self.astro_register, 2, 0, 1, 3)
-        ar.addWidget(self.astro_stretch, 3, 0, 1, 3)
-        ar.addWidget(self.astro_bg, 4, 0, 1, 3)
+        ar.addWidget(self.astro_qc, 3, 0, 1, 3)
+        ar.addWidget(help_btn("Bewertet jede Aufnahme (Sternzahl/FWHM/Elongation/Wolken/Spuren) "
+                              "und lässt schlechte Subs weg — mit Begründung im Log. Aus = alle "
+                              "Aufnahmen verwenden."), 3, 3)
+        ar.addWidget(self.astro_stretch, 4, 0, 1, 3)
+        ar.addWidget(self.astro_bg, 5, 0, 1, 3)
         ar.addWidget(help_btn("Entfernt weiche Helligkeits-Gradienten (Lichtverschmutzung/Vignette). "
                               "Für stärkere Tools: das 32-bit-Linear-TIFF in GraXpert/StarNet++/"
-                              "PixInsight öffnen."), 4, 3)
-        ar.addWidget(QLabel("Dark"), 5, 0); ar.addWidget(self.astro_dark, 5, 1, 1, 1); ar.addWidget(dbtn, 5, 2)
-        ar.addWidget(QLabel("Flat"), 6, 0); ar.addWidget(self.astro_flat, 6, 1, 1, 1); ar.addWidget(fbtn, 6, 2)
-        ar.addWidget(QLabel("Bias"), 7, 0); ar.addWidget(self.astro_bias, 7, 1, 1, 1); ar.addWidget(bbtn, 7, 2)
-        ar.addWidget(QLabel("Engine"), 8, 0); ar.addWidget(self.astro_engine, 8, 1, 1, 2)
+                              "PixInsight öffnen."), 5, 3)
+        ar.addWidget(QLabel("Dark"), 6, 0); ar.addWidget(self.astro_dark, 6, 1, 1, 1); ar.addWidget(dbtn, 6, 2)
+        ar.addWidget(QLabel("Flat"), 7, 0); ar.addWidget(self.astro_flat, 7, 1, 1, 1); ar.addWidget(fbtn, 7, 2)
+        ar.addWidget(QLabel("Bias"), 8, 0); ar.addWidget(self.astro_bias, 8, 1, 1, 1); ar.addWidget(bbtn, 8, 2)
+        ar.addWidget(QLabel("Engine"), 9, 0); ar.addWidget(self.astro_engine, 9, 1, 1, 2)
         ar.addWidget(help_btn("„Eigene“ = StackForge selbst (Standard, kein Fremdprogramm). "
                               "„Siril“ = optional dein installiertes Siril fernsteuern "
                               "(Konvertieren→Registrieren→Stacken). Pfad im Setup-Menü → "
-                              "„Externe Tools“."), 8, 3)
+                              "„Externe Tools“."), 9, 3)
         ar.addWidget(self.astro_fits, 10, 0, 1, 3)
         ar.addWidget(help_btn("Speichert das fertige Stack-Ergebnis zusätzlich als 32-bit-FITS "
                               "(neben dem TIFF) — für PixInsight/Siril. FITS-Lights werden auch "
                               "direkt eingelesen."), 10, 3)
-        ar.addWidget(QLabel(tr("Ausrichtung")), 12, 0); ar.addWidget(self.astro_align, 12, 1, 1, 2)
+        ar.addWidget(QLabel(tr("Ausrichtung")), 11, 0); ar.addWidget(self.astro_align, 11, 1, 1, 2)
         ar.addWidget(help_btn("Translation = nur Verschiebung (nachgeführte Montierung, schnell). "
                               "Translation + Feldrotation = richtet auch gedrehte Felder aus "
-                              "(Alt-Az-Montierung ohne Rotator, lange Sessions) — per Stern-Merkmalen."), 12, 3)
-        ar.addWidget(self.astro_cosmetic, 13, 0, 1, 2)
-        ar.addWidget(QLabel(tr("Drizzle")), 13, 2); ar.addWidget(self.astro_drizzle, 13, 3)
+                              "(Alt-Az-Montierung ohne Rotator, lange Sessions) — per Stern-Merkmalen."), 11, 3)
+        ar.addWidget(self.astro_cosmetic, 12, 0, 1, 2)
+        ar.addWidget(QLabel(tr("Drizzle")), 12, 2); ar.addWidget(self.astro_drizzle, 12, 3)
         ar.addWidget(help_btn("Hot-/Cold-Pixel = entfernt helle/dunkle Einzelpixel (Sensor-Defekte) "
                               "vor dem Stacken. Drizzle 2× = doppelt hochskaliert integrieren "
                               "(feineres Sampling bei unterabgetasteten Daten; „Drizzle-lite“, keine "
-                              "echte Pixel-Fraktion wie PixInsight)."), 14, 3)
+                              "echte Pixel-Fraktion wie PixInsight)."), 13, 3)
         as_info = QLabel(tr("Astro: viele Aufnahmen desselben Himmelsausschnitts → Rauschen mitteln. "
                             "Empfohlen: 20–100+ Lights (mehr = weniger Rauschen) · Darks 15–30 · "
                             "Flats 15–30 · Bias 30+. Optional als Ordner/Datei angeben."))
         as_info.setWordWrap(True); as_info.setStyleSheet("color:#9b90b5;font-size:11px;")
-        ar.addWidget(as_info, 15, 0, 1, 4)
+        ar.addWidget(as_info, 14, 0, 1, 4)
         p1.addWidget(g_astro)
 
         # Hybrid — Mosaik (Mond/Sonne) ODER Fokus+Astro
@@ -945,6 +956,8 @@ class MainWindow(QMainWindow):
                      "--astro-kappa", str(self.astro_kappa.value())]
             if not self.astro_register.isChecked():
                 args += ["--no-register"]
+            if not self.astro_qc.isChecked():
+                args += ["--no-astro-qc"]
             if self.astro_stretch.isChecked():
                 args += ["--astro-stretch"]
             if self.astro_bg.isChecked():
@@ -1555,6 +1568,7 @@ class MainWindow(QMainWindow):
             "astro_fits": (self.astro_fits.setChecked, self.astro_fits.isChecked),
             "astro_align": (lambda v: self.astro_align.setCurrentIndex(int(v)), self.astro_align.currentIndex),
             "astro_cosmetic": (self.astro_cosmetic.setChecked, self.astro_cosmetic.isChecked),
+            "astro_qc": (self.astro_qc.setChecked, self.astro_qc.isChecked),
             "astro_drizzle": (lambda v: self.astro_drizzle.setCurrentIndex(int(v)), self.astro_drizzle.currentIndex),
             "hybrid_kind": (lambda v: self.hybrid_kind.setCurrentIndex(int(v)), self.hybrid_kind.currentIndex),
             "hybrid_group": (lambda v: self.hybrid_group.setValue(int(v)), self.hybrid_group.value),
@@ -1573,7 +1587,7 @@ class MainWindow(QMainWindow):
 
     def _restore_settings(self):
         st = QSettings("ServeOne", "StackForge")
-        bool_keys = {"raw_dev", "raw_half", "vlm_on", "astro_fits", "astro_cosmetic"}
+        bool_keys = {"raw_dev", "raw_half", "vlm_on", "astro_fits", "astro_cosmetic", "astro_qc"}
         for k, (setter, _g) in self._settings_map().items():
             v = st.value(k)
             if v is None or v == "":
@@ -1598,22 +1612,70 @@ class MainWindow(QMainWindow):
 
 
 THEME = """
-QWidget { background:#1a1326; color:#e8e3f5; font-size:13px; }
-QGroupBox { border:1px solid #3a2d55; border-radius:8px; margin-top:14px; padding-top:8px; font-weight:bold; }
-QGroupBox::title { subcontrol-origin:margin; left:10px; padding:0 5px; color:#b69bff; }
+* { font-family: -apple-system, "SF Pro Text", "Segoe UI", "Inter", sans-serif; }
+QWidget { background:#141319; color:#e9e7f0; font-size:13px; }
+QMainWindow, QDialog { background:#141319; }
+
+/* Karten/Gruppen — ruhige Flächen, dezente Ränder, mehr Luft */
+QGroupBox {
+    background:#1c1b25; border:1px solid #2a2836; border-radius:12px;
+    margin-top:18px; padding:14px 12px 10px 12px; font-weight:600; }
+QGroupBox::title {
+    subcontrol-origin:margin; subcontrol-position:top left; left:12px; padding:2px 6px;
+    color:#a99cff; font-size:12px; }
+QGroupBox::indicator { width:18px; height:18px; }
+
+QLabel { background:transparent; }
+
+/* Eingaben — flach, mit Akzent-Fokus */
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QPlainTextEdit {
-    background:#241a38; border:1px solid #3a2d55; border-radius:6px; padding:4px; color:#e8e3f5; }
-QPlainTextEdit { background:#140f1f; }
-QComboBox QAbstractItemView { background:#241a38; selection-background-color:#6b3fb0; }
-QPushButton { background:#2e2247; border:1px solid #4a3a6e; border-radius:7px; padding:7px 12px; }
-QPushButton:hover { background:#3c2d5e; }
-QPushButton:pressed { background:#553f86; }
-QPushButton:disabled { color:#6b6080; background:#221a33; }
-QCheckBox::indicator, QGroupBox::indicator { width:16px; height:16px; }
-QProgressBar { border:1px solid #3a2d55; border-radius:6px; background:#241a38; text-align:center; height:18px; }
-QProgressBar::chunk { background:#8a5cff; border-radius:5px; }
-QScrollBar:vertical { background:#1a1326; width:12px; } QScrollBar::handle:vertical { background:#3a2d55; border-radius:6px; }
-QToolTip { background:#241a38; color:#e8e3f5; border:1px solid #6b3fb0; }
+    background:#232231; border:1px solid #312f40; border-radius:8px; padding:6px 8px; color:#e9e7f0;
+    selection-background-color:#7c5cff; }
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+    border:1px solid #7c5cff; background:#26243580; }
+QPlainTextEdit { background:#100f16; border:1px solid #232231; }
+QComboBox::drop-down { border:none; width:22px; }
+QComboBox QAbstractItemView {
+    background:#1c1b25; border:1px solid #312f40; border-radius:8px;
+    selection-background-color:#7c5cff; outline:none; padding:4px; }
+
+/* Standard-Buttons — flach, weicher Rand */
+QPushButton {
+    background:#262433; border:1px solid #353244; border-radius:9px; padding:8px 14px; color:#e9e7f0; }
+QPushButton:hover { background:#302d40; border-color:#4a4660; }
+QPushButton:pressed { background:#3a3550; }
+QPushButton:disabled { color:#6a6580; background:#1d1c26; border-color:#262433; }
+
+/* Primär-Aktion (objectName 'primary') — gefüllter Akzent */
+QPushButton#primary {
+    background:#7c5cff; border:1px solid #7c5cff; color:#ffffff; font-weight:700; }
+QPushButton#primary:hover { background:#8f74ff; border-color:#8f74ff; }
+QPushButton#primary:pressed { background:#6a4ae0; }
+QPushButton#primary:disabled { background:#3a3358; border-color:#3a3358; color:#9a93b8; }
+
+QCheckBox { spacing:7px; }
+QCheckBox::indicator {
+    width:18px; height:18px; border-radius:5px; border:1px solid #3a3850; background:#232231; }
+QCheckBox::indicator:hover { border-color:#7c5cff; }
+QCheckBox::indicator:checked { background:#7c5cff; border-color:#7c5cff; }
+
+QProgressBar {
+    border:none; border-radius:7px; background:#232231; text-align:center; height:16px; color:#cfc9e0; }
+QProgressBar::chunk { background:#7c5cff; border-radius:7px; }
+
+QSplitter::handle { background:transparent; width:10px; }
+
+QScrollBar:vertical { background:transparent; width:10px; margin:2px; }
+QScrollBar::handle:vertical { background:#332f44; border-radius:5px; min-height:30px; }
+QScrollBar::handle:vertical:hover { background:#454060; }
+QScrollBar::add-line, QScrollBar::sub-line { height:0; }
+QScrollBar:horizontal { background:transparent; height:10px; margin:2px; }
+QScrollBar::handle:horizontal { background:#332f44; border-radius:5px; min-width:30px; }
+
+QToolTip {
+    background:#26243a; color:#e9e7f0; border:1px solid #4a4470; border-radius:8px; padding:6px 8px; }
+QMenu { background:#1c1b25; border:1px solid #312f40; border-radius:8px; padding:4px; }
+QMenu::item:selected { background:#7c5cff; border-radius:6px; }
 """
 
 

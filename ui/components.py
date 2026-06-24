@@ -595,13 +595,20 @@ def notify(title, msg):
 
 
 def help_btn(text):
-    """Kleiner runder „?"-Button, der eine Klartext-Erklärung zeigt."""
+    """Kleiner runder „?"-Button, der eine Klartext-Erklärung zeigt.
+    Text läuft durch i18n.tr(), damit Hilfetexte übersetzbar sind (Fallback: deutsch)."""
+    try:
+        from i18n import tr as _tr
+        text = _tr(text)
+    except Exception:
+        pass
     b = QToolButton()
     b.setText("?")
     b.setFixedSize(20, 20)
     b.setCursor(Qt.PointingHandCursor)
-    b.setStyleSheet("QToolButton{border:1px solid #6b3fb0;border-radius:10px;color:#b69bff;"
-                    "font-weight:bold;} QToolButton:hover{background:#3c2d5e;}")
+    b.setStyleSheet("QToolButton{border:none;border-radius:10px;color:#7a7490;"
+                    "background:#232231;font-weight:600;} "
+                    "QToolButton:hover{background:#7c5cff;color:#ffffff;}")
     rich = f"<div style='max-width:340px;white-space:normal'>{text}</div>"
     b.setToolTip(rich)
     b.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), rich, b))

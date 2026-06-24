@@ -223,13 +223,11 @@ def vlm_qc(frames, endpoint, model, only_borderline=True, median=0.0, api_key=No
             continue
         if only_borderline and median > 0 and f.peak_sharp > 1.5 * median:
             continue  # klar scharfe Frames nicht erst fragen
-        with open(f.path, "rb") as fh:
-            b64 = base64.b64encode(fh.read()).decode()
-        ext = os.path.splitext(f.path)[1].lower().lstrip(".")
-        mime = "jpeg" if ext in ("jpg", "jpeg") else ext
+        # Heruntergerechnetes JPG senden (NICHT das volle RAW/TIFF — sonst Token-Limit/Timeout)
+        data_url = _encode_jpeg_dataurl(f.path)
         messages = [{"role": "user", "content": [
             {"type": "text", "text": prompt},
-            {"type": "image_url", "image_url": {"url": f"data:image/{mime};base64,{b64}"}}]}]
+            {"type": "image_url", "image_url": {"url": data_url}}]}]
         try:
             txt = _vlm_chat(endpoint, model, messages, max_tokens=200, api_key=api_key, timeout=120)
             f.vlm_verdict = txt.strip()
@@ -501,8 +499,16 @@ def run_own_engine(selected_dir, work_dir, args):
     paths = list_images(selected_dir)
     if args.reverse:
         paths = paths[::-1]
-    # Speicherbedarf schätzen -> bei großen Stacks gebündelt streamen
-    sample = cv2.imread(paths[0], cv2.IMREAD_UNCHANGED)
+    # Speicherbedarf schätzen -> bei großen Stacks gebündelt streamen.
+    # Erstes LESBARES Bild als Stichprobe (korrupte/nicht dekodierbare überspringen).
+    sample = None
+    for p in paths:
+        sample = cv2.imread(p, cv2.IMREAD_UNCHANGED)
+        if sample is not None:
+            break
+    if sample is None:
+        print("  Kein lesbares Bild im Stack — abgebrochen.", file=sys.stderr)
+        return None
     per = sample.shape[0] * sample.shape[1] * (sample.shape[2] if sample.ndim == 3 else 1) * sample.itemsize
     budget = int(getattr(args, "ram_budget_gb", 3) * (1024 ** 3))
     need = int(per * len(paths) * 2.5)  # Frames + Pyramiden grob
@@ -895,7 +901,12 @@ def run_hybrid_focus_astro(input_dir, work_dir, args):
               "Unterordner an (mehrere Shots darin) oder erhöhe --hybrid-group.",
               file=sys.stderr)
         return None
+    # Bei wenigen Shots je Position verwirft Sigma-Clipping zu viel -> average ist robuster
     method = getattr(args, "astro_method", "average")
+    min_shots = min(len(ims) for _n, ims in groups)
+    if method in ("sigma", "winsor") and min_shots < 8:
+        print(f"  (nur {min_shots} Shot(s)/Position → average statt {method})")
+        method = "average"
     print(f"== Hybrid Fokus+Astro: {len(groups)} Positionen, je Astro-Stack ({method}) ==")
     denoised_dir = os.path.join(work_dir, "denoised")
     if os.path.isdir(denoised_dir):
@@ -985,9 +996,10 @@ def run_mosaic(input_dir, work_dir, args):
     out = os.path.join(stack_dir, f"{args.prefix}{base}_mosaik.jpg")
     cv2.imwrite(out, pano, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
     print(f"  geschrieben: {out} ({pano.shape[1]}x{pano.shape[0]})")
-    if getattr(args, "web_jpg", False) or getattr(args, "export", None):
-        if getattr(args, "export", None):
-            export_targets(stack_dir, os.path.join(work_dir, "export"), args.export)
+    if getattr(args, "web_jpg", False):
+        export_web_jpg(stack_dir, os.path.join(work_dir, "export"))
+    if getattr(args, "export", None):
+        export_targets(stack_dir, os.path.join(work_dir, "export"), args.export)
     copy_exif_to_dirs(paths[len(paths) // 2], stack_dir, os.path.join(work_dir, "export"))
     return stack_dir
 
