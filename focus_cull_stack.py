@@ -593,6 +593,14 @@ def main():
                          "dann fokus-stacken (Schärfentiefe)")
     ap.add_argument("--hybrid-group", type=int, default=5,
                     help="Fokus+Astro: Shots je Position, falls keine Unterordner vorhanden")
+    ap.add_argument("--longexp", action="store_true",
+                    help="Langzeitbelichtung aus einer Serie (Wasser/Wolken/Lichtspuren) ohne ND-Filter")
+    ap.add_argument("--longexp-mode", choices=["smooth", "trails", "declutter", "bright"],
+                    default="smooth",
+                    help="smooth=Mitteln (Wasser), trails=Aufhellen (Lichtspuren), "
+                         "declutter=Median (Störer weg), bright=additiv (dunkel aufhellen)")
+    ap.add_argument("--longexp-align", choices=["none", "shift", "feature"], default="none",
+                    help="Ausrichten: none=Stativ, shift=leichtes Verwackeln, feature=Freihand")
     ap.add_argument("--astro-method", choices=["sigma", "winsor", "average", "median", "max"],
                     default="sigma", help="Astro-Stacking-Methode (Default sigma=Kappa-Sigma)")
     ap.add_argument("--astro-kappa", type=float, default=2.5, help="Kappa für Sigma-Clipping")
@@ -882,6 +890,48 @@ def run_hybrid_focus_astro(input_dir, work_dir, args):
     return out
 
 
+def run_longexp(input_dir, work_dir, args):
+    """Langzeitbelichtung aus einer Serie rechnen (ohne ND-Filter)."""
+    import longexp
+    paths = list_images(input_dir)
+    if len(paths) < 2:
+        print("Zu wenige Aufnahmen für Langzeitbelichtung (mind. 2).", file=sys.stderr)
+        return None
+    orig_first = paths[len(paths) // 2]
+    mode = args.longexp_mode
+    # KI/Heuristik: Modus vorschlagen (nur Beratung). Im Auto übernehmen, sonst nur anzeigen.
+    try:
+        sug = longexp.suggest_mode(paths)
+        print(f"  Vorschlag: Modus „{sug['mode']}“ — {sug['rationale']}")
+        if getattr(args, "auto", False):
+            mode = sug["mode"]
+    except Exception as e:
+        print(f"  (Modus-Vorschlag übersprungen: {e})", file=sys.stderr)
+    print(f"== Langzeitbelichtung: {len(paths)} Aufnahmen, Modus={mode}, "
+          f"Ausrichten={args.longexp_align} ==")
+    result = longexp.combine(paths, mode=mode, align=args.longexp_align, work_dir=work_dir,
+                             detector=args.detector, transform=args.transform)
+
+    stack_dir = os.path.join(work_dir, "stack")
+    if os.path.isdir(stack_dir):
+        shutil.rmtree(stack_dir)
+    os.makedirs(stack_dir)
+    base = os.path.splitext(os.path.basename(orig_first))[0]
+    out = os.path.join(stack_dir, f"{args.prefix}{base}_langzeit_{mode}.tif")
+    cv2.imwrite(out, np.clip(result * 65535, 0, 65535).astype(np.uint16),
+                [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
+    out_jpg = os.path.join(stack_dir, f"{args.prefix}{base}_langzeit_{mode}.jpg")
+    cv2.imwrite(out_jpg, np.clip(result * 255, 0, 255).astype(np.uint8),
+                [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+    print(f"  geschrieben: {out_jpg} (+ 16-bit TIFF)")
+    if getattr(args, "web_jpg", False):
+        export_web_jpg(stack_dir, os.path.join(work_dir, "export"))
+    if getattr(args, "export", None):
+        export_targets(stack_dir, os.path.join(work_dir, "export"), args.export)
+    copy_exif(orig_first, [out, out_jpg])
+    return stack_dir
+
+
 def run_mosaic(input_dir, work_dir, args):
     """Hybrid: überlappende Kacheln zu einem Mosaik zusammensetzen."""
     import mosaic
@@ -906,6 +956,11 @@ def run_mosaic(input_dir, work_dir, args):
 
 def process(args, input_dir, work_dir):
     """Ein kompletter Durchlauf: analysieren -> cullen -> (VLM-QC) -> stacken."""
+    if getattr(args, "longexp", False):
+        out = run_longexp(input_dir, work_dir, args)
+        if out:
+            print(f"\nFertig. Ergebnis in: {out}")
+        return out
     if getattr(args, "hybrid_fa", False):
         out = run_hybrid_focus_astro(input_dir, work_dir, args)
         if out:

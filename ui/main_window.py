@@ -63,12 +63,22 @@ class MainWindow(QMainWindow):
         self.settings_dialog.resize(560, 420)
         self._settings_lay = QVBoxLayout(self.settings_dialog)
 
+        # Top-Level: Seite 0 = Modul-Auswahl (Start), Seite 1 = Arbeitsbereich
+        self.top_stack = QStackedWidget()
+        self.setCentralWidget(self.top_stack)
+        self.welcome = self._build_welcome()
+        self.top_stack.addWidget(self.welcome)          # Index 0
+
         root = QWidget()
-        self.setCentralWidget(root)
+        self.top_stack.addWidget(root)                  # Index 1
         outer = QVBoxLayout(root)
 
         # Header mit Logo + Name
         header = QHBoxLayout()
+        self.modules_btn = QPushButton(tr("◀ Module"))
+        self.modules_btn.setToolTip(tr("Zur Modul-Auswahl zurück"))
+        self.modules_btn.clicked.connect(lambda: self.top_stack.setCurrentIndex(0))
+        header.addWidget(self.modules_btn)
         logo = QLabel()
         if os.path.isfile(ICON_PNG):
             logo.setPixmap(QPixmap(ICON_PNG).scaled(40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation))
@@ -81,7 +91,8 @@ class MainWindow(QMainWindow):
         header.addWidget(QLabel(tr("Aufgabe:")))
         self.task_box = QComboBox()
         self.task_box.addItems([tr("🔬 Makro (Fokus)"), tr("🌌 Astro (Sterne)"),
-                                tr("🌗 Hybrid (Mosaik)")])  # 0=Makro, 1=Astro, 2=Hybrid
+                                tr("🌗 Hybrid (Mosaik)"), tr("📷 Langzeitbelichtung")])
+        # 0=Makro, 1=Astro, 2=Hybrid, 3=Langzeit
         self.task_box.currentIndexChanged.connect(lambda _i: self._set_task())
         header.addWidget(self.task_box)
         header.addSpacing(12)
@@ -308,6 +319,36 @@ class MainWindow(QMainWindow):
                               "Fokus-Position. Besser: je Position einen Unterordner anlegen."), 2, 3)
         self.hybrid_kind.currentIndexChanged.connect(lambda _i: self._hybrid_kind_changed())
         p1.addWidget(g_mos)
+
+        # Langzeitbelichtung
+        g_le = QGroupBox(tr("Langzeitbelichtung"))
+        self.longexp_group = g_le
+        lg = QGridLayout(g_le)
+        self.longexp_mode = QComboBox()
+        self.longexp_mode.addItem(tr("Glatt — Wasser/Wolken (Mitteln)"), "smooth")
+        self.longexp_mode.addItem(tr("Lichtspuren — Autos/Sterne (Aufhellen)"), "trails")
+        self.longexp_mode.addItem(tr("Störer entfernen — Passanten/Autos (Median)"), "declutter")
+        self.longexp_mode.addItem(tr("Aufhellen — dunkle Nacht (additiv)"), "bright")
+        lg.addWidget(QLabel(tr("Effekt")), 0, 0); lg.addWidget(self.longexp_mode, 0, 1, 1, 2)
+        lg.addWidget(help_btn("Glatt = seidiges Wasser/weiche Wolken (klassischer ND-Look). "
+                              "Lichtspuren = helle Bewegungen sammeln (Autolichter, Startrails, "
+                              "Feuerwerk). Störer entfernen = bewegte Objekte verschwinden "
+                              "(Median). Aufhellen = Licht aufsummieren für dunkle Szenen."), 0, 3)
+        self.longexp_align = QComboBox()
+        self.longexp_align.addItem(tr("Stativ — nicht ausrichten"), "none")
+        self.longexp_align.addItem(tr("Leichtes Verwackeln — Versatz"), "shift")
+        self.longexp_align.addItem(tr("Freihand — Merkmale"), "feature")
+        lg.addWidget(QLabel(tr("Ausrichten")), 1, 0); lg.addWidget(self.longexp_align, 1, 1, 1, 2)
+        lg.addWidget(help_btn("Vom Stativ: „nicht ausrichten“. Bei leichtem Verwackeln „Versatz“ "
+                              "(verschiebt), aus der Hand „Merkmale“ (richtet voll aus)."), 1, 3)
+        le_sug = QPushButton(tr("🤖 Effekt vorschlagen"))
+        le_sug.setToolTip(tr("Analysiert die Bewegung in der Serie und schlägt den passenden Effekt vor"))
+        le_sug.clicked.connect(self._suggest_longexp)
+        lg.addWidget(le_sug, 2, 0, 1, 3)
+        lg.addWidget(help_btn("Misst, wo & wie sich die Aufnahmen unterscheiden (klassisch, kein "
+                              "Server nötig) und wählt Glatt/Lichtspuren/Störer/Aufhellen — mit "
+                              "Begründung. Du kannst den Vorschlag jederzeit überstimmen."), 2, 3)
+        p1.addWidget(g_le)
 
         # Selektion
         g_sel = QGroupBox(tr("Bildauswahl"))
@@ -602,10 +643,86 @@ class MainWindow(QMainWindow):
         if "multilayer" in p: self.multilayer.setChecked(p["multilayer"])
         if "webjpg" in p: self.webjpg.setChecked(p["webjpg"])
 
+    def _suggest_longexp(self):
+        """Bewegungsanalyse der Serie → passenden Langzeit-Effekt vorschlagen (klassisch, kein Server)."""
+        folder = self.in_edit.text().strip()
+        if not folder or not os.path.isdir(folder):
+            QMessageBox.information(self, tr("Effekt vorschlagen"),
+                                    tr("Bitte zuerst einen Eingabe-Ordner mit der Serie wählen."))
+            return
+        try:
+            import longexp
+            import focus_cull_stack as F
+            paths = F.list_images(folder)
+            if len(paths) < 2:
+                QMessageBox.information(self, tr("Effekt vorschlagen"),
+                                        tr("Mindestens 2 Aufnahmen nötig."))
+                return
+            sug = longexp.suggest_mode(paths)
+            i = self.longexp_mode.findData(sug["mode"])
+            if i >= 0:
+                self.longexp_mode.setCurrentIndex(i)
+            QMessageBox.information(self, tr("Vorschlag"), sug["rationale"])
+        except Exception as e:
+            QMessageBox.warning(self, tr("Effekt vorschlagen"), f"{e}")
+
+    def _build_welcome(self):
+        """Start-Auswahlbildschirm: ein großes Kärtchen je Modul."""
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(40, 30, 40, 30)
+        head = QLabel("StackForge")
+        head.setStyleSheet("font-size:30px;font-weight:bold;")
+        head.setAlignment(Qt.AlignCenter)
+        sub = QLabel(tr("Was möchtest du stacken? Modul wählen — später jederzeit über „◀ Module“ wechselbar."))
+        sub.setStyleSheet("color:#b69bff;font-size:14px;")
+        sub.setAlignment(Qt.AlignCenter)
+        lay.addWidget(head); lay.addWidget(sub); lay.addSpacing(18)
+
+        grid = QGridLayout(); grid.setSpacing(16)
+        cards = [
+            (0, "🔬", tr("Makro / Fokus-Stacking"),
+             tr("Mehrere Nahaufnahmen → ein durchgehend scharfes Bild. Produkte, Münzen, Insekten, Food.")),
+            (1, "🌌", tr("Astro"),
+             tr("Sternenhimmel/Deep-Sky: Kalibrieren, ausrichten, Rauschen mitteln, schlechte Subs aussortieren.")),
+            (2, "🌗", tr("Hybrid"),
+             tr("Mond-/Sonnen-Mosaik aus Kacheln — oder Fokus+Astro (erst entrauschen, dann fokus-stacken).")),
+            (3, "📷", tr("Langzeitbelichtung"),
+             tr("Aus einer Serie eine Langzeitbelichtung ohne ND-Filter: seidiges Wasser, Lichtspuren, Störer weg.")),
+        ]
+        for n, (idx, emoji, name, desc) in enumerate(cards):
+            btn = QPushButton()
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setMinimumHeight(150)
+            btn.setText(f"{emoji}\n\n{name}\n")
+            btn.setToolTip(desc)
+            btn.setStyleSheet(
+                "QPushButton{font-size:17px;font-weight:bold;text-align:center;"
+                "border:1px solid #4a3a6e;border-radius:12px;padding:14px;background:#241a38;}"
+                "QPushButton:hover{background:#3c2d5e;border-color:#8a5cff;}")
+            d = QLabel(desc); d.setWordWrap(True); d.setStyleSheet("color:#9b90b5;font-size:12px;")
+            cell = QWidget(); cv = QVBoxLayout(cell); cv.setContentsMargins(0, 0, 0, 0)
+            cv.addWidget(btn); cv.addWidget(d)
+            btn.clicked.connect(lambda _=False, t=idx: self._choose_module(t))
+            grid.addWidget(cell, n // 2, n % 2)
+        lay.addLayout(grid)
+        lay.addStretch(1)
+        hint = QLabel(tr("Tipp: Im Anfänger-Modus genügt „Ordner wählen“ — die Automatik erklärt ihre Entscheidungen."))
+        hint.setStyleSheet("color:#777;"); hint.setAlignment(Qt.AlignCenter)
+        lay.addWidget(hint)
+        return page
+
+    def _choose_module(self, task_index):
+        """Modul aus dem Startbildschirm wählen → Aufgabe setzen + in den Arbeitsbereich wechseln."""
+        self.task_box.setCurrentIndex(task_index)
+        self._set_task()
+        self.top_stack.setCurrentIndex(1)
+
     def _set_task(self):
         i = self.task_box.currentIndex()
-        self.is_astro = i == 1   # 1 = Astro
-        self.is_hybrid = i == 2  # 2 = Hybrid (Mosaik)
+        self.is_astro = i == 1     # 1 = Astro
+        self.is_hybrid = i == 2    # 2 = Hybrid (Mosaik / Fokus+Astro)
+        self.is_longexp = i == 3   # 3 = Langzeitbelichtung
         self.astro_group.setChecked(self.is_astro)
         self._apply_visibility()
 
@@ -623,10 +740,12 @@ class MainWindow(QMainWindow):
         pro = self.mode_box.currentIndex() == 1  # 1 = Profi
         astro = getattr(self, "is_astro", False)
         hybrid = getattr(self, "is_hybrid", False)
-        makro = not astro and not hybrid
+        longexp = getattr(self, "is_longexp", False)
+        makro = not astro and not hybrid and not longexp
         self._set_step(0)
         self.astro_group.setVisible(astro)
         self.mosaic_group.setVisible(hybrid)
+        self.longexp_group.setVisible(longexp)
         self.preset_group.setVisible(makro)
         for g in (self.g_sel, self.g_ab, self.g_stk, self.g_exp):
             g.setVisible(makro)
@@ -644,6 +763,8 @@ class MainWindow(QMainWindow):
             self.auto_btn.setText(tr("🌌  Astro stacken"))
         elif hybrid:
             self._hybrid_kind_changed()
+        elif longexp:
+            self.auto_btn.setText(tr("📷  Langzeitbelichtung rechnen"))
         else:
             self.auto_btn.setText(tr("⚡  Automatik — beste Qualität (ein Klick)"))
 
@@ -761,6 +882,10 @@ class MainWindow(QMainWindow):
                     args += ["--no-register"]
             else:
                 args += ["--mosaic", "--mosaic-mode", self.mosaic_mode.currentText()]
+        if getattr(self, "is_longexp", False):
+            args += ["--longexp",
+                     "--longexp-mode", self.longexp_mode.currentData(),
+                     "--longexp-align", self.longexp_align.currentData()]
         return args
 
     def _build_args(self, auto):
@@ -1255,6 +1380,8 @@ class MainWindow(QMainWindow):
             "astro_fits": (self.astro_fits.setChecked, self.astro_fits.isChecked),
             "hybrid_kind": (lambda v: self.hybrid_kind.setCurrentIndex(int(v)), self.hybrid_kind.currentIndex),
             "hybrid_group": (lambda v: self.hybrid_group.setValue(int(v)), self.hybrid_group.value),
+            "longexp_mode": (lambda v: self.longexp_mode.setCurrentIndex(int(v)), self.longexp_mode.currentIndex),
+            "longexp_align": (lambda v: self.longexp_align.setCurrentIndex(int(v)), self.longexp_align.currentIndex),
         }
 
     def _save_settings(self):
