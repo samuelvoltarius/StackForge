@@ -2,11 +2,14 @@
 
 *[🇬🇧 English version](README.md)*
 
-**Stacking mit einem Klick — für Makro & Astro.** Fotos rein, fertiges, gestochen scharfes
+**Stacking mit einem Klick — Makro, Astro, Hybrid & Langzeitbelichtung.** Fotos rein, fertiges
 Bild raus — in bester Qualität zum Weiterbearbeiten. Eigenständig, frei (MIT),
 plattformübergreifend (Windows / macOS / Linux).
 
-![StackForge](assets/screenshot.png)
+📖 **Ausführliche Anleitung:** [docs/GUIDE.de.md](docs/GUIDE.de.md) · *[🇬🇧 Guide](docs/GUIDE.en.md)*
+
+![StackForge — Modul-Auswahl](assets/screenshot_welcome.png)
+![StackForge — Astro](assets/screenshot_astro.png)
 
 ## Highlights
 
@@ -56,10 +59,20 @@ python3 focus_stack_gui.py
 
 ## Erste Schritte
 
-1. **🌱 Anfänger** (Standard): Ordner wählen (oder aufs Fenster ziehen) → **⚡ Loslegen**. Fertig.
-2. **🛠️ Profi:** geführter 4‑Schritte‑Wizard mit allen Reglern, Astro‑Modus, KI‑Server usw.
+1. Programm öffnen → **Modul wählen** (Makro / Astro / Hybrid / Langzeit).
+2. **🌱 Anfänger** (Standard): Ordner wählen (oder aufs Fenster ziehen) → **⚡ Loslegen**. Fertig.
+3. **🛠️ Profi:** geführter Wizard mit allen Reglern, KI‑Server, externe Tools usw.
 
 > Jede Einstellung hat ein **?** mit Klartext‑Erklärung. Im Zweifel reicht die Automatik.
+> Sinnvolle Bildanzahl pro Modul steht direkt in der jeweiligen Gruppe — Details in der
+> [Anleitung](docs/GUIDE.de.md).
+
+## Externe Tools (optional)
+
+Im **Setup‑Menü (⚙) → „Externe Tools"** trägst du Pfade zu **GraXpert**, **StarNet++** und
+**Siril** ein (oder leer = automatisch suchen). Bei Astro/Langzeit/Hybrid kannst du das Ergebnis
+dann **per Ein‑Klick** durch GraXpert (Gradient) oder StarNet++ (starless) schicken — inklusive
+automatischem Reimport. Nichts davon ist Pflicht.
 
 ## Editor
 

@@ -2,11 +2,14 @@
 
 *[🇩🇪 Deutsche Version](README.de.md)*
 
-**One‑click stacking for macro & astro.** Drop your photos in, get a finished, razor‑sharp
-image out — in the best possible quality for further editing. Self‑contained, free (MIT),
-cross‑platform (Windows / macOS / Linux).
+**One‑click stacking — macro, astro, hybrid & long exposure.** Drop your photos in, get a
+finished image out — in the best possible quality for further editing. Self‑contained, free
+(MIT), cross‑platform (Windows / macOS / Linux).
 
-![StackForge](assets/screenshot_en.png)
+📖 **Full guide:** [docs/GUIDE.en.md](docs/GUIDE.en.md) · *[🇩🇪 Anleitung](docs/GUIDE.de.md)*
+
+![StackForge — module picker](assets/screenshot_welcome.png)
+![StackForge — Astro](assets/screenshot_astro.png)
 
 ## Highlights
 
@@ -56,10 +59,19 @@ python3 focus_stack_gui.py
 
 ## First steps
 
-1. **🌱 Beginner** (default): pick a folder (or drag it onto the window) → **⚡ Start**. Done.
-2. **🛠️ Pro:** guided 4‑step wizard with all controls, astro mode, AI server, etc.
+1. Open the app → **pick a module** (Macro / Astro / Hybrid / Long exposure).
+2. **🌱 Beginner** (default): pick a folder (or drag it onto the window) → **⚡ Start**. Done.
+3. **🛠️ Pro:** guided wizard with all controls, AI server, external tools, etc.
 
-> Every setting has a **?** with a plain‑language explanation. When in doubt, Automatic is enough.
+> Every setting has a **?** with a plain‑language explanation. The recommended frame count per
+> module is shown right in its group — details in the [guide](docs/GUIDE.en.md).
+
+## External tools (optional)
+
+In the **Setup menu (⚙) → "External tools"** you set paths to **GraXpert**, **StarNet++** and
+**Siril** (or leave empty = auto‑detect). For Astro/Long‑exposure/Hybrid you can then send the
+result through GraXpert (gradient) or StarNet++ (starless) with **one click** — including
+automatic re‑import. None of it is required.
 
 ## Editor
 
