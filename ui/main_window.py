@@ -470,6 +470,24 @@ class MainWindow(QMainWindow):
         sg.addWidget(QLabel("Empfindlichkeit (Doppelte)"), 4, 0); sg.addWidget(self.dupthresh, 4, 1)
         sg.addWidget(help_btn("Wie ähnlich zwei Fotos sein müssen, um als Doppel zu gelten. "
                               "Kleiner = strenger."), 4, 2)
+        self.reject_blurry = QCheckBox(tr("Verwackelte/unscharfe automatisch aussortieren"))
+        self.reject_blurry.setChecked(True)
+        sg.addWidget(self.reject_blurry, 5, 0, 1, 2)
+        sg.addWidget(help_btn("Misst die Schärfe jeder Aufnahme in Kacheln und wirft Fotos raus, "
+                              "die NIRGENDS richtig scharf sind (verwackelt/Fehlfokus) — mit "
+                              "Begründung im Log. Zusätzlich zur Nachbar-Strenge oben."), 5, 2)
+        # Fokus-Werkzeuge: Reihe analysieren + DOF-Rechner
+        tools = QHBoxLayout()
+        self.analyze_btn = QPushButton(tr("🔍 Reihe analysieren"))
+        self.analyze_btn.setToolTip(tr("Untersucht die Fokusreihe: verwackelte Fotos, redundante "
+                                       "Aufnahmen, Fokus-Abdeckung und optimale Bildanzahl."))
+        self.analyze_btn.clicked.connect(self.analyze_series)
+        self.dof_btn = QPushButton(tr("📐 DOF-Rechner"))
+        self.dof_btn.setToolTip(tr("Blende/Abbildung → Schärfentiefe, Schrittweite und benötigte "
+                                   "Bildanzahl für volle Schärfe (Shooting-Assistent)."))
+        self.dof_btn.clicked.connect(self.open_dof)
+        tools.addWidget(self.analyze_btn); tools.addWidget(self.dof_btn)
+        sg.addLayout(tools, 6, 0, 1, 3)
         self.g_sel = g_sel; p2.addWidget(g_sel)
 
         # Ausrichtung
@@ -1030,6 +1048,8 @@ class MainWindow(QMainWindow):
             args += ["--deghost"]
         if self.dedup.isChecked():
             args += ["--dedup", "--dup-thresh", str(self.dupthresh.value())]
+        if self.reject_blurry.isChecked():
+            args += ["--reject-blurry"]
         if self.nostack.isChecked():
             args += ["--no-stack"]
         if self.vlm_group.isChecked() and self.vlm_ep.text().strip():
@@ -1309,6 +1329,20 @@ class MainWindow(QMainWindow):
         self.retouch_btn.setVisible(retouch_ok)
         self.retouch_btn.setEnabled(retouch_ok)
         self._build_filmstrip(res)
+        self._show_quality()
+
+    def _show_quality(self):
+        """Stack-Qualität (aus quality.json der Pipeline) in der Vorschau-Tooltip + Log zeigen."""
+        qf = os.path.join(self._work_dir(), "quality.json")
+        if not os.path.isfile(qf):
+            return
+        try:
+            import json as _json
+            q = _json.load(open(qf))
+        except Exception:
+            return
+        findings = " · ".join(q.get("findings", []))
+        self._append(f"\n🏅 Stack-Qualität: {q.get('score')}/100 — {findings}\n")
 
     def open_compare(self):
         if not (self.result_path and self.before_path):
@@ -1472,6 +1506,111 @@ class MainWindow(QMainWindow):
         self.openfolder_btn.setEnabled(True)
         self._append(f"\n📥 Reimportiert: {os.path.basename(f)} — bereit zum Bearbeiten/Exportieren.\n")
 
+    # ---------- Fokus-Werkzeuge ----------
+    def analyze_series(self):
+        """Fokusreihe analysieren (in-process): Verwackler, redundante Frames, Abdeckung,
+        optimale Bildanzahl. Read-only, kein Subprozess."""
+        folder = self.in_edit.text().strip()
+        if not folder or not os.path.isdir(folder):
+            QMessageBox.information(self, tr("Reihe analysieren"),
+                                    tr("Bitte zuerst einen Eingabe-Ordner wählen.")); return
+        try:
+            import focus_analysis as fa, focus_cull_stack as F
+        except Exception as e:
+            QMessageBox.warning(self, tr("Reihe analysieren"), f"{e}"); return
+        paths = F.list_images(folder)
+        if len(paths) < 3:
+            QMessageBox.information(self, tr("Reihe analysieren"),
+                                    tr("Mindestens 3 Aufnahmen nötig.")); return
+        from PySide6.QtGui import QGuiApplication
+        QGuiApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            M = fa.sharpness_matrix(paths, grid=12, log=lambda *a: None)
+            blurry = fa.detect_blurry(M, paths)
+            sweep = fa.focus_sweep(M, paths)
+            opt = fa.stack_optimizer(M, paths)
+        finally:
+            QGuiApplication.restoreOverrideCursor()
+        lines = [f"<b>{len(paths)} Aufnahmen analysiert.</b>", ""]
+        if blurry:
+            names = ", ".join(n for _i, n, _r in blurry[:12])
+            lines.append(f"⚠️ <b>{len(blurry)} verwackelt/unscharf:</b> {names}")
+        else:
+            lines.append("✅ Keine verwackelten Aufnahmen erkannt.")
+        s0, s1 = sweep["sweep"]
+        lines.append(f"🎯 <b>Fokus-Abdeckung:</b> Bild {s0 + 1}–{s1 + 1} tragen den Fokusbereich "
+                     f"({len(sweep['contributing'])} beitragende Aufnahmen).")
+        if sweep["redundant"]:
+            lines.append(f"♻️ <b>{len(sweep['redundant'])} redundante</b> Aufnahmen (kein neuer "
+                         "Schärfe-Beitrag) — könnten weg.")
+        lines.append("")
+        lines.append("<b>📉 Optimale Bildanzahl</b> (Fokus-Abdeckung bei weniger Bildern):")
+        lines.append("<table cellpadding=4>")
+        for lvl in opt["levels"]:
+            bar = "█" * int(lvl["coverage"] / 5)
+            lines.append(f"<tr><td><b>{lvl['frames']}</b> Bilder</td>"
+                         f"<td>{lvl['coverage']:.0f}%</td><td>{bar}</td></tr>")
+        lines.append("</table>")
+        lines.append("<i>100 % = volle Schärfen-Abdeckung wie mit allen Bildern.</i>")
+        dlg = QDialog(self); dlg.setWindowTitle(tr("Reihen-Analyse")); dlg.resize(560, 460)
+        lay = QVBoxLayout(dlg)
+        txt = QLabel("<br>".join(lines)); txt.setWordWrap(True); txt.setTextFormat(Qt.RichText)
+        txt.setAlignment(Qt.AlignTop)
+        sc = QScrollArea(); sc.setWidgetResizable(True); sc.setWidget(txt)
+        lay.addWidget(sc)
+        close = QPushButton(tr("Schließen")); close.clicked.connect(dlg.accept)
+        lay.addWidget(close)
+        dlg.show(); self._analyze_dlg = dlg
+
+    def open_dof(self):
+        """DOF-Rechner / Shooting-Assistent: Optik-Parameter → Schärfentiefe, Schrittweite,
+        benötigte Bildanzahl."""
+        import focus_analysis as fa
+        dlg = QDialog(self); dlg.setWindowTitle(tr("DOF-Rechner / Shooting-Assistent")); dlg.resize(440, 360)
+        lay = QVBoxLayout(dlg)
+        form = QGridLayout()
+        sensor = QComboBox()
+        for k, lbl in [("fullframe", "Vollformat"), ("apsc", "APS-C"), ("mft", "MFT"),
+                       ("medium", "Mittelformat")]:
+            sensor.addItem(lbl, k)
+        focal = QDoubleSpinBox(); focal.setRange(8, 1200); focal.setValue(105); focal.setSuffix(" mm")
+        aperture = QDoubleSpinBox(); aperture.setRange(1.0, 64); aperture.setValue(8.0); aperture.setPrefix("f/")
+        mag = QDoubleSpinBox(); mag.setRange(0.0, 10.0); mag.setSingleStep(0.1); mag.setValue(1.0)
+        mag.setToolTip("Abbildungsmaßstab: 1.0 = 1:1 (Makro). 0 = stattdessen Distanz nutzen.")
+        dist = QDoubleSpinBox(); dist.setRange(0.0, 1000); dist.setValue(0.0); dist.setSuffix(" m")
+        depth = QDoubleSpinBox(); depth.setRange(0.1, 1000); depth.setValue(8.0); depth.setSuffix(" mm")
+        overlap = QSpinBox(); overlap.setRange(0, 80); overlap.setValue(30); overlap.setSuffix(" %")
+        rows = [("Sensor", sensor), ("Brennweite", focal), ("Blende", aperture),
+                ("Abbildung (1:1=1.0)", mag), ("oder Distanz", dist),
+                ("Motivtiefe", depth), ("Überlappung", overlap)]
+        for r, (lab, wdg) in enumerate(rows):
+            form.addWidget(QLabel(lab), r, 0); form.addWidget(wdg, r, 1)
+        lay.addLayout(form)
+        out = QLabel(); out.setWordWrap(True); out.setTextFormat(Qt.RichText)
+        out.setStyleSheet("background:#1c1b25;border-radius:8px;padding:10px;")
+        lay.addWidget(out)
+
+        def compute():
+            d = fa.dof_calc(aperture.value(), focal_mm=focal.value(),
+                            magnification=mag.value() if mag.value() > 0 else None,
+                            distance_m=dist.value() if mag.value() <= 0 and dist.value() > 0 else None,
+                            sensor=sensor.currentData(), overlap=overlap.value() / 100.0)
+            if not d:
+                out.setText("Bitte Abbildung <b>oder</b> Distanz angeben."); return
+            if d["dof_mm"] == float("inf"):
+                out.setText("Bei dieser Distanz/Blende reicht ein Bild (sehr große Schärfentiefe)."); return
+            n = fa.frames_for_depth(depth.value(), d["step_mm"])
+            out.setText(f"<b>Schärfentiefe je Bild:</b> {d['dof_mm']:.2f} mm<br>"
+                        f"<b>Empfohlene Schrittweite:</b> {d['step_mm']:.2f} mm "
+                        f"({overlap.value()} % Überlappung)<br>"
+                        f"<b>Abbildung:</b> ~{d['magnification']:.2f}×<br><br>"
+                        f"➡️ Für {depth.value():.1f} mm Motivtiefe: <b>{n} Aufnahmen</b>.")
+        for w in (sensor, focal, aperture, mag, dist, depth, overlap):
+            (w.valueChanged if hasattr(w, "valueChanged") else w.currentIndexChanged).connect(lambda *a: compute())
+        compute()
+        btn = QPushButton(tr("Schließen")); btn.clicked.connect(dlg.accept); lay.addWidget(btn)
+        dlg.show(); self._dof_dlg = dlg
+
     def _retouch_file(self):
         """Bevorzugt die Mehrschicht-TIFF, sonst das Stack-Ergebnis."""
         ml_dir = os.path.join(self._work_dir(), "multilayer")
@@ -1596,6 +1735,7 @@ class MainWindow(QMainWindow):
             "astro_align": (lambda v: self.astro_align.setCurrentIndex(int(v)), self.astro_align.currentIndex),
             "astro_cosmetic": (self.astro_cosmetic.setChecked, self.astro_cosmetic.isChecked),
             "astro_qc": (self.astro_qc.setChecked, self.astro_qc.isChecked),
+            "reject_blurry": (self.reject_blurry.setChecked, self.reject_blurry.isChecked),
             "astro_drizzle": (lambda v: self.astro_drizzle.setCurrentIndex(int(v)), self.astro_drizzle.currentIndex),
             "hybrid_kind": (lambda v: self.hybrid_kind.setCurrentIndex(int(v)), self.hybrid_kind.currentIndex),
             "hybrid_group": (lambda v: self.hybrid_group.setValue(int(v)), self.hybrid_group.value),
@@ -1614,7 +1754,8 @@ class MainWindow(QMainWindow):
 
     def _restore_settings(self):
         st = QSettings("ServeOne", "StackForge")
-        bool_keys = {"raw_dev", "raw_half", "vlm_on", "astro_fits", "astro_cosmetic", "astro_qc"}
+        bool_keys = {"raw_dev", "raw_half", "vlm_on", "astro_fits", "astro_cosmetic", "astro_qc",
+                     "reject_blurry"}
         for k, (setter, _g) in self._settings_map().items():
             v = st.value(k)
             if v is None or v == "":
