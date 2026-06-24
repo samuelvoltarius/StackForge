@@ -588,6 +588,11 @@ def main():
                     help="Hybrid: überlappende Kacheln zu einem Mosaik zusammensetzen (Mond/Sonne)")
     ap.add_argument("--mosaic-mode", choices=["panorama", "scans"], default="panorama",
                     help="Mosaik-Modus (panorama=mit Rotation, scans=planar)")
+    ap.add_argument("--hybrid-fa", action="store_true",
+                    help="Hybrid: Fokus+Astro — je Fokus-Position Shots astro-stacken (Rauschen), "
+                         "dann fokus-stacken (Schärfentiefe)")
+    ap.add_argument("--hybrid-group", type=int, default=5,
+                    help="Fokus+Astro: Shots je Position, falls keine Unterordner vorhanden")
     ap.add_argument("--astro-method", choices=["sigma", "winsor", "average", "median", "max"],
                     default="sigma", help="Astro-Stacking-Methode (Default sigma=Kappa-Sigma)")
     ap.add_argument("--astro-kappa", type=float, default=2.5, help="Kappa für Sigma-Clipping")
@@ -821,6 +826,62 @@ def _astro_write(result, work_dir, paths, args, astro):
     return stack_dir
 
 
+def _hybrid_groups(input_dir, group_size):
+    """Fokus-Positionen finden. Bevorzugt: je Unterordner = eine Position (mehrere Shots
+    fürs Entrauschen). Sonst: alle Bilder im Ordner in Blöcke à group_size aufteilen."""
+    subs = sorted(d for d in os.listdir(input_dir)
+                  if os.path.isdir(os.path.join(input_dir, d)))
+    groups = []
+    for d in subs:
+        ims = list_images(os.path.join(input_dir, d))
+        if ims:
+            groups.append((d, ims))
+    if groups:
+        return groups
+    flat = list_images(input_dir)
+    g = max(1, int(group_size))
+    return [(f"pos{ i//g :02d}", flat[i:i + g]) for i in range(0, len(flat), g)]
+
+
+def run_hybrid_focus_astro(input_dir, work_dir, args):
+    """Hybrid Fokus+Astro: pro Fokus-Position mehrere Shots astro-stacken (Rauschen senken),
+    danach die entrauschten Positionen fokus-stacken (Schärfentiefe). Zwei Algorithmen
+    hintereinander — z.B. lichtschwache Makro-/Lunar-/Solar-Serien."""
+    import astro
+    groups = _hybrid_groups(input_dir, getattr(args, "hybrid_group", 5))
+    if len(groups) < 2:
+        print("Hybrid Fokus+Astro: <2 Fokus-Positionen gefunden. Lege je Position einen "
+              "Unterordner an (mehrere Shots darin) oder erhöhe --hybrid-group.",
+              file=sys.stderr)
+        return None
+    method = getattr(args, "astro_method", "average")
+    print(f"== Hybrid Fokus+Astro: {len(groups)} Positionen, je Astro-Stack ({method}) ==")
+    denoised_dir = os.path.join(work_dir, "denoised")
+    if os.path.isdir(denoised_dir):
+        shutil.rmtree(denoised_dir)
+    os.makedirs(denoised_dir)
+    for gi, (name, ims) in enumerate(groups):
+        print(f"  Position {gi + 1}/{len(groups)} ({name}): {len(ims)} Shot(s) entrauschen …")
+        if len(ims) == 1:
+            den = astro._read_float(ims[0])
+        else:
+            reg_dir = os.path.join(work_dir, f"_reg_{gi:02d}")
+            aligned = astro.register_and_cache(ims, reg_dir,
+                                               do_register=not args.no_register,
+                                               log=lambda *a: None)
+            den = astro.stack(aligned, method=method, kappa=args.astro_kappa,
+                              normalize=False, log=lambda *a: None)
+            shutil.rmtree(reg_dir, ignore_errors=True)
+        op = os.path.join(denoised_dir, f"pos_{gi:03d}.tif")
+        cv2.imwrite(op, np.clip(den * 65535, 0, 65535).astype(np.uint16),
+                    [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
+    print("  -> Fokus-Stacking der entrauschten Positionen …")
+    args.no_raw_develop = True  # bereits entwickelte TIFFs
+    out = run_own_engine(denoised_dir, work_dir, args)
+    shutil.rmtree(denoised_dir, ignore_errors=True)
+    return out
+
+
 def run_mosaic(input_dir, work_dir, args):
     """Hybrid: überlappende Kacheln zu einem Mosaik zusammensetzen."""
     import mosaic
@@ -845,6 +906,11 @@ def run_mosaic(input_dir, work_dir, args):
 
 def process(args, input_dir, work_dir):
     """Ein kompletter Durchlauf: analysieren -> cullen -> (VLM-QC) -> stacken."""
+    if getattr(args, "hybrid_fa", False):
+        out = run_hybrid_focus_astro(input_dir, work_dir, args)
+        if out:
+            print(f"\nFertig. Ergebnis in: {out}")
+        return out
     if getattr(args, "mosaic", False):
         out = run_mosaic(input_dir, work_dir, args)
         if out:

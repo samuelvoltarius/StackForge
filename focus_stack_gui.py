@@ -283,15 +283,30 @@ class MainWindow(QMainWindow):
                               "direkt eingelesen."), 10, 3)
         p1.addWidget(g_astro)
 
-        # Hybrid — Mosaik (Mond/Sonne)
-        g_mos = QGroupBox(tr("Hybrid — Mosaik (Mond/Sonne)"))
+        # Hybrid — Mosaik (Mond/Sonne) ODER Fokus+Astro
+        g_mos = QGroupBox(tr("Hybrid"))
         self.mosaic_group = g_mos
-        mg = QHBoxLayout(g_mos)
+        mg = QGridLayout(g_mos)
+        self.hybrid_kind = QComboBox()
+        self.hybrid_kind.addItem(tr("Mosaik (Mond/Sonne)"), "mosaic")
+        self.hybrid_kind.addItem(tr("Fokus + Astro (Rauschen + Schärfentiefe)"), "fa")
+        mg.addWidget(QLabel(tr("Art")), 0, 0); mg.addWidget(self.hybrid_kind, 0, 1, 1, 2)
+        mg.addWidget(help_btn("Mosaik = überlappende Kacheln zusammensetzen. "
+                              "Fokus+Astro = je Fokus-Position mehrere Shots erst astro-stacken "
+                              "(Rauschen senken), dann fokus-stacken (Schärfentiefe). Ideal für "
+                              "lichtschwache Makro-/Mond-/Sonnen-Serien."), 0, 3)
+        # Mosaik-Optionen
         self.mosaic_mode = QComboBox(); self.mosaic_mode.addItems(["panorama", "scans"])
-        mg.addWidget(QLabel(tr("Modus"))); mg.addWidget(self.mosaic_mode, 1)
-        mg.addWidget(help_btn("Setzt überlappende Kacheln (Mond-/Sonnen-Panels) zu einem großen "
-                              "Bild zusammen. ~30 % Überlappung empfohlen. panorama=mit Rotation, "
-                              "scans=planar."))
+        self.mos_row = QLabel(tr("Modus"))
+        mg.addWidget(self.mos_row, 1, 0); mg.addWidget(self.mosaic_mode, 1, 1, 1, 2)
+        mg.addWidget(help_btn("panorama=mit Rotation, scans=planar. ~30 % Überlappung empfohlen."), 1, 3)
+        # Fokus+Astro-Optionen
+        self.hybrid_group = QSpinBox(); self.hybrid_group.setRange(1, 99); self.hybrid_group.setValue(5)
+        self.fa_row = QLabel(tr("Shots je Position"))
+        mg.addWidget(self.fa_row, 2, 0); mg.addWidget(self.hybrid_group, 2, 1, 1, 2)
+        mg.addWidget(help_btn("Nur wenn KEINE Unterordner: so viele aufeinanderfolgende Fotos = eine "
+                              "Fokus-Position. Besser: je Position einen Unterordner anlegen."), 2, 3)
+        self.hybrid_kind.currentIndexChanged.connect(lambda _i: self._hybrid_kind_changed())
         p1.addWidget(g_mos)
 
         # Selektion
@@ -594,6 +609,14 @@ class MainWindow(QMainWindow):
         self.astro_group.setChecked(self.is_astro)
         self._apply_visibility()
 
+    def _hybrid_kind_changed(self):
+        fa = self.hybrid_kind.currentData() == "fa"
+        self.mos_row.setVisible(not fa); self.mosaic_mode.setVisible(not fa)
+        self.fa_row.setVisible(fa); self.hybrid_group.setVisible(fa)
+        if getattr(self, "is_hybrid", False):
+            self.auto_btn.setText(tr("🌃  Fokus+Astro stacken") if fa
+                                  else tr("🌗  Mosaik erstellen"))
+
     def _apply_visibility(self):
         """Eine zentrale Stelle: zeigt nur, was zu Modus (Anfänger/Profi) UND
         Aufgabe (Makro/Astro) passt. Das jeweils andere ist komplett ausgeblendet."""
@@ -620,7 +643,7 @@ class MainWindow(QMainWindow):
         elif astro:
             self.auto_btn.setText(tr("🌌  Astro stacken"))
         elif hybrid:
-            self.auto_btn.setText(tr("🌗  Mosaik erstellen"))
+            self._hybrid_kind_changed()
         else:
             self.auto_btn.setText(tr("⚡  Automatik — beste Qualität (ein Klick)"))
 
@@ -730,7 +753,14 @@ class MainWindow(QMainWindow):
             if self.siril_path.text().strip():
                 args += ["--siril-path", self.siril_path.text().strip()]
         if getattr(self, "is_hybrid", False):
-            args += ["--mosaic", "--mosaic-mode", self.mosaic_mode.currentText()]
+            if self.hybrid_kind.currentData() == "fa":
+                args += ["--hybrid-fa", "--hybrid-group", str(self.hybrid_group.value()),
+                         "--astro-method", self.astro_method.currentText(),
+                         "--astro-kappa", str(self.astro_kappa.value())]
+                if not self.astro_register.isChecked():
+                    args += ["--no-register"]
+            else:
+                args += ["--mosaic", "--mosaic-mode", self.mosaic_mode.currentText()]
         return args
 
     def _build_args(self, auto):
@@ -1223,6 +1253,8 @@ class MainWindow(QMainWindow):
             "raw_half": (self.raw_half.setChecked, self.raw_half.isChecked),
             "vlm_on": (self.vlm_group.setChecked, self.vlm_group.isChecked),
             "astro_fits": (self.astro_fits.setChecked, self.astro_fits.isChecked),
+            "hybrid_kind": (lambda v: self.hybrid_kind.setCurrentIndex(int(v)), self.hybrid_kind.currentIndex),
+            "hybrid_group": (lambda v: self.hybrid_group.setValue(int(v)), self.hybrid_group.value),
         }
 
     def _save_settings(self):
