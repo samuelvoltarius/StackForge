@@ -110,17 +110,21 @@ class MainWindow(QMainWindow):
         header.addWidget(self.modules_btn)
         logo = QLabel()
         if os.path.isfile(ICON_PNG):
-            logo.setPixmap(QPixmap(ICON_PNG).scaled(34, 34, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        title = QLabel("StackForge")
-        title.setStyleSheet("font-size:20px;font-weight:700;letter-spacing:0.3px;")
+            logo.setPixmap(QPixmap(ICON_PNG).scaled(42, 42, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         try:
             from constants import VERSION as _VER
         except Exception:
             _VER = ""
+        # Titel-Block: Name groß + Untertitel darunter (wirkt hochwertiger)
+        tblock = QVBoxLayout(); tblock.setSpacing(0)
+        trow = QHBoxLayout(); trow.setSpacing(6)
+        title = QLabel("StackForge"); title.setStyleSheet("font-size:21px;font-weight:800;letter-spacing:0.3px;")
         ver = QLabel(f"v{_VER}"); ver.setStyleSheet("color:#6f6a85;font-size:11px;")
-        header.addSpacing(4)
-        header.addWidget(logo); header.addSpacing(8); header.addWidget(title)
-        header.addSpacing(6); header.addWidget(ver)
+        trow.addWidget(title); trow.addWidget(ver); trow.addStretch(1)
+        subtitle = QLabel(tr("Computational Photography Suite"))
+        subtitle.setStyleSheet("color:#7bd36a;font-size:11px;letter-spacing:0.4px;")
+        tblock.addLayout(trow); tblock.addWidget(subtitle)
+        header.addSpacing(6); header.addWidget(logo); header.addSpacing(10); header.addLayout(tblock)
         header.addStretch(1)
         task_lbl = QLabel(tr("Aufgabe:")); task_lbl.setStyleSheet("color:#908aa0;")
         header.addWidget(task_lbl)
@@ -148,9 +152,14 @@ class MainWindow(QMainWindow):
         setup_btn.clicked.connect(self.settings_dialog.show)
         header.addWidget(setup_btn)
         outer.addLayout(header)
-        accent = QFrame(); accent.setFixedHeight(2)
-        accent.setStyleSheet("background:#4caf50;border:none;border-radius:1px;")
-        outer.addWidget(accent)
+        # Statuszeile statt nur grünem Strich — zeigt echten Fortschritt
+        self.status_bar = QFrame(); self.status_bar.setFixedHeight(26)
+        sbl = QHBoxLayout(self.status_bar); sbl.setContentsMargins(12, 0, 12, 0)
+        self.status_dot = QLabel("●"); self.status_dot.setStyleSheet("color:#4caf50;font-size:13px;")
+        self.status_lbl = QLabel(tr("Bereit")); self.status_lbl.setStyleSheet("color:#cfd2cd;font-size:12px;")
+        sbl.addWidget(self.status_dot); sbl.addSpacing(6); sbl.addWidget(self.status_lbl); sbl.addStretch(1)
+        self.status_bar.setStyleSheet("QFrame{background:#1b2a1b;border-bottom:2px solid #4caf50;}")
+        outer.addWidget(self.status_bar)
 
         # Sprache — wandert ins Setup-Menü
         self.lang_box = QComboBox()
@@ -676,18 +685,9 @@ class MainWindow(QMainWindow):
 
         split.addWidget(left)
 
-        # ---- rechte Spalte: Log + Vorschau ----
+        # ---- rechte Spalte: Bild GROSS oben, Log klein unten (Foto-zentriert) ----
         right = QWidget()
         rv = QVBoxLayout(right)
-        self.log = QPlainTextEdit(); self.log.setReadOnly(True)
-        self.log.setFont(QFont("Menlo", 11))
-        self.log.setMaximumBlockCount(5000)
-        rv.addWidget(QLabel(tr("Log")))
-        rv.addWidget(self.log, 3)
-        self.progress = QProgressBar(); self.progress.setRange(0, 0); self.progress.hide()
-        rv.addWidget(self.progress)
-
-        line = QFrame(); line.setFrameShape(QFrame.HLine); rv.addWidget(line)
         self._preview_empty = ("<div style='font-size:64px'>📂</div>"
                                "<div style='font-size:16px;color:#cfd2cd;margin-top:8px'>"
                                + tr("Ordner hierher ziehen") + "</div>"
@@ -696,10 +696,12 @@ class MainWindow(QMainWindow):
         self.preview = QLabel(self._preview_empty)
         self.preview.setTextFormat(Qt.RichText)
         self.preview.setAlignment(Qt.AlignCenter)
-        self.preview.setMinimumHeight(260)
+        self.preview.setMinimumHeight(320)
         self.preview.setStyleSheet("color:#8a8f88;border:2px dashed #34383f;border-radius:12px;")
         rv.addWidget(QLabel(tr("Ergebnis")))
-        rv.addWidget(self.preview, 3)
+        rv.addWidget(self.preview, 6)
+        self.progress = QProgressBar(); self.progress.setRange(0, 0); self.progress.hide()
+        rv.addWidget(self.progress)
         res_btns = QHBoxLayout(); res_btns.setSpacing(8)
         # Primäre Aktionen als Buttons, alles Weitere im „Werkzeuge"-Menü (entrümpelt)
         self.cmp_btn = QPushButton(tr("🔍  Vorher/Nachher"))
@@ -752,6 +754,15 @@ class MainWindow(QMainWindow):
         self.strip_scroll.setWidget(self.strip_host)
         self.strip_scroll.hide()
         rv.addWidget(self.strip_scroll)
+
+        # Log: klein, ganz unten (für Fotografen Nebensache — das Bild zählt)
+        line = QFrame(); line.setFrameShape(QFrame.HLine); rv.addWidget(line)
+        rv.addWidget(QLabel(tr("Log")))
+        self.log = QPlainTextEdit(); self.log.setReadOnly(True)
+        self.log.setFont(QFont("Menlo", 11))
+        self.log.setMaximumBlockCount(5000)
+        self.log.setMaximumHeight(150)
+        rv.addWidget(self.log, 1)
 
         split.addWidget(right)
         split.setSizes([470, 970])   # ~⅓ Einstellungen / ~⅔ Bild
@@ -1091,6 +1102,7 @@ class MainWindow(QMainWindow):
                     self.top_stack.setCurrentIndex(1)
                 self.in_edit.setText(folder)
                 self._append(f"📂 Ordner per Drag&Drop: {folder}\n")
+                self._set_status(tr("Ordner geladen: ") + os.path.basename(folder), color="#58a6ff", bg="#14202e")
                 makro = not (getattr(self, "is_astro", False) or getattr(self, "is_hybrid", False)
                              or getattr(self, "is_longexp", False))
                 if makro and self.mode_box.currentIndex() == 1:  # Profi-Makro: gleich analysieren
@@ -1102,6 +1114,7 @@ class MainWindow(QMainWindow):
         d = QFileDialog.getExistingDirectory(self, "Eingabe-Ordner wählen", self.in_edit.text() or os.path.expanduser("~"))
         if d:
             self.in_edit.setText(d)
+            self._set_status(tr("Ordner geladen: ") + os.path.basename(d), color="#58a6ff", bg="#14202e")
 
     def pick_work(self):
         d = QFileDialog.getExistingDirectory(self, "Arbeits-Ordner wählen", self.work_edit.text() or os.path.expanduser("~"))
@@ -1281,6 +1294,7 @@ class MainWindow(QMainWindow):
         self.proc.finished.connect(self._on_finished)
         self.proc.start(sys.executable, ["-u"] + args)
         self.run_btn.setEnabled(False); self.auto_btn.setEnabled(False); self.stop_btn.setEnabled(True)
+        self._set_status(tr("Läuft …"), color="#d4a72c", bg="#2a2510")
 
     def stop(self):
         if self.proc and self.proc.state() != QProcess.NotRunning:
@@ -1381,6 +1395,22 @@ class MainWindow(QMainWindow):
         if at_bottom:
             sb.setValue(sb.maximum())
 
+    # ---------- Statuszeile ----------
+    def _set_status(self, text, color="#4caf50", bg="#1b2a1b"):
+        self.status_lbl.setText(text)
+        self.status_dot.setStyleSheet(f"color:{color};font-size:13px;")
+        self.status_bar.setStyleSheet(f"QFrame{{background:{bg};border-bottom:2px solid {color};}}")
+
+    # Schlüsselwörter aus dem Log → menschenlesbare Statusphase
+    _STATUS_PHASES = [
+        ("RAW-Entwicklung", "RAW entwickeln …"), ("analysieren", "Analysiere Fotos …"),
+        ("Sub-Bewertung", "Subs bewerten …"), ("Verwackelt-Filter", "Aussortieren …"),
+        ("Registrier", "Ausrichten …"), ("Stacking", "Stacke …"), ("Stacken", "Stacke …"),
+        ("Verschmelzen", "Verschmelzen …"), ("median", "Stacke …"), ("sigma-Rejection", "Stacke …"),
+        ("Hintergrund", "Hintergrund …"), ("Mosaik", "Mosaik …"), ("Langzeitbelichtung", "Langzeit …"),
+        ("Stack-Konfidenz", "Qualität prüfen …"), ("Export", "Exportieren …"),
+    ]
+
     def _on_output(self):
         raw = bytes(self.proc.readAllStandardOutput()).decode(errors="replace")
         clean = ANSI.sub("", raw).replace("\r", "\n")
@@ -1393,6 +1423,10 @@ class MainWindow(QMainWindow):
             i, n = int(m.group(1)), int(m.group(2))
             if 0 < i <= n:
                 self.progress.setRange(0, 100); self.progress.setValue(int(i / n * 100))
+        # Statusphase aktualisieren (gelb = arbeitet)
+        for key, label in self._STATUS_PHASES:
+            if key in clean:
+                self._set_status(tr(label), color="#d4a72c", bg="#2a2510")
         if "Fertig. Ergebnis in:" in clean:  # auch im Watch-/Batch-Modus laufend aktualisieren
             self._show_result()
 
@@ -1402,7 +1436,10 @@ class MainWindow(QMainWindow):
         self._append(f"\n[fertig, exit {code}]\n")
         if code == 0:
             self._show_result()
+            self._set_status(tr("Fertig ✓"), color="#4caf50", bg="#1b2a1b")
             self._notify("StackForge", "Stack fertig 🎉" if self.result_path else "Lauf fertig")
+        else:
+            self._set_status(tr("Abgebrochen / Fehler"), color="#e5534b", bg="#2a1414")
 
     def _notify(self, title, msg):
         notify(title, msg)
