@@ -102,11 +102,13 @@ A long exposure from a burst **without an ND filter**. Four effects:
 
 ## Keyboard control
 
-The app is fully keyboard-operable — **F1** (or the ⌨ button top-right) shows the full list.
-The most important: **⌘O** choose folder, **⌘↩** start automatic, **⌘⇧↩** start manually,
-**⎋** stop / back to module selection, **⌘1–4** switch module, **⌘B** beginner/pro, **⌘E** edit
-result, **⌘⇧A** analyse series, **⌘D** DOF calculator, **⌘] / ⌘[** wizard next/back.
-*(On Windows/Linux ⌘ = Ctrl.)*
+The app is fully keyboard-operable — **F1** (or the ⌨️ button top-right) shows the full list.
+**Photo keys** (Lightroom-style, only when no text field is active): **Space** before/after ·
+**← →** switch image in the film strip · **A** analyse series · **S** stack/automatic · **E** editor ·
+**G** ghost map · **F** focus map · **R** retouch.
+**Commands:** **⌘O** folder, **⌘↩** automatic, **⌘E** export, **⎋** stop/back, **⌘1–4** module,
+**⌘B** beginner/pro, **⌘D** DOF calculator, **⌘] / ⌘[** wizard. *(Windows/Linux: ⌘ = Ctrl.)*
+Tip: **drop a folder on the window** to load it and (in Pro macro) start the analysis right away.
 
 ## Beginner vs. Pro mode
 

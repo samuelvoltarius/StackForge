@@ -89,8 +89,10 @@ language menu automatically.
 
 ## Keyboard shortcuts
 
-⌘O folder · ⌘↩ automatic · ⌘⇧↩ manual · ⎋ stop/back · ⌘1–4 modules · ⌘B beginner/pro ·
-⌘E edit · ⌘⇧A analyse series · ⌘D DOF · **F1** = full overview.
+**Photo keys** (Lightroom-style): **Space** before/after · **← →** switch image · **A** analyse ·
+**S** stack · **E** editor · **G** ghost map · **F** focus map · **R** retouch.
+**Commands:** ⌘O folder · ⌘↩ automatic · ⌘E export · ⎋ stop/back · ⌘1–4 modules · ⌘B beginner/pro ·
+⌘D DOF · **F1** = full overview. *Dropping a folder on the window starts the analysis.*
 
 ## Tests
 

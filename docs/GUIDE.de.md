@@ -103,11 +103,13 @@ Aus einer Serie eine Langzeitbelichtung **ohne ND-Filter**. Vier Effekte:
 
 ## Tastatursteuerung
 
-Die App ist komplett per Tastatur bedienbar — **F1** (oder der ⌨-Knopf oben) zeigt die volle
-Liste. Die wichtigsten: **⌘O** Ordner wählen, **⌘↩** Automatik starten, **⌘⇧↩** manuell starten,
-**⎋** Stop / zurück zur Modul-Auswahl, **⌘1–4** Modul wechseln, **⌘B** Anfänger/Profi, **⌘E**
-Ergebnis bearbeiten, **⌘⇧A** Reihe analysieren, **⌘D** DOF-Rechner, **⌘] / ⌘[** Wizard weiter/zurück.
-*(Unter Windows/Linux ⌘ = Strg.)*
+Die App ist komplett per Tastatur bedienbar — **F1** (oder der ⌨️-Knopf oben) zeigt die volle
+Liste. **Foto-Tasten** (wie in Lightroom, greifen nur wenn kein Textfeld aktiv ist):
+**Leertaste** Vorher/Nachher · **← →** Bild im Filmstreifen wechseln · **A** Reihe analysieren ·
+**S** Stack/Automatik · **E** Editor · **G** Geister-Karte · **F** Fokus-Map · **R** Retusche.
+**Befehle:** **⌘O** Ordner, **⌘↩** Automatik, **⌘E** Export, **⎋** Stop/zurück, **⌘1–4** Modul,
+**⌘B** Anfänger/Profi, **⌘D** DOF-Rechner, **⌘] / ⌘[** Wizard. *(Windows/Linux: ⌘ = Strg.)*
+Tipp: **Ordner aufs Fenster ziehen** übernimmt ihn und startet im Profi-Makro direkt die Analyse.
 
 ## Anfänger- vs. Profi-Modus
 

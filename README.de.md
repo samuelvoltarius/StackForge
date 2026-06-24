@@ -90,8 +90,10 @@ automatisch in der Sprachauswahl.
 
 ## Tastenkürzel
 
-⌘O Ordner · ⌘↩ Automatik · ⌘⇧↩ Manuell · ⎋ Stop/zurück · ⌘1–4 Module · ⌘B Anfänger/Profi ·
-⌘E Bearbeiten · ⌘⇧A Reihe analysieren · ⌘D DOF · **F1** = vollständige Übersicht.
+**Foto-Tasten** (wie in Lightroom): **Leertaste** Vorher/Nachher · **← →** Bild wechseln ·
+**A** Analyse · **S** Stack · **E** Editor · **G** Geister-Karte · **F** Fokus-Map · **R** Retusche.
+**Befehle:** ⌘O Ordner · ⌘↩ Automatik · ⌘E Export · ⎋ Stop/zurück · ⌘1–4 Module · ⌘B Anfänger/Profi ·
+⌘D DOF · **F1** = vollständige Übersicht. *Ordner aufs Fenster ziehen startet die Analyse.*
 
 ## Tests
 
