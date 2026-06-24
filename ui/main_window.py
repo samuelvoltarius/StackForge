@@ -1017,6 +1017,13 @@ class MainWindow(QMainWindow):
         lay = QVBoxLayout(dlg)
         lbl = QLabel(html); lbl.setWordWrap(True); lbl.setTextFormat(Qt.RichText); lbl.setAlignment(Qt.AlignTop)
         sc = QScrollArea(); sc.setWidgetResizable(True); sc.setWidget(lbl); lay.addWidget(sc)
+        try:
+            from constants import VERSION as _v
+        except Exception:
+            _v = ""
+        web = QLabel(f"<a href='https://forgepix.app' style='color:#7bd36a'>forgepix.app</a>  ·  v{_v}")
+        web.setOpenExternalLinks(True); web.setAlignment(Qt.AlignCenter)
+        lay.addWidget(web)
         b = QPushButton(tr("Schließen")); b.clicked.connect(dlg.accept); lay.addWidget(b)
         dlg.show(); self._about_dlg = dlg
 
