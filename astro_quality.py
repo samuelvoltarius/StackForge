@@ -18,7 +18,14 @@ RAW_EXTS = {".arw", ".cr2", ".cr3", ".nef", ".raf", ".rw2", ".dng", ".orf", ".pe
 
 def _read_gray(path, max_side=1600):
     ext = os.path.splitext(path)[1].lower()
-    if ext in RAW_EXTS:
+    if ext in (".fit", ".fits", ".fts"):
+        from astropy.io import fits
+        d = np.asarray(fits.getdata(path)).astype(np.float32)
+        if d.ndim == 3:
+            d = d[0] if d.shape[0] in (3, 4) else d.mean(axis=2)
+        mx = float(np.nanmax(d)) or 1.0
+        g = np.nan_to_num(d / mx * 255.0)
+    elif ext in RAW_EXTS:
         import rawpy
         with rawpy.imread(path) as raw:
             rgb = raw.postprocess(output_bps=8, use_camera_wb=True, no_auto_bright=True, half_size=True)

@@ -182,6 +182,18 @@ class MainWindow(QMainWindow):
         hint.setStyleSheet("color:#888;"); hint.setWordWrap(True)
         p1.addWidget(hint)
 
+        # Vorlage (Motiv) — setzt passende Makro-Einstellungen
+        self.preset_group = QGroupBox(tr("Vorlage (Motiv)"))
+        pgl = QHBoxLayout(self.preset_group)
+        self.preset_box = QComboBox()
+        self.preset_box.addItems([tr("Standard"), tr("Produkte"), tr("Münzen"), tr("Food")])
+        self.preset_box.currentIndexChanged.connect(lambda i: self._apply_preset(i))
+        pgl.addWidget(self.preset_box, 1)
+        pgl.addWidget(help_btn("Schnellvorlage je Motiv: setzt sinnvolle Werte (Schärfen, "
+                               "Ausrichtung, Erkennung). „Produkte/Münzen/Food“ — danach manuell "
+                               "feinjustierbar."))
+        p1.addWidget(self.preset_group)
+
         # RAW-Entwicklung
         g_raw = QGroupBox(tr("RAW-Entwicklung"))
         rg = QGridLayout(g_raw)
@@ -225,6 +237,7 @@ class MainWindow(QMainWindow):
         self.astro_register = QCheckBox("Sterne ausrichten"); self.astro_register.setChecked(True)
         self.astro_stretch = QCheckBox("Vorschau strecken (asinh)"); self.astro_stretch.setChecked(True)
         self.astro_bg = QCheckBox("Hintergrund/Gradient entfernen")
+        self.astro_fits = QCheckBox("Auch als FITS speichern")
         self.astro_dark = QLineEdit(); self.astro_dark.setPlaceholderText("optional: Dark-Ordner/-Datei")
         self.astro_flat = QLineEdit(); self.astro_flat.setPlaceholderText("optional: Flat-Ordner/-Datei")
         self.astro_bias = QLineEdit(); self.astro_bias.setPlaceholderText("optional: Bias-Ordner/-Datei")
@@ -264,6 +277,10 @@ class MainWindow(QMainWindow):
                               "„Siril“ = optional dein installiertes Siril fernsteuern "
                               "(Konvertieren→Registrieren→Stacken). Frei wählbar."), 8, 3)
         ar.addWidget(QLabel("Siril-Pfad"), 9, 0); ar.addWidget(self.siril_path, 9, 1, 1, 1); ar.addWidget(sbtn, 9, 2)
+        ar.addWidget(self.astro_fits, 10, 0, 1, 3)
+        ar.addWidget(help_btn("Speichert das fertige Stack-Ergebnis zusätzlich als 32-bit-FITS "
+                              "(neben dem TIFF) — für PixInsight/Siril. FITS-Lights werden auch "
+                              "direkt eingelesen."), 10, 3)
         p1.addWidget(g_astro)
 
         # Hybrid — Mosaik (Mond/Sonne)
@@ -495,6 +512,19 @@ class MainWindow(QMainWindow):
                   self.ghost_btn, self.retouch_btn):
             res_btns.addWidget(b)
         rv.addLayout(res_btns)
+        # zweite Reihe: Weitergabe an externe Tools + Reimport
+        res_btns2 = QHBoxLayout()
+        self.send_btn = QPushButton(tr("📤  Für GraXpert/StarNet öffnen"))
+        self.send_btn.setToolTip("Zeigt das (32-bit-lineare) Ergebnis im Dateimanager — dort in "
+                                 "GraXpert / StarNet++ / PixInsight öffnen.")
+        self.send_btn.clicked.connect(self.send_to_tool); self.send_btn.setEnabled(False)
+        self.reimport_btn = QPushButton(tr("📥  Bearbeitetes reimportieren"))
+        self.reimport_btn.setToolTip("Das im externen Tool bearbeitete Bild zurück in StackForge "
+                                     "laden (für Vorschau/Bearbeiten/Export).")
+        self.reimport_btn.clicked.connect(self.reimport_result); self.reimport_btn.setEnabled(False)
+        res_btns2.addWidget(self.send_btn); res_btns2.addWidget(self.reimport_btn)
+        res_btns2.addStretch(1)
+        rv.addLayout(res_btns2)
 
         # Filmstreifen: alle Fotos mit Schärfe-Wert, behalten/verworfen
         self.strip_label = QLabel("Bilder (grün = verwendet, rot = aussortiert):")
@@ -533,6 +563,30 @@ class MainWindow(QMainWindow):
                                 "Die Sprache wird beim nächsten Start angewendet.\n"
                                 "Language will be applied on next start.")
 
+    def _apply_preset(self, i):
+        """Makro-Vorlage anwenden (Produkte/Münzen/Food)."""
+        if not hasattr(self, "dip"):
+            return  # UI noch im Aufbau
+        presets = {
+            0: dict(dip=0.40, absmin=15, sharpen=0, transform="rigid", detector="ORB"),
+            1: dict(dip=0.40, absmin=15, sharpen=15, transform="rigid", detector="ORB",
+                    multilayer=True, webjpg=True),                       # Produkte
+            2: dict(dip=0.45, absmin=18, sharpen=22, transform="rigid", detector="SIFT"),  # Münzen
+            3: dict(dip=0.40, absmin=12, sharpen=12, transform="homography", detector="ORB",
+                    webjpg=True),                                        # Food
+        }
+        p = presets.get(i, {})
+        if "dip" in p: self.dip.setValue(p["dip"])
+        if "absmin" in p: self.absmin.setValue(p["absmin"])
+        if "sharpen" in p: self.sharpen.setValue(p["sharpen"])
+        for key, combo in (("transform", self.transform), ("detector", self.detector)):
+            if key in p:
+                j = combo.findText(p[key])
+                if j >= 0:
+                    combo.setCurrentIndex(j)
+        if "multilayer" in p: self.multilayer.setChecked(p["multilayer"])
+        if "webjpg" in p: self.webjpg.setChecked(p["webjpg"])
+
     def _set_task(self):
         i = self.task_box.currentIndex()
         self.is_astro = i == 1   # 1 = Astro
@@ -550,6 +604,7 @@ class MainWindow(QMainWindow):
         self._set_step(0)
         self.astro_group.setVisible(astro)
         self.mosaic_group.setVisible(hybrid)
+        self.preset_group.setVisible(makro)
         for g in (self.g_sel, self.g_ab, self.g_stk, self.g_exp):
             g.setVisible(makro)
         self.g_raw.setVisible(pro and makro)
@@ -663,6 +718,8 @@ class MainWindow(QMainWindow):
                 args += ["--astro-stretch"]
             if self.astro_bg.isChecked():
                 args += ["--bg-extract"]
+            if self.astro_fits.isChecked():
+                args += ["--fits-out"]
             if self.astro_dark.text().strip():
                 args += ["--dark", self.astro_dark.text().strip()]
             if self.astro_flat.text().strip():
@@ -930,6 +987,7 @@ class MainWindow(QMainWindow):
         self.openfolder_btn.setEnabled(True); self.adjust_btn.setEnabled(True)
         self.cmp_btn.setEnabled(bool(self.before_path))
         self.ghost_btn.setEnabled(bool(self._ghostmap_path()))
+        self.send_btn.setEnabled(True); self.reimport_btn.setEnabled(True)
         self._build_filmstrip(res)
 
     def open_compare(self):
@@ -1013,6 +1071,36 @@ class MainWindow(QMainWindow):
     def open_folder(self):
         if self.result_path:
             open_path(os.path.dirname(self.result_path))
+
+    def _best_export_file(self):
+        """Bevorzugt das 32-bit-Linear-TIFF (für GraXpert/StarNet/PixInsight), sonst Ergebnis."""
+        if self.result_path:
+            d = os.path.dirname(self.result_path)
+            for f in os.listdir(d):
+                if "32bit" in f.lower() and f.lower().endswith((".tif", ".tiff")):
+                    return os.path.join(d, f)
+        return self.result_path
+
+    def send_to_tool(self):
+        f = self._best_export_file()
+        if not f:
+            return
+        reveal_in_files(f)
+        self._append(f"\n📤 Im Dateimanager: {os.path.basename(f)}\n   → in GraXpert / StarNet++ / "
+                     "PixInsight öffnen, dann „📥 Bearbeitetes reimportieren“.\n")
+
+    def reimport_result(self):
+        start = os.path.dirname(self.result_path) if self.result_path else os.path.expanduser("~")
+        f, _ = QFileDialog.getOpenFileName(self, "Bearbeitetes Bild wählen", start,
+                                           "Bilder (*.tif *.tiff *.png *.jpg *.jpeg *.fit *.fits)")
+        if not f:
+            return
+        self.result_path = f
+        self.before_path = None
+        self._set_preview(f)
+        self.adjust_btn.setEnabled(True); self.open_btn.setEnabled(True)
+        self.openfolder_btn.setEnabled(True)
+        self._append(f"\n📥 Reimportiert: {os.path.basename(f)} — bereit zum Bearbeiten/Exportieren.\n")
 
     def _retouch_file(self):
         """Bevorzugt die Mehrschicht-TIFF, sonst das Stack-Ergebnis."""
@@ -1134,6 +1222,7 @@ class MainWindow(QMainWindow):
             "raw_bps": (self.raw_bps.setCurrentText, self.raw_bps.currentText),
             "raw_half": (self.raw_half.setChecked, self.raw_half.isChecked),
             "vlm_on": (self.vlm_group.setChecked, self.vlm_group.isChecked),
+            "astro_fits": (self.astro_fits.setChecked, self.astro_fits.isChecked),
         }
 
     def _save_settings(self):
@@ -1143,7 +1232,7 @@ class MainWindow(QMainWindow):
 
     def _restore_settings(self):
         st = QSettings("ServeOne", "StackForge")
-        bool_keys = {"raw_dev", "raw_half", "vlm_on"}
+        bool_keys = {"raw_dev", "raw_half", "vlm_on", "astro_fits"}
         for k, (setter, _g) in self._settings_map().items():
             v = st.value(k)
             if v is None or v == "":

@@ -22,8 +22,20 @@ RAW_EXTS = {".arw", ".cr2", ".cr3", ".nef", ".raf", ".rw2", ".dng", ".orf", ".pe
 
 
 def _read_float(path):
-    """Bild als float32 [0..1] (BGR) lesen — TIFF/PNG/JPG; RAW via rawpy."""
+    """Bild als float32 [0..1] (BGR) lesen — TIFF/PNG/JPG/FITS; RAW via rawpy."""
     ext = os.path.splitext(path)[1].lower()
+    if ext in (".fit", ".fits", ".fts"):
+        from astropy.io import fits
+        d = np.asarray(fits.getdata(path)).astype(np.float32)
+        if d.ndim == 3 and d.shape[0] in (3, 4):     # (C,H,W) -> (H,W,C)
+            d = np.moveaxis(d[:3], 0, -1)
+        mx = float(np.nanmax(d)) if d.size else 1.0
+        f = d / mx if mx > 1.5 else np.clip(d, 0, 1)  # ADU -> 0..1
+        if f.ndim == 2:
+            f = cv2.cvtColor(f, cv2.COLOR_GRAY2BGR)
+        elif f.shape[2] == 3:
+            f = cv2.cvtColor(f, cv2.COLOR_RGB2BGR)    # FITS = RGB -> BGR
+        return np.nan_to_num(f)
     if ext in RAW_EXTS:
         import rawpy
         with rawpy.imread(path) as raw:

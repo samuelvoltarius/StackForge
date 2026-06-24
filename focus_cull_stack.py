@@ -28,13 +28,14 @@ import numpy as np
 
 RAW_EXTS = {".arw", ".cr2", ".cr3", ".nef", ".raf", ".rw2", ".dng", ".orf", ".pef", ".srw"}
 STD_EXTS = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp"}
+FITS_EXTS = {".fit", ".fits", ".fts"}  # nur Astro
 
 
 def list_images(folder):
     out = []
     for n in sorted(os.listdir(folder)):
         ext = os.path.splitext(n)[1].lower()
-        if ext in RAW_EXTS or ext in STD_EXTS:
+        if ext in RAW_EXTS or ext in STD_EXTS or ext in FITS_EXTS:
             out.append(os.path.join(folder, n))
     return out
 
@@ -595,6 +596,8 @@ def main():
                     help="Astro: Vorschau-JPG asinh-gestreckt (Ergebnis-TIFF bleibt linear)")
     ap.add_argument("--bg-extract", action="store_true",
                     help="Astro: Hintergrund/Gradient entfernen (Lichtverschmutzung)")
+    ap.add_argument("--fits-out", action="store_true",
+                    help="Astro: Ergebnis zusätzlich als 32-bit-FITS speichern (PixInsight/Siril)")
     ap.add_argument("--no-astro-qc", action="store_true",
                     help="Astro: Sub-Bewertung/Aussortieren abschalten (alle Frames nehmen)")
     ap.add_argument("--astro-engine", choices=["own", "siril"], default="own",
@@ -798,6 +801,18 @@ def _astro_write(result, work_dir, paths, args, astro):
         print(f"  32-bit Linear (GraXpert/StarNet++/PixInsight): {out32}")
     except Exception as e:
         print(f"  32-bit-Export übersprungen ({e})", file=sys.stderr)
+    if getattr(args, "fits_out", False):
+        try:
+            from astropy.io import fits
+            rgb = cv2.cvtColor(result.astype(np.float32), cv2.COLOR_BGR2RGB)
+            data = np.moveaxis(rgb, -1, 0)            # (H,W,C) -> (C,H,W) FITS-Konvention
+            outf = os.path.join(stack_dir, f"{args.prefix}{base}_astro_linear.fits")
+            hdu = fits.PrimaryHDU(data.astype(np.float32))
+            hdu.header["BSCALE"] = 1.0
+            hdu.writeto(outf, overwrite=True)
+            print(f"  FITS (32-bit linear): {outf}")
+        except Exception as e:
+            print(f"  FITS-Export übersprungen ({e})", file=sys.stderr)
     view = astro.autostretch(result) if args.astro_stretch else result
     out_view = os.path.join(stack_dir, f"{args.prefix}{base}_astro.jpg")
     cv2.imwrite(out_view, np.clip(view * 255, 0, 255).astype(np.uint8),
