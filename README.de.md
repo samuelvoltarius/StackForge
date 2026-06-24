@@ -25,10 +25,12 @@ plattformübergreifend (Windows / macOS / Linux).
 - **Retusche‑Editor:** scharfe Stellen aus Einzelfotos über Halos/**Ghosting** pinseln, mit Radierer.
 - **Geister‑Karte + Deghost**, **Vorher/Nachher‑Schieberegler**, **Filmstreifen**,
   **Export‑Voreinstellungen** (Instagram/WhatsApp/Web/4K/Druck), **Batch** & **Watch‑Ordner**.
-- **Astro:** Kalibrierung (Darks/Flats/Bias), Stern‑Ausrichtung, **Sigma/Winsor‑Rejection**
-  (entfernt Satelliten/Hot‑Pixel), Hintergrund‑Extraktion, **erklärbare Sub‑Bewertung**
-  (FWHM, Sternzahl, Elongation/Guiding, Wolken, Spuren — schlechte Subs fliegen raus *mit Begründung*),
-  32‑bit‑Linear‑Export für GraXpert/StarNet++/PixInsight. **FITS** lesen & schreiben (optional, via astropy).
+- **Astro:** Kalibrierung (Darks/Flats/Bias), Stern‑Ausrichtung (**Translation oder Feldrotation**
+  für Alt‑Az), **Hot‑/Cold‑Pixel‑Korrektur**, **Drizzle‑lite** (2× feineres Sampling),
+  **Sigma/Winsor‑Rejection** (entfernt Satelliten/Hot‑Pixel), Hintergrund‑Extraktion,
+  **erklärbare Sub‑Bewertung** (FWHM, Sternzahl, Elongation/Guiding, Wolken, Spuren — schlechte Subs
+  fliegen raus *mit Begründung*), 32‑bit‑Linear‑Export + **FITS**. **GraXpert & StarNet++ per Ein‑Klick**
+  (falls installiert: automatisch ausführen + reimportieren; sonst Datei‑Übergabe).
 - **Große Stacks** werden gebündelt gestreamt (speicherschonend).
 
 ## Läuft überall — KI ist optional

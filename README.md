@@ -25,10 +25,12 @@ cross‑platform (Windows / macOS / Linux).
 - **Retouch editor:** brush sharp areas from single frames over halos/**ghosting**, with eraser.
 - **Ghost map + deghost**, **before/after slider**, **film strip**, **export presets**
   (Instagram/WhatsApp/Web/4K/Print), **batch** & **watch folder**.
-- **Astro:** calibration (darks/flats/bias), star alignment, **Sigma/Winsorized rejection**
-  (removes satellites/hot pixels), background extraction, **explainable sub‑grading**
-  (FWHM, star count, elongation/guiding, clouds, trails — bad subs dropped *with reasons*),
-  32‑bit linear export for GraXpert/StarNet++/PixInsight. **FITS** read & write (optional, via astropy).
+- **Astro:** calibration (darks/flats/bias), star alignment (**translation or field rotation**
+  for Alt‑Az), **hot/cold‑pixel correction**, **drizzle‑lite** (2× finer sampling),
+  **Sigma/Winsorized rejection** (removes satellites/hot pixels), background extraction,
+  **explainable sub‑grading** (FWHM, star count, elongation/guiding, clouds, trails — bad subs dropped
+  *with reasons*), 32‑bit linear export + **FITS**. **GraXpert & StarNet++ one‑click** (if installed:
+  run + re‑import automatically; otherwise file hand‑off).
 - **Large stacks** are streamed in bundles (memory‑friendly).
 
 ## Runs everywhere — AI is optional
