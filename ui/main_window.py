@@ -93,8 +93,14 @@ class MainWindow(QMainWindow):
             logo.setPixmap(QPixmap(ICON_PNG).scaled(34, 34, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         title = QLabel("StackForge")
         title.setStyleSheet("font-size:20px;font-weight:700;letter-spacing:0.3px;")
+        try:
+            from constants import VERSION as _VER
+        except Exception:
+            _VER = ""
+        ver = QLabel(f"v{_VER}"); ver.setStyleSheet("color:#6f6a85;font-size:11px;")
         header.addSpacing(4)
         header.addWidget(logo); header.addSpacing(8); header.addWidget(title)
+        header.addSpacing(6); header.addWidget(ver)
         header.addStretch(1)
         task_lbl = QLabel(tr("Aufgabe:")); task_lbl.setStyleSheet("color:#908aa0;")
         header.addWidget(task_lbl)
@@ -117,6 +123,9 @@ class MainWindow(QMainWindow):
         setup_btn.clicked.connect(self.settings_dialog.show)
         header.addWidget(setup_btn)
         outer.addLayout(header)
+        accent = QFrame(); accent.setFixedHeight(2)
+        accent.setStyleSheet("background:#7c5cff;border:none;border-radius:1px;")
+        outer.addWidget(accent)
 
         # Sprache — wandert ins Setup-Menü
         self.lang_box = QComboBox()
@@ -1841,16 +1850,16 @@ class MainWindow(QMainWindow):
 
 
 THEME = """
-QWidget { background:#141319; color:#e9e7f0; font-size:13px; }
-QMainWindow, QDialog { background:#141319; }
+QWidget { background:#0f0e15; color:#e9e7f0; font-size:13px; }
+QMainWindow, QDialog { background:#0f0e15; }
 
-/* Karten/Gruppen — ruhige Flächen, dezente Ränder, mehr Luft */
+/* Karten/Gruppen — sichtbar abgehobene Flächen auf dunklem Canvas */
 QGroupBox {
-    background:#1c1b25; border:1px solid #2a2836; border-radius:12px;
-    margin-top:18px; padding:14px 12px 10px 12px; font-weight:600; }
+    background:#1c1b27; border:1px solid #302d40; border-radius:12px;
+    margin-top:20px; padding:16px 12px 12px 12px; font-weight:600; }
 QGroupBox::title {
-    subcontrol-origin:margin; subcontrol-position:top left; left:12px; padding:2px 6px;
-    color:#a99cff; font-size:12px; }
+    subcontrol-origin:margin; subcontrol-position:top left; left:14px; padding:3px 8px;
+    color:#b6a9ff; font-size:12px; font-weight:700; background:#0f0e15; }
 QGroupBox::indicator { width:18px; height:18px; }
 
 QLabel { background:transparent; }
