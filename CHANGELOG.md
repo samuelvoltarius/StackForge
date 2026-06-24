@@ -4,6 +4,12 @@ Alle nennenswerten Änderungen an StackForge. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.4.1] – 2026-06-25
+### Behoben
+- **Schieberegler durchgängig gethemt** (grüner Verlauf + heller Griff statt Qt-Standard-Blau) —
+  betraf v. a. den Camera-Raw-Editor („Bearbeiten").
+- Letzte lila Canvas-Reste (Vergleichs-/Kurven-Hintergrund) auf Anthrazit umgestellt.
+
 ## [1.4.0] – 2026-06-25
 ### Geändert
 - **Startbildschirm neu gestaltet:** Logo + Tagline, aufgeräumte Modul-Karten mit Emoji,

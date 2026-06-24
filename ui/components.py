@@ -40,7 +40,7 @@ class CompareSlider(QWidget):
 
     def paintEvent(self, _e):
         p = QPainter(self)
-        p.fillRect(self.rect(), QColor("#140f1f"))
+        p.fillRect(self.rect(), QColor("#101113"))
         r = self._img_rect()
         if r is None:
             return
@@ -182,8 +182,8 @@ class CurveWidget(QWidget):
 
     def paintEvent(self, _e):
         p = QPainter(self)
-        p.fillRect(self.rect(), QColor("#241a38"))
-        p.setPen(QPen(QColor("#3a2d55"), 1))
+        p.fillRect(self.rect(), QColor("#1c1b22"))
+        p.setPen(QPen(QColor("#34383f"), 1))
         for i in range(1, 4):
             x = self.width() * i / 4; y = self.height() * i / 4
             p.drawLine(int(x), 0, int(x), self.height()); p.drawLine(0, int(y), self.width(), int(y))
@@ -198,7 +198,7 @@ class CurveWidget(QWidget):
             if prev:
                 p.drawLine(int(prev[0]), int(prev[1]), int(cx), int(cy))
             prev = (cx, cy)
-        p.setBrush(QColor("#e8e3f5"))
+        p.setBrush(QColor("#e8eae6"))
         for x, y in pts:
             cx, cy = self._px(x, y)
             p.drawEllipse(int(cx) - 4, int(cy) - 4, 8, 8)
@@ -340,7 +340,7 @@ class AdjustDialog(QDialog):
         btns.addWidget(auto); btns.addWidget(reset); btns.addWidget(save)
         pv.addLayout(btns)
         note = QLabel("Treue Anpassung — keine Inhalte erfunden.")
-        note.setStyleSheet("color:#888;"); pv.addWidget(note)
+        note.setStyleSheet("color:#9aa09a;"); pv.addWidget(note)
         lay.addWidget(panel)
         self.resize(1200, 800)
         self._sliders = inner.findChildren(QSlider)

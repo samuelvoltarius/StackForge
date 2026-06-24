@@ -2225,6 +2225,17 @@ QProgressBar {
     border:none; border-radius:7px; background:#26282e; text-align:center; height:16px; color:#cfd2cd; }
 QProgressBar::chunk { background:#4caf50; border-radius:7px; }
 
+/* Schieberegler — grüner Verlauf, heller Griff (statt Qt-Standard-Blau) */
+QSlider::groove:horizontal { height:5px; background:#34383f; border-radius:3px; }
+QSlider::sub-page:horizontal { background:#4caf50; border-radius:3px; }
+QSlider::add-page:horizontal { background:#34383f; border-radius:3px; }
+QSlider::handle:horizontal {
+    background:#e8eae6; width:15px; height:15px; margin:-6px 0; border-radius:8px; }
+QSlider::handle:horizontal:hover { background:#ffffff; }
+QSlider::groove:vertical { width:5px; background:#34383f; border-radius:3px; }
+QSlider::handle:vertical {
+    background:#e8eae6; width:15px; height:15px; margin:0 -6px; border-radius:8px; }
+
 QSplitter::handle { background:transparent; width:10px; }
 
 QScrollBar:vertical { background:transparent; width:10px; margin:2px; }
