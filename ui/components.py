@@ -269,13 +269,13 @@ class AdjustDialog(QDialog):
 
         lay = QHBoxLayout(self)
         self.preview = QLabel(); self.preview.setAlignment(Qt.AlignCenter)
-        self.preview.setMinimumSize(620, 460)
+        self.preview.setMinimumSize(760, 540)          # mehr Bildfläche (~¾)
         lay.addWidget(self.preview, 1)
 
-        # rechtes Panel mit Histogramm + (scrollbaren) Reglern
-        panel = QWidget(); panel.setMaximumWidth(330)
+        # rechtes Panel mit (größerem) Histogramm + scrollbaren Reglern
+        panel = QWidget(); panel.setMaximumWidth(310); panel.setMinimumWidth(290)
         pv = QVBoxLayout(panel)
-        self.hist = QLabel(); self.hist.setFixedHeight(92)
+        self.hist = QLabel(); self.hist.setFixedHeight(132); self.hist.setAlignment(Qt.AlignCenter)
         pv.addWidget(self.hist)
 
         scroll = QScrollArea(); scroll.setWidgetResizable(True); scroll.setFrameShape(QFrame.NoFrame)
@@ -397,7 +397,7 @@ class AdjustDialog(QDialog):
         pix, _ = _bgr_to_pixmap(out, max_w=900)
         self.preview.setPixmap(pix.scaled(self.preview.size(), Qt.KeepAspectRatio,
                                           Qt.SmoothTransformation))
-        self.hist.setPixmap(histogram_pixmap(out, w=300, h=88))
+        self.hist.setPixmap(histogram_pixmap(out, w=300, h=128))
 
     def _auto(self):
         """Sanfter Auto-Tonwert: Belichtung Richtung Mittelhelligkeit + leichter Kontrast."""

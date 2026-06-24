@@ -6,14 +6,29 @@
 [![release](https://img.shields.io/github/v/release/samuelvoltarius/StackForge?include_prereleases)](https://github.com/samuelvoltarius/StackForge/releases)
 [![license: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**One‑click stacking — macro, astro, hybrid & long exposure.** Drop your photos in, get a
-finished image out — in the best possible quality for further editing. Self‑contained, free
-(MIT), cross‑platform (Windows / macOS / Linux).
+**Focus Stacking + Astro + Long Exposure.** Drop your photos in, get a finished image out — in
+the best possible quality for further editing. Self‑contained, free (MIT), cross‑platform
+(Windows / macOS / Linux).
+
+## Why StackForge?
+
+> **Focus Stacking + Astro + Long Exposure — one app.**
+>
+> - ✓ **Analyses focus series** — which frames carry the focus, which are redundant
+> - ✓ **Removes rejects automatically** — shaky/misfocused frames out, *with measured reasons*
+> - ✓ **Computes the optimal frame count** — “30 frames → 98 % coverage”
+> - ✓ **Explains every decision** — no black box, real metrics instead of AI marketing
+> - ✓ **Works without AI** — fully local, no server, no model download
 
 📖 **Full guide:** [docs/GUIDE.en.md](docs/GUIDE.en.md) · *[🇩🇪 Anleitung](docs/GUIDE.de.md)*
 
-![StackForge — module picker](assets/screenshot_welcome.png)
-![StackForge — Astro](assets/screenshot_astro.png)
+| Start screen | Macro module |
+|---|---|
+| ![Start](assets/shots/01_start.png) | ![Macro](assets/shots/02_makro.png) |
+| **Camera‑Raw editor** | **Focus map** |
+| ![Editor](assets/shots/04_editor.png) | ![Focus map](assets/shots/05_focusmap.png) |
+| **Astro module** | **Long exposure** |
+| ![Astro](assets/shots/03_astro.png) | ![Long exposure](assets/shots/06_longexp.png) |
 
 ## Highlights
 
@@ -81,10 +96,6 @@ In the **Setup menu (⚙) → "External tools"** you set paths to **GraXpert**, 
 result through GraXpert (gradient) or StarNet++ (starless) with **one click** — including
 automatic re‑import. None of it is required.
 
-## Editor
-
-![Editor](assets/editor.png)
-
 ## Languages
 
 German & English built in (switch top‑right, applies on restart). Add your own language:
@@ -104,8 +115,8 @@ language menu automatically.
 ./run_tests.sh        # or: python3 -m unittest discover -s tests
 ```
 
-24 engine tests (standard library, no pytest needed) cover focus analysis, long exposure, astro,
-stacker, mosaic, i18n completeness and a GUI smoke test.
+25 engine tests (standard library, no pytest needed) cover focus analysis, long exposure, astro,
+stacker, mosaic, export, i18n completeness and a GUI smoke test.
 
 ## License
 

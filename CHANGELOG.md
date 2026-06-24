@@ -4,6 +4,17 @@ Alle nennenswerten Änderungen an StackForge. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.5.0] – 2026-06-25
+### Geändert (UX-Politur)
+- **Startbildschirm:** hochwertigere Karten — große Icons, Titel, Kategorie und Beispiele
+  (z. B. „Produkte · Münzen · Insekten · Food“) + Empfehlungs-Pill. **Einstellungen & „Was ist das?“**
+  schon am Start (Sprache/Anfänger-Profi/KI).
+- **Hauptfenster:** deutlich **größere Bildfläche** (~⅔), leeres Ergebnis als klare Drag-&-Drop-Zone,
+  viele Buttons in ein **„🛠 Werkzeuge“-Menü** aufgeräumt (nur Vorher/Nachher · Bearbeiten · Export sichtbar).
+- **Editor:** größeres **Histogramm** und größere **Bildfläche**.
+- **README** komplett aufpoliert: „Warum StackForge?“-Sektion + Screenshot-Galerie (6 Ansichten).
+- **Schieberegler** gethemt (v1.4.1).
+
 ## [1.4.1] – 2026-06-25
 ### Behoben
 - **Schieberegler durchgängig gethemt** (grüner Verlauf + heller Griff statt Qt-Standard-Blau) —

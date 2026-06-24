@@ -22,12 +22,13 @@ def _cache_path(prefix, src):
 
 from PySide6.QtCore import Qt, QProcess, QSettings, QRect, QSize, QThread, Signal
 from PySide6.QtGui import (QPixmap, QFont, QIcon, QPainter, QColor, QPen, QCursor, QImage,
-                           QShortcut, QKeySequence)
+                           QShortcut, QKeySequence, QAction)
 from PySide6.QtWidgets import (
     QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QGridLayout,
     QGroupBox, QLabel, QLineEdit, QPushButton, QFileDialog, QPlainTextEdit,
     QDoubleSpinBox, QSpinBox, QCheckBox, QMessageBox, QSplitter, QFrame, QComboBox,
     QScrollArea, QProgressBar, QToolButton, QDialog, QToolTip, QSlider, QStackedWidget,
+    QMenu,
 )
 
 try:
@@ -160,6 +161,14 @@ class MainWindow(QMainWindow):
             self.lang_box.setCurrentIndex(self._lang_codes.index(current_language()))
         self.lang_box.currentIndexChanged.connect(self._on_language)
         self._settings_lay.addLayout(_row(tr("Sprache:"), self.lang_box))
+        # Anfänger/Profi auch im Setup (synchron mit der Kopfzeile)
+        self.set_mode = QComboBox()
+        self.set_mode.addItems([tr("🌱 Anfänger"), tr("🛠️ Profi")])
+        self.set_mode.setCurrentIndex(self.mode_box.currentIndex())
+        self.set_mode.currentIndexChanged.connect(self.mode_box.setCurrentIndex)
+        self.mode_box.currentIndexChanged.connect(self.set_mode.setCurrentIndex)
+        self._settings_lay.addLayout(_row(tr("Modus:"), self.set_mode,
+                                          tr("Anfänger = ein Klick. Profi = alle Regler + Wizard.")))
 
         # Externe Tools (optional) — Pfade frei einstellbar; leer = automatisch suchen
         try:
@@ -193,8 +202,8 @@ class MainWindow(QMainWindow):
 
         # ---- linke Spalte: Schritt-für-Schritt-Wizard ----
         left = QWidget()
-        left.setMinimumWidth(500)
-        left.setMaximumWidth(600)
+        left.setMinimumWidth(450)
+        left.setMaximumWidth(560)
         lv = QVBoxLayout(left)
 
         self.STEP_NAMES = [tr("1 · Fotos"), tr("2 · Auswahl & Ausrichtung"),
@@ -679,67 +688,54 @@ class MainWindow(QMainWindow):
         rv.addWidget(self.progress)
 
         line = QFrame(); line.setFrameShape(QFrame.HLine); rv.addWidget(line)
-        self.preview = QLabel("Ordner hierher ziehen oder oben wählen — dann ⚡ Automatik")
+        self._preview_empty = ("<div style='font-size:64px'>📂</div>"
+                               "<div style='font-size:16px;color:#cfd2cd;margin-top:8px'>"
+                               + tr("Ordner hierher ziehen") + "</div>"
+                               "<div style='font-size:12px;color:#8a8f88;margin-top:4px'>"
+                               + tr("oder oben „Wählen…“ – dann ⚡ Automatik") + "</div>")
+        self.preview = QLabel(self._preview_empty)
+        self.preview.setTextFormat(Qt.RichText)
         self.preview.setAlignment(Qt.AlignCenter)
-        self.preview.setMinimumHeight(220)
-        self.preview.setStyleSheet("color:#8a8f88;border:1px dashed #34383f;border-radius:10px;")
+        self.preview.setMinimumHeight(260)
+        self.preview.setStyleSheet("color:#8a8f88;border:2px dashed #34383f;border-radius:12px;")
         rv.addWidget(QLabel(tr("Ergebnis")))
-        rv.addWidget(self.preview, 2)
+        rv.addWidget(self.preview, 3)
         res_btns = QHBoxLayout(); res_btns.setSpacing(8)
+        # Primäre Aktionen als Buttons, alles Weitere im „Werkzeuge"-Menü (entrümpelt)
         self.cmp_btn = QPushButton(tr("🔍  Vorher/Nachher"))
         self.cmp_btn.setToolTip("Schieberegler: schärfstes Einzelfoto gegen das fertige Bild vergleichen.")
-        self.cmp_btn.setEnabled(False)
-        self.cmp_btn.clicked.connect(self.open_compare)
-        self.openfolder_btn = QPushButton(tr("📁  Ausgabe-Ordner"))
-        self.openfolder_btn.clicked.connect(self.open_folder); self.openfolder_btn.setEnabled(False)
-        self.open_btn = QPushButton(tr("Im Finder"))
-        self.open_btn.clicked.connect(self.open_result); self.open_btn.setEnabled(False)
-        self.retouch_btn = QPushButton(tr("✏️  Retusche"))
-        self.retouch_btn.setToolTip("Eigener Retusche-Editor: scharfe Stellen aus Einzelfotos "
-                                    "übermalen (gegen Halos/Ghosting).")
-        self.retouch_btn.clicked.connect(self.open_retouch); self.retouch_btn.setEnabled(False)
+        self.cmp_btn.setEnabled(False); self.cmp_btn.clicked.connect(self.open_compare)
         self.adjust_btn = QPushButton(tr("🎚️  Bearbeiten"))
         self.adjust_btn.setToolTip("Camera-Raw: Belichtung, Kontrast, Weißabgleich, Klarheit, "
                                    "Farbe — mit Live-Vorschau und Histogramm.")
-        self.adjust_btn.clicked.connect(self.open_adjust); self.adjust_btn.setEnabled(False)
-        self.ghost_btn = QPushButton(tr("👻  Geister-Karte"))
-        self.ghost_btn.setToolTip("Zeigt rot, wo Bewegung/Ghosting wahrscheinlich ist "
-                                  "(nur wenn beim Lauf erzeugt).")
-        self.ghost_btn.clicked.connect(self.open_ghostmap); self.ghost_btn.setEnabled(False)
+        self.adjust_btn.setEnabled(False); self.adjust_btn.clicked.connect(self.open_adjust)
         self.export_btn = QPushButton(tr("📦  Export"))
         self.export_btn.setToolTip(tr("Exportieren: Ziele, Schärfung, Photoshop-Ebenen, 16-bit (⌘E)."))
-        self.export_btn.clicked.connect(self.export_result); self.export_btn.setEnabled(False)
-        for b in (self.cmp_btn, self.openfolder_btn, self.open_btn, self.adjust_btn,
-                  self.ghost_btn, self.retouch_btn, self.export_btn):
+        self.export_btn.setEnabled(False); self.export_btn.clicked.connect(self.export_result)
+
+        self.tools_btn = QToolButton()
+        self.tools_btn.setText(tr("🛠  Werkzeuge  ▾")); self.tools_btn.setPopupMode(QToolButton.InstantPopup)
+        self.tools_btn.setEnabled(False)
+        menu = QMenu(self.tools_btn)
+
+        def _act(text, fn):
+            a = QAction(text, self); a.triggered.connect(fn); a.setEnabled(False)
+            menu.addAction(a); return a
+        self.openfolder_btn = _act(tr("📁  Ausgabe-Ordner"), self.open_folder)
+        self.open_btn = _act(tr("Im Finder anzeigen"), self.open_result)
+        self.ghost_btn = _act(tr("👻  Geister-Karte"), self.open_ghostmap)
+        self.retouch_btn = _act(tr("✏️  Retusche"), self.open_retouch)
+        self._astro_menu_sep = menu.addSeparator()
+        self.graxpert_btn = _act(tr("🌌  GraXpert (Gradient)"), lambda: self._run_external_tool("graxpert"))
+        self.starnet_btn = _act(tr("⭐  StarNet (starless)"), lambda: self._run_external_tool("starnet"))
+        self.reimport_btn = _act(tr("📥  Bearbeitetes reimportieren"), self.reimport_result)
+        self.send_btn = _act(tr("📤  Im Dateimanager zeigen"), self.send_to_tool)
+        self.tools_btn.setMenu(menu)
+
+        for b in (self.cmp_btn, self.adjust_btn, self.export_btn, self.tools_btn):
             res_btns.addWidget(b)
+        res_btns.addStretch(1)
         rv.addLayout(res_btns)
-        # zweite Reihe: externe Astro-Tools (GraXpert/StarNet) — Ein-Klick falls Pfad gesetzt/gefunden
-        res_btns2 = QHBoxLayout(); res_btns2.setSpacing(8)
-        self.graxpert_btn = QPushButton(tr("🌌  GraXpert (Gradient)"))
-        self.graxpert_btn.setToolTip(tr("GraXpert: Hintergrund/Gradient (Lichtverschmutzung) "
-                                        "entfernen. Gefunden = Ein-Klick + automatischer Reimport; "
-                                        "sonst Ergebnis im Dateimanager zeigen. Pfad im Setup-Menü."))
-        self.graxpert_btn.clicked.connect(lambda: self._run_external_tool("graxpert"))
-        self.graxpert_btn.setEnabled(False)
-        self.starnet_btn = QPushButton(tr("⭐  StarNet (starless)"))
-        self.starnet_btn.setToolTip(tr("StarNet++: Sterne entfernen (starless). Gefunden = "
-                                       "Ein-Klick + automatischer Reimport; sonst Ergebnis im "
-                                       "Dateimanager zeigen. Pfad im Setup-Menü."))
-        self.starnet_btn.clicked.connect(lambda: self._run_external_tool("starnet"))
-        self.starnet_btn.setEnabled(False)
-        self.reimport_btn = QPushButton(tr("📥  Bearbeitetes reimportieren"))
-        self.reimport_btn.setToolTip(tr("Ein extern bearbeitetes Bild zurück in StackForge laden "
-                                        "(für Vorschau/Bearbeiten/Export)."))
-        self.reimport_btn.clicked.connect(self.reimport_result); self.reimport_btn.setEnabled(False)
-        # send_btn bleibt als generischer „im Dateimanager zeigen“-Knopf (PixInsight & Co.)
-        self.send_btn = QPushButton(tr("📤  Im Dateimanager zeigen"))
-        self.send_btn.setToolTip(tr("Zeigt das 32-bit-lineare Ergebnis im Dateimanager — für "
-                                    "PixInsight oder andere Tools."))
-        self.send_btn.clicked.connect(self.send_to_tool); self.send_btn.setEnabled(False)
-        for b in (self.graxpert_btn, self.starnet_btn, self.reimport_btn, self.send_btn):
-            res_btns2.addWidget(b)
-        res_btns2.addStretch(1)
-        rv.addLayout(res_btns2)
 
         # Filmstreifen: alle Fotos mit Schärfe-Wert, behalten/verworfen
         self.strip_label = QLabel("Bilder (grün = verwendet, rot = aussortiert):")
@@ -758,7 +754,7 @@ class MainWindow(QMainWindow):
         rv.addWidget(self.strip_scroll)
 
         split.addWidget(right)
-        split.setSizes([440, 660])
+        split.setSizes([470, 970])   # ~⅓ Einstellungen / ~⅔ Bild
 
         self.result_path = None
         self.before_path = None
@@ -830,7 +826,17 @@ class MainWindow(QMainWindow):
         """Start-Auswahlbildschirm: aufgeräumt, mit Logo, Modul-Karten und 3-Schritt-Ablauf."""
         page = QWidget()
         outer = QVBoxLayout(page)
-        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setContentsMargins(16, 12, 16, 12)
+        # Top-Bar: Einstellungen schon am Start erreichbar (Sprache/Anfänger-Profi/KI)
+        topbar = QHBoxLayout(); topbar.addStretch(1)
+        info_btn = QPushButton(tr("ℹ️  Was ist das?"))
+        info_btn.setToolTip(tr("Kurz erklärt, was StackForge macht."))
+        info_btn.clicked.connect(self._show_about)
+        wset_btn = QPushButton(tr("⚙  Einstellungen"))
+        wset_btn.setToolTip(tr("Sprache, Anfänger/Profi, KI-Server — schon vor dem Start einstellbar."))
+        wset_btn.clicked.connect(self.settings_dialog.show)
+        topbar.addWidget(info_btn); topbar.addWidget(wset_btn)
+        outer.addLayout(topbar)
         outer.addStretch(1)
 
         # zentrierter Inhalts-Container mit fester Maximalbreite (auch auf breiten Screens schön)
@@ -854,32 +860,36 @@ class MainWindow(QMainWindow):
         sub.setStyleSheet("color:#7bd36a;font-size:14px;font-weight:700;letter-spacing:0.3px;")
         sub.setAlignment(Qt.AlignCenter); lay.addWidget(sub); lay.addSpacing(16)
 
-        grid = QGridLayout(); grid.setSpacing(16)
+        grid = QGridLayout(); grid.setSpacing(18)
+        # (Modul, großes Emoji, Titel, Kategorie, Beispiele, Empfehlungs-Pill)
         cards = [
-            (0, "🔬", tr("Makro / Fokus-Stacking"),
-             tr("Mehrere Nahaufnahmen → ein durchgehend scharfes Bild."), tr("10–40 Aufnahmen")),
-            (1, "🌌", tr("Astro"),
-             tr("Sternenhimmel: ausrichten, Rauschen mitteln, kalibrieren."), tr("20–100+ Lights")),
-            (2, "🌗", tr("Hybrid"),
-             tr("Mond-/Sonnen-Mosaik oder Fokus+Astro kombiniert."), tr("4–20+ Kacheln")),
-            (3, "📷", tr("Langzeitbelichtung"),
-             tr("Ohne ND-Filter: seidiges Wasser, Lichtspuren, Störer weg."), tr("10–300+ Bilder")),
+            (0, "🔬", tr("Makro"), tr("Fokus-Stacking"),
+             tr("Produkte · Münzen · Insekten · Food"), tr("10–40 Aufnahmen")),
+            (1, "🌌", tr("Astro"), tr("Deep-Sky / Sterne"),
+             tr("Milchstraße · Nebel · Galaxien"), tr("20–100+ Lights")),
+            (2, "🌗", tr("Hybrid"), tr("Mosaik & Fokus+Astro"),
+             tr("Mond · Sonne · große Panoramen"), tr("4–20+ Kacheln")),
+            (3, "📷", tr("Langzeit"), tr("Belichtung ohne ND-Filter"),
+             tr("Wasser · Wolken · Lichtspuren"), tr("10–300+ Bilder")),
         ]
-        for n, (idx, emoji, name, desc, pill) in enumerate(cards):
-            card = QPushButton(); card.setCursor(Qt.PointingHandCursor); card.setMinimumHeight(176)
+        for n, (idx, emoji, name, cat, examples, pill) in enumerate(cards):
+            card = QPushButton(); card.setCursor(Qt.PointingHandCursor); card.setMinimumHeight(212)
             card.setObjectName("card")
-            cv = QVBoxLayout(card); cv.setContentsMargins(18, 16, 18, 16); cv.setSpacing(7)
-            el = QLabel(emoji); el.setAlignment(Qt.AlignCenter); el.setStyleSheet("font-size:34px;")
+            cv = QVBoxLayout(card); cv.setContentsMargins(20, 20, 20, 18); cv.setSpacing(4)
+            el = QLabel(emoji); el.setAlignment(Qt.AlignCenter); el.setStyleSheet("font-size:54px;")
             tl = QLabel(name); tl.setAlignment(Qt.AlignCenter)
-            tl.setStyleSheet("font-size:17px;font-weight:bold;color:#e8eae6;")
-            dl = QLabel(desc); dl.setWordWrap(True); dl.setAlignment(Qt.AlignCenter)
-            dl.setStyleSheet("color:#9aa09a;font-size:12px;")
+            tl.setStyleSheet("font-size:22px;font-weight:800;color:#e8eae6;")
+            cl = QLabel(cat); cl.setAlignment(Qt.AlignCenter)
+            cl.setStyleSheet("color:#7bd36a;font-size:13px;font-weight:600;")
+            xl = QLabel(examples); xl.setWordWrap(True); xl.setAlignment(Qt.AlignCenter)
+            xl.setStyleSheet("color:#9aa09a;font-size:12px;")
             pl = QLabel(pill); pl.setAlignment(Qt.AlignCenter)
             pl.setStyleSheet("color:#7bd36a;background:#1c2a1c;border-radius:9px;"
-                             "padding:3px 10px;font-size:11px;font-weight:600;")
-            for w in (el, tl, dl, pl):
+                             "padding:3px 12px;font-size:11px;font-weight:600;")
+            for w in (el, tl, cl, xl, pl):
                 w.setAttribute(Qt.WA_TransparentForMouseEvents)  # Klicks gehen an die Karte
-            cv.addWidget(el); cv.addWidget(tl); cv.addWidget(dl); cv.addStretch(1)
+            cv.addWidget(el); cv.addSpacing(2); cv.addWidget(tl); cv.addWidget(cl)
+            cv.addSpacing(4); cv.addWidget(xl); cv.addStretch(1)
             row = QHBoxLayout(); row.addStretch(1); row.addWidget(pl); row.addStretch(1); cv.addLayout(row)
             card.clicked.connect(lambda _=False, t=idx: self._choose_module(t))
             grid.addWidget(card, n // 2, n % 2)
@@ -972,6 +982,32 @@ class MainWindow(QMainWindow):
         lay.addWidget(sc)
         b = QPushButton(tr("Schließen")); b.clicked.connect(dlg.accept); lay.addWidget(b)
         dlg.show(); self._sc_dlg = dlg
+
+    def _show_about(self):
+        """Kurze, klare Erklärung was StackForge ist und kann (für Einsteiger)."""
+        html = tr(
+            "<h3>Was ist StackForge?</h3>"
+            "<p>StackForge macht aus <b>vielen Fotos ein besseres Bild</b> — vollautomatisch, "
+            "und es <b>erklärt dabei, was es tut</b>.</p>"
+            "<p><b>🔬 Makro:</b> mehrere Nahaufnahmen mit wanderndem Fokus → ein durchgehend "
+            "scharfes Bild.<br>"
+            "<b>🌌 Astro:</b> viele Aufnahmen des Sternenhimmels → rauschfrei.<br>"
+            "<b>🌗 Hybrid:</b> Mond-/Sonnen-Mosaik oder Fokus+Astro.<br>"
+            "<b>📷 Langzeitbelichtung:</b> aus einer Serie ohne ND-Filter (seidiges Wasser, "
+            "Lichtspuren …).</p>"
+            "<p><b>So einfach:</b> Modul wählen → Ordner wählen (oder aufs Fenster ziehen) → "
+            "⚡ Automatik. Im <b>Anfänger-Modus</b> genügt ein Klick; der <b>Profi-Modus</b> "
+            "öffnet alle Regler.</p>"
+            "<p>Die KI ist <b>optional</b> — alles läuft auch ohne Server. Sie <b>berät</b> nur "
+            "und verändert nie heimlich Pixel.</p>"
+            "<p style='color:#9aa09a'>Mehr in der Anleitung (docs/GUIDE) und mit dem „?“ an jeder "
+            "Einstellung. Tastenkürzel: F1.</p>")
+        dlg = QDialog(self); dlg.setWindowTitle(tr("Über StackForge")); dlg.resize(520, 460)
+        lay = QVBoxLayout(dlg)
+        lbl = QLabel(html); lbl.setWordWrap(True); lbl.setTextFormat(Qt.RichText); lbl.setAlignment(Qt.AlignTop)
+        sc = QScrollArea(); sc.setWidgetResizable(True); sc.setWidget(lbl); lay.addWidget(sc)
+        b = QPushButton(tr("Schließen")); b.clicked.connect(dlg.accept); lay.addWidget(b)
+        dlg.show(); self._about_dlg = dlg
 
     def _set_task(self):
         i = self.task_box.currentIndex()
@@ -1231,7 +1267,8 @@ class MainWindow(QMainWindow):
         self.log.clear()
         self.preview.setText("— läuft —"); self.preview.setPixmap(QPixmap())
         self.open_btn.setEnabled(False); self.retouch_btn.setEnabled(False)
-        self.cmp_btn.setEnabled(False); self.cmp_btn.setChecked(False); self.openfolder_btn.setEnabled(False)
+        self.cmp_btn.setEnabled(False); self.openfolder_btn.setEnabled(False)
+        self.export_btn.setEnabled(False); self.tools_btn.setEnabled(False)
         self.result_path = None; self.before_path = None
         self.progress.setRange(0, 0); self.progress.show()  # erst „beschäftigt“
         if auto:
@@ -1462,7 +1499,7 @@ class MainWindow(QMainWindow):
         self.cmp_btn.setEnabled(bool(self.before_path))
         self.ghost_btn.setEnabled(bool(self._ghostmap_path()))
         self.send_btn.setEnabled(True); self.reimport_btn.setEnabled(True)
-        self.export_btn.setEnabled(True)
+        self.export_btn.setEnabled(True); self.tools_btn.setEnabled(True)
         # GraXpert/StarNet nur bei Himmels-Modulen sinnvoll (Astro/Langzeit/Hybrid), nicht Makro
         sky = (getattr(self, "is_astro", False) or getattr(self, "is_longexp", False)
                or getattr(self, "is_hybrid", False))

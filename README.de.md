@@ -2,14 +2,33 @@
 
 *[🇬🇧 English version](README.md)*
 
-**Stacking mit einem Klick — Makro, Astro, Hybrid & Langzeitbelichtung.** Fotos rein, fertiges
-Bild raus — in bester Qualität zum Weiterbearbeiten. Eigenständig, frei (MIT),
-plattformübergreifend (Windows / macOS / Linux).
+![tests](https://github.com/samuelvoltarius/StackForge/actions/workflows/tests.yml/badge.svg)
+[![release](https://img.shields.io/github/v/release/samuelvoltarius/StackForge?include_prereleases)](https://github.com/samuelvoltarius/StackForge/releases)
+[![license: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+**Focus Stacking + Astro + Langzeitbelichtung.** Fotos rein, fertiges Bild raus — in bester
+Qualität zum Weiterbearbeiten. Eigenständig, frei (MIT), plattformübergreifend
+(Windows / macOS / Linux).
+
+## Warum StackForge?
+
+> **Focus Stacking + Astro + Langzeitbelichtung — eine App.**
+>
+> - ✓ **Analysiert Fokusreihen** — welche Bilder den Fokus tragen, welche redundant sind
+> - ✓ **Entfernt Ausschuss automatisch** — verwackelte/falsch fokussierte raus, *mit Messwerten*
+> - ✓ **Berechnet die optimale Bildanzahl** — „30 Bilder → 98 % Abdeckung“
+> - ✓ **Erklärt jede Entscheidung** — keine Blackbox, echte Metriken statt KI-Marketing
+> - ✓ **Funktioniert ohne KI** — komplett lokal, kein Server, kein Modell-Download
 
 📖 **Ausführliche Anleitung:** [docs/GUIDE.de.md](docs/GUIDE.de.md) · *[🇬🇧 Guide](docs/GUIDE.en.md)*
 
-![StackForge — Modul-Auswahl](assets/screenshot_welcome.png)
-![StackForge — Astro](assets/screenshot_astro.png)
+| Startbildschirm | Makro-Modul |
+|---|---|
+| ![Start](assets/shots/01_start.png) | ![Makro](assets/shots/02_makro.png) |
+| **Camera‑Raw-Editor** | **Fokus-Map** |
+| ![Editor](assets/shots/04_editor.png) | ![Fokus-Map](assets/shots/05_focusmap.png) |
+| **Astro-Modul** | **Langzeitbelichtung** |
+| ![Astro](assets/shots/03_astro.png) | ![Langzeit](assets/shots/06_longexp.png) |
 
 ## Highlights
 
@@ -78,9 +97,6 @@ Im **Setup‑Menü (⚙) → „Externe Tools"** trägst du Pfade zu **GraXpert*
 dann **per Ein‑Klick** durch GraXpert (Gradient) oder StarNet++ (starless) schicken — inklusive
 automatischem Reimport. Nichts davon ist Pflicht.
 
-## Editor
-
-![Editor](assets/editor.png)
 
 ## Sprachen
 
@@ -101,7 +117,7 @@ automatisch in der Sprachauswahl.
 ./run_tests.sh        # oder: python3 -m unittest discover -s tests
 ```
 
-24 Engine‑Tests (Standardbibliothek, kein pytest nötig) decken Fokus‑Analyse, Langzeit, Astro,
+25 Engine‑Tests (Standardbibliothek, kein pytest nötig) decken Fokus‑Analyse, Langzeit, Astro,
 Stacker, Mosaik, i18n‑Vollständigkeit und einen GUI‑Smoke‑Test ab.
 
 ## Lizenz
