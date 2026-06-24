@@ -118,6 +118,32 @@ class MainWindow(QMainWindow):
         self.lang_box.currentIndexChanged.connect(self._on_language)
         self._settings_lay.addLayout(_row(tr("Sprache:"), self.lang_box))
 
+        # Externe Tools (optional) — Pfade frei einstellbar; leer = automatisch suchen
+        try:
+            import tools_engine as _te
+            import siril_engine as _se
+            gx_def, sn_def, si_def = (_te.find_graxpert() or "", _te.find_starnet() or "",
+                                      _se.find_siril() or "")
+        except Exception:
+            gx_def = sn_def = si_def = ""
+        g_tools = QGroupBox(tr("Externe Tools (optional)"))
+        gt = QGridLayout(g_tools)
+        self.graxpert_path = QLineEdit(gx_def)
+        self.graxpert_path.setPlaceholderText(tr("Pfad zu GraXpert (leer = automatisch suchen)"))
+        self.starnet_path = QLineEdit(sn_def)
+        self.starnet_path.setPlaceholderText(tr("Pfad zu StarNet++ (leer = automatisch suchen)"))
+        self.siril_path = QLineEdit(si_def)
+        self.siril_path.setPlaceholderText(tr("Pfad zu siril-cli (leer = automatisch suchen)"))
+        for r, (lab, edit) in enumerate([("GraXpert", self.graxpert_path),
+                                         ("StarNet++", self.starnet_path),
+                                         ("Siril", self.siril_path)]):
+            btn = QPushButton("…"); btn.clicked.connect(lambda _=False, e=edit: self._pick_file_into(e))
+            gt.addWidget(QLabel(lab), r, 0); gt.addWidget(edit, r, 1); gt.addWidget(btn, r, 2)
+        gt.addWidget(help_btn("Pfade zu deinen installierten Tools. Leer lassen = StackForge sucht "
+                              "selbst (PATH + übliche Orte). GraXpert/StarNet → Ein-Klick in der "
+                              "Ergebnis-Leiste; Siril → wählbare Astro-Engine. Alles optional."), 0, 3)
+        self._settings_lay.addWidget(g_tools)
+
         split = QSplitter(Qt.Horizontal)
         outer.addWidget(split, 1)
 
@@ -269,20 +295,10 @@ class MainWindow(QMainWindow):
         dbtn = QPushButton("…"); dbtn.clicked.connect(lambda: self._pick_into(self.astro_dark))
         fbtn = QPushButton("…"); fbtn.clicked.connect(lambda: self._pick_into(self.astro_flat))
         bbtn = QPushButton("…"); bbtn.clicked.connect(lambda: self._pick_into(self.astro_bias))
-        # Engine: eigene oder optional Siril
-        self.astro_engine = QComboBox(); self.astro_engine.addItem("Eigene", "own")
-        try:
-            import siril_engine
-            if siril_engine.available():
-                self.astro_engine.addItem("Siril (gefunden)", "siril")
-                self._siril_default = siril_engine.find_siril()
-            else:
-                self._siril_default = ""
-        except Exception:
-            self._siril_default = ""
-        self.siril_path = QLineEdit(self._siril_default)
-        self.siril_path.setPlaceholderText("Pfad zu siril-cli (optional)")
-        sbtn = QPushButton("…"); sbtn.clicked.connect(lambda: self._pick_file_into(self.siril_path))
+        # Engine: eigene oder optional Siril (Pfad steht im Setup-Menü unter „Externe Tools“)
+        self.astro_engine = QComboBox()
+        self.astro_engine.addItem(tr("Eigene"), "own")
+        self.astro_engine.addItem("Siril", "siril")
         ar.addWidget(QLabel("Methode"), 0, 0); ar.addWidget(self.astro_method, 0, 1, 1, 2)
         ar.addWidget(help_btn("Rauschen mitteln statt Schärfe wählen. „sigma“ (Kappa-Sigma) "
                               "entfernt Satelliten/Flugzeuge/Hot-Pixel — wie in Siril. "
@@ -300,8 +316,8 @@ class MainWindow(QMainWindow):
         ar.addWidget(QLabel("Engine"), 8, 0); ar.addWidget(self.astro_engine, 8, 1, 1, 2)
         ar.addWidget(help_btn("„Eigene“ = StackForge selbst (Standard, kein Fremdprogramm). "
                               "„Siril“ = optional dein installiertes Siril fernsteuern "
-                              "(Konvertieren→Registrieren→Stacken). Frei wählbar."), 8, 3)
-        ar.addWidget(QLabel("Siril-Pfad"), 9, 0); ar.addWidget(self.siril_path, 9, 1, 1, 1); ar.addWidget(sbtn, 9, 2)
+                              "(Konvertieren→Registrieren→Stacken). Pfad im Setup-Menü → "
+                              "„Externe Tools“."), 8, 3)
         ar.addWidget(self.astro_fits, 10, 0, 1, 3)
         ar.addWidget(help_btn("Speichert das fertige Stack-Ergebnis zusätzlich als 32-bit-FITS "
                               "(neben dem TIFF) — für PixInsight/Siril. FITS-Lights werden auch "
@@ -619,26 +635,18 @@ class MainWindow(QMainWindow):
                   self.ghost_btn, self.retouch_btn):
             res_btns.addWidget(b)
         rv.addLayout(res_btns)
-        # zweite Reihe: externe Astro-Tools (GraXpert/StarNet) — Ein-Klick falls installiert
-        try:
-            import tools_engine
-            self._has_graxpert = tools_engine.graxpert_available()
-            self._has_starnet = tools_engine.starnet_available()
-        except Exception:
-            self._has_graxpert = self._has_starnet = False
+        # zweite Reihe: externe Astro-Tools (GraXpert/StarNet) — Ein-Klick falls Pfad gesetzt/gefunden
         res_btns2 = QHBoxLayout()
-        gx_label = tr("🌌  GraXpert (Gradient)") if self._has_graxpert else tr("🌌  GraXpert öffnen")
-        self.graxpert_btn = QPushButton(gx_label)
+        self.graxpert_btn = QPushButton(tr("🌌  GraXpert (Gradient)"))
         self.graxpert_btn.setToolTip(tr("GraXpert: Hintergrund/Gradient (Lichtverschmutzung) "
-                                        "entfernen. Installiert = Ein-Klick + automatischer Reimport; "
-                                        "sonst Ergebnis im Dateimanager zeigen."))
+                                        "entfernen. Gefunden = Ein-Klick + automatischer Reimport; "
+                                        "sonst Ergebnis im Dateimanager zeigen. Pfad im Setup-Menü."))
         self.graxpert_btn.clicked.connect(lambda: self._run_external_tool("graxpert"))
         self.graxpert_btn.setEnabled(False)
-        sn_label = tr("⭐  StarNet (starless)") if self._has_starnet else tr("⭐  StarNet öffnen")
-        self.starnet_btn = QPushButton(sn_label)
-        self.starnet_btn.setToolTip(tr("StarNet++: Sterne entfernen (starless). Installiert = "
+        self.starnet_btn = QPushButton(tr("⭐  StarNet (starless)"))
+        self.starnet_btn.setToolTip(tr("StarNet++: Sterne entfernen (starless). Gefunden = "
                                        "Ein-Klick + automatischer Reimport; sonst Ergebnis im "
-                                       "Dateimanager zeigen."))
+                                       "Dateimanager zeigen. Pfad im Setup-Menü."))
         self.starnet_btn.clicked.connect(lambda: self._run_external_tool("starnet"))
         self.starnet_btn.setEnabled(False)
         self.reimport_btn = QPushButton(tr("📥  Bearbeitetes reimportieren"))
@@ -1344,13 +1352,23 @@ class MainWindow(QMainWindow):
         if self.result_path:
             open_path(os.path.dirname(self.result_path))
 
-    def _best_export_file(self):
-        """Bevorzugt das 32-bit-Linear-TIFF (für GraXpert/StarNet/PixInsight), sonst Ergebnis."""
+    def _best_export_file(self, bits=32):
+        """Lineares TIFF fürs Weiterreichen finden. bits=32 → 32-bit-Float (GraXpert/PixInsight);
+        bits=16 → 16-bit-TIFF (StarNet++ akzeptiert nur 16-bit). Sonst Ergebnis."""
         if self.result_path:
             d = os.path.dirname(self.result_path)
-            for f in os.listdir(d):
-                if "32bit" in f.lower() and f.lower().endswith((".tif", ".tiff")):
-                    return os.path.join(d, f)
+            tifs = [f for f in os.listdir(d) if f.lower().endswith((".tif", ".tiff"))]
+            if bits == 32:
+                for f in tifs:
+                    if "32bit" in f.lower():
+                        return os.path.join(d, f)
+            else:  # 16-bit: ein lineares TIFF OHNE 32bit-Marker bevorzugen
+                lin = [f for f in tifs if "32bit" not in f.lower()]
+                if lin:
+                    pref = [f for f in lin if "linear" in f.lower()] or lin
+                    return os.path.join(d, pref[0])
+            if self.result_path.lower().endswith((".tif", ".tiff")):
+                return self.result_path
         return self.result_path
 
     def send_to_tool(self):
@@ -1362,30 +1380,34 @@ class MainWindow(QMainWindow):
                      "PixInsight öffnen, dann „📥 Bearbeitetes reimportieren“.\n")
 
     def _run_external_tool(self, which):
-        """GraXpert/StarNet++ headless aufs 32-bit-Linear anwenden und das Ergebnis automatisch
-        reimportieren. Ist das Tool nicht installiert, im Dateimanager zeigen (manueller Weg)."""
-        f = self._best_export_file()
-        if not f or not os.path.isfile(f):
-            QMessageBox.information(self, which, tr("Erst ein Astro-Ergebnis erzeugen."))
-            return
+        """GraXpert/StarNet++ headless auf das lineare Ergebnis anwenden und automatisch
+        reimportieren. Ohne gefundenes Tool: im Dateimanager zeigen (manueller Weg).
+        Pfad kommt aus dem Setup-Menü (oder Auto-Erkennung)."""
         try:
             import tools_engine
         except Exception as e:
             QMessageBox.warning(self, which, f"{e}"); return
-        installed = (self._has_graxpert if which == "graxpert" else self._has_starnet)
-        if not installed:
+        # StarNet braucht 16-bit-TIFF, GraXpert nimmt 32-bit-Float
+        f = self._best_export_file(bits=16 if which == "starnet" else 32)
+        if not f or not os.path.isfile(f):
+            QMessageBox.information(self, which, tr("Erst ein Astro-Ergebnis erzeugen."))
+            return
+        name = "GraXpert" if which == "graxpert" else "StarNet++"
+        cfg_path = (self.graxpert_path.text().strip() if which == "graxpert"
+                    else self.starnet_path.text().strip()) or None
+        finder = tools_engine.find_graxpert if which == "graxpert" else tools_engine.find_starnet
+        exe = finder(cfg_path)
+        if not exe:
             reveal_in_files(f)
-            name = "GraXpert" if which == "graxpert" else "StarNet++"
             self._append(f"\n📤 {name} nicht gefunden — Datei im Dateimanager: "
-                         f"{os.path.basename(f)}\n   → dort öffnen, dann „📥 Bearbeitetes "
-                         "reimportieren“.\n")
+                         f"{os.path.basename(f)}\n   → Pfad im Setup-Menü setzen oder dort öffnen, "
+                         "dann „📥 Bearbeitetes reimportieren“.\n")
             return
         runner = tools_engine.run_graxpert if which == "graxpert" else tools_engine.run_starnet
-        name = "GraXpert" if which == "graxpert" else "StarNet++"
         self._append(f"\n⏳ {name} läuft … (kann dauern)\n")
         QApplication.processEvents()
         try:
-            out = runner(f, log=self._append)
+            out = runner(f, path=cfg_path, log=self._append)
         except Exception as e:
             QMessageBox.warning(self, name, f"{name}: {e}")
             self._append(f"\n⚠️ {name} fehlgeschlagen: {e}\n")
@@ -1539,6 +1561,9 @@ class MainWindow(QMainWindow):
             "longexp_mode": (lambda v: self.longexp_mode.setCurrentIndex(int(v)), self.longexp_mode.currentIndex),
             "longexp_align": (lambda v: self.longexp_align.setCurrentIndex(int(v)), self.longexp_align.currentIndex),
             "longexp_strength": (lambda v: self.longexp_strength.setValue(int(v)), self.longexp_strength.value),
+            "graxpert_path": (self.graxpert_path.setText, self.graxpert_path.text),
+            "starnet_path": (self.starnet_path.setText, self.starnet_path.text),
+            "siril_path": (self.siril_path.setText, self.siril_path.text),
         }
 
     def _save_settings(self):

@@ -74,16 +74,23 @@ def run_graxpert(infile, outfile=None, op="background-extraction", path=None, lo
 
 
 def run_starnet(infile, outfile=None, path=None, log=print):
-    """StarNet++ headless: Sterne entfernen → starless-Bild. Gibt den Ergebnis-Pfad zurück."""
+    """StarNet++ headless: Sterne entfernen → starless-Bild. Gibt den Ergebnis-Pfad zurück.
+
+    Wichtig: StarNet++ akzeptiert nur 16-bit-TIF und braucht seine Gewichte/Bibliotheken im
+    eigenen Ordner → wir rufen es mit cwd=Programmordner und absoluten Pfaden auf."""
     exe = find_starnet(path)
     if not exe:
         raise RuntimeError("StarNet++ nicht gefunden")
+    exe = os.path.abspath(exe)
+    infile = os.path.abspath(infile)
     if outfile is None:
         b, e = os.path.splitext(infile)
         outfile = f"{b}_starless{e or '.tif'}"
+    outfile = os.path.abspath(outfile)
+    workdir = os.path.dirname(exe)            # Gewichte + dylibs liegen hier
     cmd = [exe, infile, outfile]
-    log("  StarNet++: " + " ".join(cmd))
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+    log("  StarNet++: " + " ".join(cmd) + f"  (cwd={workdir})")
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=1800, cwd=workdir)
     if os.path.isfile(outfile):
         return outfile
     cand = _newest_sibling(outfile, infile)
