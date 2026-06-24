@@ -73,23 +73,81 @@ def _gray(f):
     return f.mean(axis=2).astype(np.float32) if f.ndim == 3 else f.astype(np.float32)
 
 
-def register_and_cache(paths, out_dir, dark=None, flat=None, do_register=True, log=print):
-    """Frames kalibrieren + per Phasenkorrelation aufs Referenzbild ausrichten,
-    als 16-bit-TIFF in out_dir ablegen. Gibt die Liste der ausgerichteten Pfade zurück."""
+def cosmetic_correct(f, strength=3.0):
+    """Hot-/Cold-Pixel entfernen (kosmetische Korrektur): einzelne Ausreißer ggü. dem lokalen
+    Median ersetzen. Beseitigt helle/dunkle Einzelpixel (Sensor-Defekte/Cosmics) ohne Sterne
+    anzutasten. Klassisch, kein ML."""
+    u16 = (np.clip(f, 0, 1) * 65535).astype(np.uint16)
+    med = cv2.medianBlur(u16, 3).astype(np.float32) / 65535.0
+    diff = f - med
+    sigma = float(np.std(diff)) + 1e-6
+    mask = np.abs(diff) > strength * sigma
+    out = f.copy()
+    out[mask] = med[mask]
+    return out
+
+
+def _estimate_rotation(refg, img_g, detector="ORB"):
+    """Partielle Affine (Translation + Rotation, kein Scherung) per Stern-Merkmalen schätzen.
+    Für Alt-Az-Montierungen mit Feldrotation. Gibt 2x3-Matrix oder None (Fallback Translation)."""
+    a = (np.clip(refg, 0, 1) * 255).astype(np.uint8)
+    b = (np.clip(img_g, 0, 1) * 255).astype(np.uint8)
+    det = cv2.ORB_create(4000)
+    ka, da = det.detectAndCompute(a, None)
+    kb, db = det.detectAndCompute(b, None)
+    if da is None or db is None or len(ka) < 8 or len(kb) < 8:
+        return None
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    m = sorted(bf.match(da, db), key=lambda x: x.distance)[:200]
+    if len(m) < 8:
+        return None
+    src = np.float32([kb[x.trainIdx].pt for x in m]).reshape(-1, 1, 2)
+    dst = np.float32([ka[x.queryIdx].pt for x in m]).reshape(-1, 1, 2)
+    M, _ = cv2.estimateAffinePartial2D(src, dst, method=cv2.RANSAC, ransacReprojThreshold=3)
+    return M
+
+
+def register_and_cache(paths, out_dir, dark=None, flat=None, do_register=True,
+                       align_mode="shift", cosmetic=False, drizzle=1, detector="ORB", log=print):
+    """Frames kalibrieren + ausrichten, als 16-bit-TIFF in out_dir ablegen.
+
+    align_mode: 'shift' = Phasenkorrelation (nur Translation, schnell, Nachführung) ·
+                'rotate' = Stern-Merkmale (Translation + Feldrotation, für Alt-Az).
+    cosmetic:   Hot-/Cold-Pixel vor dem Ausrichten entfernen.
+    drizzle:    Ausgabe-Hochskalierung (1 = aus, 2 = doppelte Kantenlänge) — feineres Sampling
+                bei unterabgetasteten Daten („Drizzle-lite": Hochskalieren + Integrieren, keine
+                echte Pixel-Fraktion wie PixInsight/DrizzleIntegration).
+    Gibt die Liste der ausgerichteten Pfade zurück."""
     os.makedirs(out_dir, exist_ok=True)
+    drizzle = max(1, int(drizzle))
     ref = calibrate(_read_float(paths[len(paths) // 2]), dark, flat)
+    if cosmetic:
+        ref = cosmetic_correct(ref)
     refg = _gray(ref)
     win = cv2.createHanningWindow((refg.shape[1], refg.shape[0]), cv2.CV_32F)
+    out_size = (ref.shape[1] * drizzle, ref.shape[0] * drizzle)
     aligned = []
     for i, p in enumerate(paths):
         f = calibrate(_read_float(p), dark, flat)
         if f.shape[:2] != ref.shape[:2]:
             f = cv2.resize(f, (ref.shape[1], ref.shape[0]))
+        if cosmetic:
+            f = cosmetic_correct(f)
         if do_register:
-            (dx, dy), _resp = cv2.phaseCorrelate(refg * win, _gray(f) * win)
-            M = np.float32([[1, 0, dx], [0, 1, dy]])
-            f = cv2.warpAffine(f, M, (f.shape[1], f.shape[0]),
+            M = None
+            if align_mode == "rotate":
+                M = _estimate_rotation(refg, _gray(f), detector)
+                if M is not None and drizzle > 1:
+                    M = M.copy(); M[:, 2] *= drizzle  # Translation auf Zielraster skalieren
+            if M is None:  # Fallback / 'shift': Phasenkorrelation (Translation)
+                (dx, dy), _resp = cv2.phaseCorrelate(refg * win, _gray(f) * win)
+                M = np.float32([[1, 0, dx * drizzle], [0, 1, dy * drizzle]])
+            elif align_mode != "rotate":
+                M[:, 2] *= drizzle
+            f = cv2.warpAffine(f, M, out_size,
                                flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_REFLECT)
+        elif drizzle > 1:
+            f = cv2.resize(f, out_size, interpolation=cv2.INTER_LANCZOS4)
         op = os.path.join(out_dir, f"reg_{i:04d}.tif")
         cv2.imwrite(op, np.clip(f * 65535, 0, 65535).astype(np.uint16),
                     [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])

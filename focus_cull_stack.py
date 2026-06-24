@@ -379,6 +379,16 @@ def copy_exif(src, targets):
         print(f"  EXIF-Übernahme übersprungen ({e})", file=sys.stderr)
 
 
+def copy_exif_to_dirs(src, *dirs):
+    """EXIF vom Original auf alle Bild-Ausgaben in mehreren Ordnern übertragen."""
+    files = []
+    for d in dirs:
+        if d and os.path.isdir(d):
+            files += [os.path.join(d, f) for f in os.listdir(d)
+                      if os.path.splitext(f)[1].lower() in (".jpg", ".jpeg", ".tif", ".tiff", ".png")]
+    copy_exif(src, files)
+
+
 def export_web_jpg(stack_dir, export_dir):
     """Aus dem (ggf. 16-bit) Stack ein teilbares 8-bit sRGB JPG schreiben."""
     if not os.path.isdir(stack_dir):
@@ -608,6 +618,13 @@ def main():
                     default="sigma", help="Astro-Stacking-Methode (Default sigma=Kappa-Sigma)")
     ap.add_argument("--astro-kappa", type=float, default=2.5, help="Kappa für Sigma-Clipping")
     ap.add_argument("--no-register", action="store_true", help="Astro: keine Stern-Ausrichtung")
+    ap.add_argument("--astro-align", choices=["shift", "rotate"], default="shift",
+                    help="Astro-Ausrichtung: shift=Translation (Nachführung), "
+                         "rotate=Translation+Feldrotation (Alt-Az-Montierung)")
+    ap.add_argument("--astro-cosmetic", action="store_true",
+                    help="Astro: Hot-/Cold-Pixel vor dem Stacken entfernen (kosmetische Korrektur)")
+    ap.add_argument("--astro-drizzle", type=int, choices=[1, 2], default=1,
+                    help="Astro: 2 = doppelt hochskaliert integrieren (feineres Sampling, „Drizzle-lite“)")
     ap.add_argument("--astro-stretch", action="store_true",
                     help="Astro: Vorschau-JPG asinh-gestreckt (Ergebnis-TIFF bleibt linear)")
     ap.add_argument("--bg-extract", action="store_true",
@@ -785,9 +802,19 @@ def run_astro(input_dir, work_dir, args):
     reg_dir = os.path.join(work_dir, "registered")
     if os.path.isdir(reg_dir):
         shutil.rmtree(reg_dir)
-    print("  Registrieren …")
+    align_mode = getattr(args, "astro_align", "shift")
+    drizzle = getattr(args, "astro_drizzle", 1)
+    cosmetic = getattr(args, "astro_cosmetic", False)
+    extras = [f"Ausrichtung={align_mode}"]
+    if cosmetic:
+        extras.append("Hot-Pixel-Korrektur")
+    if drizzle > 1:
+        extras.append(f"Drizzle {drizzle}×")
+    print(f"  Registrieren … ({', '.join(extras)})")
     aligned = astro.register_and_cache(paths, reg_dir, dark, flat,
-                                       do_register=not args.no_register)
+                                       do_register=not args.no_register,
+                                       align_mode=align_mode, cosmetic=cosmetic,
+                                       drizzle=drizzle, detector=getattr(args, "detector", "ORB"))
     print(f"  Stacken ({args.astro_method}, kappa={args.astro_kappa}) …")
     result = astro.stack(aligned, method=args.astro_method, kappa=args.astro_kappa, normalize=True)
     out = _astro_write(result, work_dir, paths, args, astro)
@@ -834,6 +861,7 @@ def _astro_write(result, work_dir, paths, args, astro):
     cv2.imwrite(out_view, np.clip(view * 255, 0, 255).astype(np.uint8),
                 [int(cv2.IMWRITE_JPEG_QUALITY), 95])
     print(f"  geschrieben: {out_view} (+ lineares 16-bit TIFF)")
+    copy_exif_to_dirs(paths[len(paths) // 2], stack_dir)  # Kamera/Objektiv/Datum übernehmen
     return stack_dir
 
 
@@ -890,6 +918,9 @@ def run_hybrid_focus_astro(input_dir, work_dir, args):
     args.no_raw_develop = True  # bereits entwickelte TIFFs
     out = run_own_engine(denoised_dir, work_dir, args)
     shutil.rmtree(denoised_dir, ignore_errors=True)
+    # EXIF vom ersten Original übernehmen
+    first = groups[0][1][len(groups[0][1]) // 2]
+    copy_exif_to_dirs(first, out, os.path.join(work_dir, "export"), os.path.join(work_dir, "multilayer"))
     return out
 
 
@@ -955,6 +986,7 @@ def run_mosaic(input_dir, work_dir, args):
     if getattr(args, "web_jpg", False) or getattr(args, "export", None):
         if getattr(args, "export", None):
             export_targets(stack_dir, os.path.join(work_dir, "export"), args.export)
+    copy_exif_to_dirs(paths[len(paths) // 2], stack_dir, os.path.join(work_dir, "export"))
     return stack_dir
 
 

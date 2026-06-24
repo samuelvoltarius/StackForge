@@ -256,6 +256,13 @@ class MainWindow(QMainWindow):
         self.astro_stretch = QCheckBox("Vorschau strecken (asinh)"); self.astro_stretch.setChecked(True)
         self.astro_bg = QCheckBox("Hintergrund/Gradient entfernen")
         self.astro_fits = QCheckBox("Auch als FITS speichern")
+        self.astro_align = QComboBox()
+        self.astro_align.addItem(tr("Translation (Nachführung)"), "shift")
+        self.astro_align.addItem(tr("Translation + Feldrotation (Alt-Az)"), "rotate")
+        self.astro_cosmetic = QCheckBox(tr("Hot-/Cold-Pixel entfernen"))
+        self.astro_drizzle = QComboBox()
+        self.astro_drizzle.addItem(tr("Aus"), 1)
+        self.astro_drizzle.addItem(tr("2× (feineres Sampling)"), 2)
         self.astro_dark = QLineEdit(); self.astro_dark.setPlaceholderText("optional: Dark-Ordner/-Datei")
         self.astro_flat = QLineEdit(); self.astro_flat.setPlaceholderText("optional: Flat-Ordner/-Datei")
         self.astro_bias = QLineEdit(); self.astro_bias.setPlaceholderText("optional: Bias-Ordner/-Datei")
@@ -299,11 +306,21 @@ class MainWindow(QMainWindow):
         ar.addWidget(help_btn("Speichert das fertige Stack-Ergebnis zusätzlich als 32-bit-FITS "
                               "(neben dem TIFF) — für PixInsight/Siril. FITS-Lights werden auch "
                               "direkt eingelesen."), 10, 3)
+        ar.addWidget(QLabel(tr("Ausrichtung")), 12, 0); ar.addWidget(self.astro_align, 12, 1, 1, 2)
+        ar.addWidget(help_btn("Translation = nur Verschiebung (nachgeführte Montierung, schnell). "
+                              "Translation + Feldrotation = richtet auch gedrehte Felder aus "
+                              "(Alt-Az-Montierung ohne Rotator, lange Sessions) — per Stern-Merkmalen."), 12, 3)
+        ar.addWidget(self.astro_cosmetic, 13, 0, 1, 2)
+        ar.addWidget(QLabel(tr("Drizzle")), 13, 2); ar.addWidget(self.astro_drizzle, 13, 3)
+        ar.addWidget(help_btn("Hot-/Cold-Pixel = entfernt helle/dunkle Einzelpixel (Sensor-Defekte) "
+                              "vor dem Stacken. Drizzle 2× = doppelt hochskaliert integrieren "
+                              "(feineres Sampling bei unterabgetasteten Daten; „Drizzle-lite“, keine "
+                              "echte Pixel-Fraktion wie PixInsight)."), 14, 3)
         as_info = QLabel(tr("Astro: viele Aufnahmen desselben Himmelsausschnitts → Rauschen mitteln. "
                             "Empfohlen: 20–100+ Lights (mehr = weniger Rauschen) · Darks 15–30 · "
                             "Flats 15–30 · Bias 30+. Optional als Ordner/Datei angeben."))
         as_info.setWordWrap(True); as_info.setStyleSheet("color:#9b90b5;font-size:11px;")
-        ar.addWidget(as_info, 11, 0, 1, 4)
+        ar.addWidget(as_info, 15, 0, 1, 4)
         p1.addWidget(g_astro)
 
         # Hybrid — Mosaik (Mond/Sonne) ODER Fokus+Astro
@@ -902,6 +919,11 @@ class MainWindow(QMainWindow):
                 args += ["--bg-extract"]
             if self.astro_fits.isChecked():
                 args += ["--fits-out"]
+            args += ["--astro-align", self.astro_align.currentData()]
+            if self.astro_cosmetic.isChecked():
+                args += ["--astro-cosmetic"]
+            if self.astro_drizzle.currentData() and int(self.astro_drizzle.currentData()) > 1:
+                args += ["--astro-drizzle", str(self.astro_drizzle.currentData())]
             if self.astro_dark.text().strip():
                 args += ["--dark", self.astro_dark.text().strip()]
             if self.astro_flat.text().strip():
@@ -1444,6 +1466,9 @@ class MainWindow(QMainWindow):
             "raw_half": (self.raw_half.setChecked, self.raw_half.isChecked),
             "vlm_on": (self.vlm_group.setChecked, self.vlm_group.isChecked),
             "astro_fits": (self.astro_fits.setChecked, self.astro_fits.isChecked),
+            "astro_align": (lambda v: self.astro_align.setCurrentIndex(int(v)), self.astro_align.currentIndex),
+            "astro_cosmetic": (self.astro_cosmetic.setChecked, self.astro_cosmetic.isChecked),
+            "astro_drizzle": (lambda v: self.astro_drizzle.setCurrentIndex(int(v)), self.astro_drizzle.currentIndex),
             "hybrid_kind": (lambda v: self.hybrid_kind.setCurrentIndex(int(v)), self.hybrid_kind.currentIndex),
             "hybrid_group": (lambda v: self.hybrid_group.setValue(int(v)), self.hybrid_group.value),
             "longexp_mode": (lambda v: self.longexp_mode.setCurrentIndex(int(v)), self.longexp_mode.currentIndex),
@@ -1458,7 +1483,7 @@ class MainWindow(QMainWindow):
 
     def _restore_settings(self):
         st = QSettings("ServeOne", "StackForge")
-        bool_keys = {"raw_dev", "raw_half", "vlm_on", "astro_fits"}
+        bool_keys = {"raw_dev", "raw_half", "vlm_on", "astro_fits", "astro_cosmetic"}
         for k, (setter, _g) in self._settings_map().items():
             v = st.value(k)
             if v is None or v == "":
