@@ -1,3 +1,8 @@
 #!/bin/zsh
-cd "/Users/aigneralfred/focus-stack-pipeline"
-exec "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3" focus_stack_gui.py
+# Projekt-Wurzel = drei Ebenen über dieser Datei (…/StackForge.app/Contents/MacOS/ → Projekt)
+DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+cd "$DIR"
+# Bevorzugt die Framework-Python (hat sicher PySide6), sonst system-python3
+PY="/Library/Frameworks/Python.framework/Versions/3.13/bin/python3"
+[ -x "$PY" ] || PY="$(command -v python3)"
+exec "$PY" focus_stack_gui.py
