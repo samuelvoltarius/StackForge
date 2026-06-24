@@ -460,14 +460,16 @@ EXPORT_TARGETS = {
 }
 
 
-def export_targets(stack_dir, export_dir, targets):
+def export_targets(stack_dir, export_dir, targets, only=None):
     """Pro Ziel ein skaliertes + ausgabe-geschärftes Bild schreiben (für Insta/WhatsApp/…).
-    „print" bleibt verlustarm: volle Auflösung, 16-bit-TIFF, mildere Schärfung."""
+    „print" bleibt verlustarm: volle Auflösung, 16-bit-TIFF, mildere Schärfung.
+    only=<Dateiname> exportiert NUR diese eine Datei (sonst alle Bilder im stack_dir)."""
     import stacker
     if not os.path.isdir(stack_dir):
         return
     os.makedirs(export_dir, exist_ok=True)
-    for f in os.listdir(stack_dir):
+    files = [only] if only else os.listdir(stack_dir)
+    for f in files:
         if os.path.splitext(f)[1].lower() not in (".tif", ".tiff", ".png", ".jpg", ".jpeg"):
             continue
         src = cv2.imread(os.path.join(stack_dir, f), cv2.IMREAD_UNCHANGED)

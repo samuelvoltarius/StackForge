@@ -17,3 +17,10 @@ pyobjc-framework-Cocoa; sys_platform == "darwin"
 #  - shinestacker      → nur falls man die alte Vergleichs-Engine nutzen will
 #  - torch/transformers→ nur falls man später ein eingebautes lokales KI-Modell will
 # StackForge läuft komplett ohne KI (Automatik nutzt dann Heuristik).
+#
+# EXTERNE PROGRAMME (separat installieren, KEIN pip — alle OPTIONAL):
+#  - exiftool   → für „📷 Aus Foto lesen (EXIF)" im DOF-Rechner   (brew install exiftool)
+#  - GraXpert   → Hintergrund/Gradient entfernen (Astro)          (graxpert.com)
+#  - StarNet++  → Sterne entfernen / starless (Astro)             (starnetastro.com)
+#  - Siril      → optionale alternative Astro-Engine               (siril.org)
+# Ohne diese laufen alle Module normal; nur die jeweiligen Knöpfe sind dann inaktiv/fallen zurück.

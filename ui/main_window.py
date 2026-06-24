@@ -827,60 +827,71 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, tr("Effekt vorschlagen"), f"{e}")
 
     def _build_welcome(self):
-        """Start-Auswahlbildschirm: ein großes Kärtchen je Modul."""
+        """Start-Auswahlbildschirm: aufgeräumt, mit Logo, Modul-Karten und 3-Schritt-Ablauf."""
         page = QWidget()
-        lay = QVBoxLayout(page)
-        lay.setContentsMargins(40, 30, 40, 30)
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addStretch(1)
+
+        # zentrierter Inhalts-Container mit fester Maximalbreite (auch auf breiten Screens schön)
+        center = QHBoxLayout(); outer.addLayout(center)
+        center.addStretch(1)
+        box = QWidget(); box.setMaximumWidth(880); center.addWidget(box); center.addStretch(1)
+        lay = QVBoxLayout(box); lay.setContentsMargins(24, 0, 24, 0); lay.setSpacing(0)
+
+        # Logo + Titel
+        if os.path.isfile(ICON_PNG):
+            logo = QLabel(); logo.setAlignment(Qt.AlignCenter)
+            logo.setPixmap(QPixmap(ICON_PNG).scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            lay.addWidget(logo); lay.addSpacing(8)
         head = QLabel("StackForge")
-        head.setStyleSheet("font-size:30px;font-weight:800;letter-spacing:0.5px;")
-        head.setAlignment(Qt.AlignCenter)
+        head.setStyleSheet("font-size:32px;font-weight:800;letter-spacing:0.5px;")
+        head.setAlignment(Qt.AlignCenter); lay.addWidget(head)
+        tag = QLabel(tr("Fotos rein – fertiges Bild raus."))
+        tag.setStyleSheet("color:#9aa09a;font-size:13px;"); tag.setAlignment(Qt.AlignCenter)
+        lay.addWidget(tag); lay.addSpacing(20)
         sub = QLabel(tr("Schritt 1: Wähle ein Modul"))
-        sub.setStyleSheet("color:#7bd36a;font-size:15px;font-weight:600;")
-        sub.setAlignment(Qt.AlignCenter)
-        lay.addWidget(head); lay.addSpacing(2); lay.addWidget(sub); lay.addSpacing(22)
+        sub.setStyleSheet("color:#7bd36a;font-size:14px;font-weight:700;letter-spacing:0.3px;")
+        sub.setAlignment(Qt.AlignCenter); lay.addWidget(sub); lay.addSpacing(16)
 
         grid = QGridLayout(); grid.setSpacing(16)
         cards = [
             (0, "🔬", tr("Makro / Fokus-Stacking"),
-             tr("Mehrere Nahaufnahmen → ein durchgehend scharfes Bild. Produkte, Münzen, Insekten, Food.  "
-                "Empfohlen: 10–40 Aufnahmen.")),
+             tr("Mehrere Nahaufnahmen → ein durchgehend scharfes Bild."), tr("10–40 Aufnahmen")),
             (1, "🌌", tr("Astro"),
-             tr("Sternenhimmel/Deep-Sky: kalibrieren, ausrichten, Rauschen mitteln, schlechte Subs aussortieren.  "
-                "Empfohlen: 20–100+ Lights (+ Darks/Flats).")),
+             tr("Sternenhimmel: ausrichten, Rauschen mitteln, kalibrieren."), tr("20–100+ Lights")),
             (2, "🌗", tr("Hybrid"),
-             tr("Mond-/Sonnen-Mosaik aus Kacheln — oder Fokus+Astro (erst entrauschen, dann fokus-stacken).  "
-                "Mosaik 4–20+ Kacheln · Fokus+Astro 5–15 Shots je Position.")),
+             tr("Mond-/Sonnen-Mosaik oder Fokus+Astro kombiniert."), tr("4–20+ Kacheln")),
             (3, "📷", tr("Langzeitbelichtung"),
-             tr("Aus einer Serie eine Langzeitbelichtung ohne ND-Filter: seidiges Wasser, Lichtspuren, Störer weg.  "
-                "Empfohlen: 10–30 (Wasser) bis 300+ (Lichtspuren).")),
+             tr("Ohne ND-Filter: seidiges Wasser, Lichtspuren, Störer weg."), tr("10–300+ Bilder")),
         ]
-        for n, (idx, emoji, name, desc) in enumerate(cards):
-            btn = QPushButton()
-            btn.setCursor(Qt.PointingHandCursor)
-            btn.setMinimumHeight(150)
-            btn.setText(f"{emoji}\n\n{name}\n")
-            btn.setToolTip(desc)
-            btn.setStyleSheet(
-                "QPushButton{font-size:18px;font-weight:bold;text-align:center;color:#e8eae6;"
-                "border:1px solid #34383f;border-radius:14px;padding:16px;background:#202227;}"
-                "QPushButton:hover{background:#262a2c;border:2px solid #4caf50;}")
-            d = QLabel(desc); d.setWordWrap(True)
-            d.setStyleSheet("color:#9aa09a;font-size:12px;padding:0 6px;")
-            d.setAlignment(Qt.AlignCenter)
-            cell = QWidget(); cv = QVBoxLayout(cell); cv.setContentsMargins(0, 0, 0, 0); cv.setSpacing(6)
-            cv.addWidget(btn); cv.addWidget(d)
-            btn.clicked.connect(lambda _=False, t=idx: self._choose_module(t))
-            grid.addWidget(cell, n // 2, n % 2)
+        for n, (idx, emoji, name, desc, pill) in enumerate(cards):
+            card = QPushButton(); card.setCursor(Qt.PointingHandCursor); card.setMinimumHeight(176)
+            card.setObjectName("card")
+            cv = QVBoxLayout(card); cv.setContentsMargins(18, 16, 18, 16); cv.setSpacing(7)
+            el = QLabel(emoji); el.setAlignment(Qt.AlignCenter); el.setStyleSheet("font-size:34px;")
+            tl = QLabel(name); tl.setAlignment(Qt.AlignCenter)
+            tl.setStyleSheet("font-size:17px;font-weight:bold;color:#e8eae6;")
+            dl = QLabel(desc); dl.setWordWrap(True); dl.setAlignment(Qt.AlignCenter)
+            dl.setStyleSheet("color:#9aa09a;font-size:12px;")
+            pl = QLabel(pill); pl.setAlignment(Qt.AlignCenter)
+            pl.setStyleSheet("color:#7bd36a;background:#1c2a1c;border-radius:9px;"
+                             "padding:3px 10px;font-size:11px;font-weight:600;")
+            for w in (el, tl, dl, pl):
+                w.setAttribute(Qt.WA_TransparentForMouseEvents)  # Klicks gehen an die Karte
+            cv.addWidget(el); cv.addWidget(tl); cv.addWidget(dl); cv.addStretch(1)
+            row = QHBoxLayout(); row.addStretch(1); row.addWidget(pl); row.addStretch(1); cv.addLayout(row)
+            card.clicked.connect(lambda _=False, t=idx: self._choose_module(t))
+            grid.addWidget(card, n // 2, n % 2)
         lay.addLayout(grid)
         lay.addSpacing(20)
-        # Klarer 3-Schritt-Ablauf (löst die „wo Ordner einfügen?"-Verwirrung)
         steps = QLabel(tr("So geht's:&nbsp;&nbsp; <b style='color:#7bd36a'>1</b> Modul wählen &nbsp;→&nbsp; "
                           "<b style='color:#7bd36a'>2</b> Ordner wählen oder aufs Fenster ziehen &nbsp;→&nbsp; "
                           "<b style='color:#7bd36a'>3</b> ⚡ Automatik"))
         steps.setTextFormat(Qt.RichText); steps.setAlignment(Qt.AlignCenter)
         steps.setStyleSheet("font-size:13px;color:#b9bdb6;")
         lay.addWidget(steps)
-        lay.addStretch(1)
+        outer.addStretch(2)
         return page
 
     def _choose_module(self, task_index):
@@ -1191,6 +1202,10 @@ class MainWindow(QMainWindow):
         return args
 
     def run(self, auto=False):
+        # Doppelstart verhindern (Tastenkürzel umgehen die deaktivierten Buttons)
+        if self.proc and self.proc.state() != QProcess.NotRunning:
+            self._append("\n(Ein Lauf läuft bereits — bitte warten oder Stop.)\n")
+            return
         inp = self.in_edit.text().strip()
         if not inp or not os.path.isdir(inp):
             QMessageBox.warning(self, "Fehler", "Bitte einen gültigen Eingabe-Ordner wählen.")
@@ -1667,17 +1682,22 @@ class MainWindow(QMainWindow):
         self._analyze_busy = busy
         self._analyze_worker = _AnalyzeWorker(paths)
 
+        self._analyze_cancelled = False
+
         def on_done(rep):
             busy.accept()
-            self._render_analysis(rep, paths)
+            if not self._analyze_cancelled:
+                self._render_analysis(rep, paths)
 
         def on_fail(msg):
             busy.accept()
-            QMessageBox.warning(self, tr("Reihe analysieren"), msg)
+            if not self._analyze_cancelled:
+                QMessageBox.warning(self, tr("Reihe analysieren"), msg)
 
         def do_cancel():
-            if self._analyze_worker.isRunning():
-                self._analyze_worker.terminate()
+            # KEIN terminate() (cv2/numpy mitten im Lauf = Crash-Risiko): nur entkoppeln,
+            # der Thread läuft im Hintergrund sauber zu Ende, das Ergebnis wird verworfen.
+            self._analyze_cancelled = True
             busy.reject()
 
         self._analyze_worker.done.connect(on_done)
@@ -2001,39 +2021,60 @@ class MainWindow(QMainWindow):
         cancel.clicked.connect(dlg.reject)
 
         def do_export():
-            import focus_cull_stack as F
-            import stacker
-            stack_dir = os.path.dirname(self.result_path)
-            export_dir = os.path.join(self._work_dir(), "export")
-            os.makedirs(export_dir, exist_ok=True)
+            import numpy as np
             chosen = [k for k in ("instagram", "whatsapp", "web", "4k", "print") if targets[k].isChecked()]
+            any_sel = (targets["webjpg"].isChecked() or tiff16.isChecked() or psd.isChecked() or chosen)
+            if not any_sel:
+                QMessageBox.information(dlg, tr("Exportieren"),
+                                       tr("Bitte mindestens ein Ziel auswählen.")); return
             res = cv2.imread(self.result_path, cv2.IMREAD_UNCHANGED)
-            base = os.path.splitext(os.path.basename(self.result_path))[0]
-            written = 0
+            if res is None:
+                QMessageBox.warning(dlg, tr("Exportieren"),
+                                    tr("Ergebnis konnte nicht geladen werden.")); return
             try:
-                if sharp.value() > 0 and res is not None:
+                import focus_cull_stack as F
+                import stacker
+                stack_dir = os.path.dirname(self.result_path)
+                export_dir = os.path.join(self._work_dir(), "export")
+                os.makedirs(export_dir, exist_ok=True)
+                base = os.path.splitext(os.path.basename(self.result_path))[0]
+                written = 0
+                if sharp.value() > 0:
                     res = stacker.unsharp_mask(res, sharp.value(), 0.8)
-                if targets["webjpg"].isChecked() and res is not None:
-                    img8 = (res / 256).astype("uint8") if res.dtype != cv2.CV_8U and res.max() > 255 else res
+                if targets["webjpg"].isChecked():
+                    if res.dtype == np.uint16:
+                        img8 = (res / 256).astype(np.uint8)
+                    elif res.dtype == np.uint8:
+                        img8 = res
+                    else:  # float -> 0..255
+                        img8 = np.clip(res * (255.0 if res.max() <= 1.5 else 1.0), 0, 255).astype(np.uint8)
                     cv2.imwrite(os.path.join(export_dir, f"{base}_web.jpg"), img8,
                                 [int(cv2.IMWRITE_JPEG_QUALITY), jq.value()]); written += 1
-                if tiff16.isChecked() and res is not None:
-                    out = res if res.dtype == "uint16" else (res.astype("float32") * 257).astype("uint16") \
-                        if res.dtype == "uint8" else res
+                if tiff16.isChecked():
+                    if res.dtype == np.uint16:
+                        out = res
+                    elif res.dtype == np.uint8:
+                        out = (res.astype(np.float32) * 257).astype(np.uint16)
+                    else:  # float -> 16-bit
+                        out = np.clip(res * (65535.0 if res.max() <= 1.5 else 257.0), 0, 65535).astype(np.uint16)
                     cv2.imwrite(os.path.join(export_dir, f"{base}_16bit.tif"), out,
                                 [int(cv2.IMWRITE_TIFF_COMPRESSION), 1]); written += 1
                 if chosen:
-                    F.export_targets(stack_dir, export_dir, chosen); written += len(chosen)
+                    # NUR die echte Ergebnisdatei exportieren (kein Verzeichnis-Scan -> kein Müll)
+                    F.export_targets(stack_dir, export_dir, chosen,
+                                     only=os.path.basename(self.result_path)); written += len(chosen)
                 if psd.isChecked():
                     srcs, names = self._gather_sources()
-                    if srcs and res is not None:
+                    srcs = [s for s in srcs if s is not None] if srcs else []
+                    if srcs:
                         srcs = [cv2.resize(s, (res.shape[1], res.shape[0])) if s.shape[:2] != res.shape[:2]
-                                else s for s in srcs if s is not None]
+                                else s for s in srcs]
                         named = [("Stack (Ergebnis)", res)] + [(n, s) for n, s in zip(names, srcs)]
                         stacker.write_layered_tiff(os.path.join(export_dir, f"{base}_ebenen.tif"),
                                                    named, flat_bgr=res); written += 1
                     else:
-                        self._append("\n⚠️ Ebenen-Datei: keine Quellfotos gefunden (nur Makro).\n")
+                        QMessageBox.information(dlg, tr("Exportieren"),
+                                               tr("Ebenen-Datei: keine Quellfotos gefunden (nur Fokus-Stacking)."))
             except Exception as e:
                 QMessageBox.warning(dlg, tr("Exportieren"), f"{e}"); return
             self._append(f"\n📦 Exportiert ({written} Datei(en)) → {export_dir}\n")
@@ -2112,6 +2153,14 @@ class MainWindow(QMainWindow):
                 pass
 
     def closeEvent(self, e):
+        # Laufende Subprozesse/Threads sauber beenden (sonst Orphan-Prozess / QThread-Warnung)
+        if self.proc and self.proc.state() != QProcess.NotRunning:
+            self.proc.terminate()
+            if not self.proc.waitForFinished(2000):
+                self.proc.kill()
+        wk = getattr(self, "_analyze_worker", None)
+        if wk and wk.isRunning():
+            wk.wait(4000)
         self._save_settings()
         QSettings("ServeOne", "StackForge").setValue("geometry", self.saveGeometry())
         super().closeEvent(e)
@@ -2159,6 +2208,12 @@ QPushButton#primary {
 QPushButton#primary:hover { background:#5cc85c; border-color:#5cc85c; }
 QPushButton#primary:pressed { background:#3f9942; }
 QPushButton#primary:disabled { background:#2f4630; border-color:#2f4630; color:#8aa88c; }
+
+/* Modul-Karten auf dem Startbildschirm */
+QPushButton#card {
+    background:#202227; border:1px solid #34383f; border-radius:16px; text-align:center; }
+QPushButton#card:hover { background:#23282a; border:2px solid #4caf50; }
+QPushButton#card:pressed { background:#1c2a1c; }
 
 QCheckBox { spacing:7px; }
 QCheckBox::indicator {

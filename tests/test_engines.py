@@ -209,8 +209,10 @@ class TestAstro(TmpCase):
         import astro
         f = np.full((50, 60, 3), 0.2, np.float32)
         f[25, 30] = 1.0                              # Hot-Pixel
+        f[10, 40] = 0.0                              # Cold-Pixel
         out = astro.cosmetic_correct(f)
-        self.assertLess(float(out[25, 30].max()), 1.0)
+        self.assertLess(float(out[25, 30].max()), 1.0)      # Hot entfernt
+        self.assertGreater(float(out[10, 40].max()), 0.05)  # Cold angehoben
 
     def test_stack_empty_guard(self):
         import astro
@@ -255,6 +257,20 @@ class TestMosaic(TmpCase):
         except Exception:
             # Stitcher kann bei synthetischem Rauschen scheitern — kein harter Fail
             self.skipTest("Stitcher fand zu wenige Merkmale (synthetisch)")
+
+
+class TestExport(TmpCase):
+    def test_export_targets_only(self):
+        """export_targets(only=...) exportiert NUR die genannte Datei, nicht den ganzen Ordner."""
+        import focus_cull_stack as F
+        sd = os.path.join(self.d, "stack"); os.makedirs(sd)
+        for name in ("result.jpg", "ghostmap.jpg"):
+            cv2.imwrite(os.path.join(sd, name), (_rng().rand(200, 300, 3) * 255).astype(np.uint8))
+        ed = os.path.join(self.d, "export")
+        F.export_targets(sd, ed, ["web"], only="result.jpg")
+        out = os.listdir(ed)
+        self.assertTrue(any("result_web" in f for f in out))
+        self.assertFalse(any("ghostmap" in f for f in out))   # kein Müll vom Verzeichnis-Scan
 
 
 class TestI18n(unittest.TestCase):
