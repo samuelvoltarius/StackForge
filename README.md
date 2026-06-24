@@ -2,6 +2,10 @@
 
 *[🇩🇪 Deutsche Version](README.de.md)*
 
+![tests](https://github.com/samuelvoltarius/StackForge/actions/workflows/tests.yml/badge.svg)
+[![release](https://img.shields.io/github/v/release/samuelvoltarius/StackForge?include_prereleases)](https://github.com/samuelvoltarius/StackForge/releases)
+[![license: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 **One‑click stacking — macro, astro, hybrid & long exposure.** Drop your photos in, get a
 finished image out — in the best possible quality for further editing. Self‑contained, free
 (MIT), cross‑platform (Windows / macOS / Linux).
