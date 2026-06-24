@@ -12,9 +12,11 @@ cross‑platform (Windows / macOS / Linux).
 
 - **One‑click Automatic** — picks the usable frames, aligns them, merges them into a
   fully‑sharp image and sharpens gently. **Beginner** and **Pro** mode.
-- **Three modules, one app:** 🔬 **Macro** (focus stacking, with Product/Coin/Food presets),
-  🌌 **Astro** (star stacking) and 🌗 **Hybrid** (Moon/Sun **mosaic** + **Focus+Astro**:
-  denoise each position, then focus‑stack).
+- **Startup picker:** choose the **module** when you open the app (switch any time via “◀ Modules”).
+- **Four modules, one app:** 🔬 **Macro** (focus stacking, with Product/Coin/Food presets),
+  🌌 **Astro** (star stacking), 🌗 **Hybrid** (Moon/Sun **mosaic** + **Focus+Astro**:
+  denoise each position, then focus‑stack) and 📷 **Long exposure** (from a burst, **no ND filter**:
+  silky water/clouds, light trails, remove movers — with AI effect suggestion).
 - **Own engine** (OpenCV/NumPy) — no external stacking software required.
 - **RAW** (ARW/NEF/CR2/DNG …) developed faithfully to 16‑bit before stacking; **EXIF kept**.
 - **Built‑in Camera‑Raw editor:** exposure/contrast/white balance, **tone curve**,

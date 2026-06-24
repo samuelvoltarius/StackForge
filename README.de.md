@@ -12,9 +12,11 @@ plattformübergreifend (Windows / macOS / Linux).
 
 - **Ein‑Klick‑Automatik** — wählt brauchbare Fotos aus, richtet sie aus, verschmilzt sie zu
   einem durchgehend scharfen Bild und schärft schonend nach. **Anfänger‑** und **Profi‑Modus**.
-- **Drei Module, eine App:** 🔬 **Makro** (Fokus‑Stacking, mit Presets Produkte/Münzen/Food),
-  🌌 **Astro** (Stern‑Stacking) und 🌗 **Hybrid** (Mond‑/Sonnen‑**Mosaik** + **Fokus+Astro**:
-  je Position erst entrauschen, dann fokus‑stacken).
+- **Start‑Auswahl:** beim Öffnen wählst du das **Modul** (jederzeit über „◀ Module“ wechselbar).
+- **Vier Module, eine App:** 🔬 **Makro** (Fokus‑Stacking, mit Presets Produkte/Münzen/Food),
+  🌌 **Astro** (Stern‑Stacking), 🌗 **Hybrid** (Mond‑/Sonnen‑**Mosaik** + **Fokus+Astro**:
+  je Position erst entrauschen, dann fokus‑stacken) und 📷 **Langzeitbelichtung** (aus einer Serie
+  **ohne ND‑Filter**: seidiges Wasser/Wolken, Lichtspuren, Störer entfernen — mit KI‑Effektvorschlag).
 - **Eigene Engine** (OpenCV/NumPy) — keine externe Stacking‑Software nötig.
 - **RAW** (ARW/NEF/CR2/DNG …) treu in 16‑bit entwickelt, **EXIF bleibt erhalten**.
 - **Eingebauter Camera‑Raw‑Editor:** Belichtung/Kontrast/Weißabgleich, **Tonwertkurve**,
