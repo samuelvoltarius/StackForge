@@ -198,6 +198,18 @@ class TestAstro(TmpCase):
         res = astro.stack(reg, method="sigma", log=lambda *a: None)
         self.assertEqual(res.shape[2], 3)
 
+    def test_fits_read(self):
+        try:
+            from astropy.io import fits
+        except Exception:
+            self.skipTest("astropy nicht installiert")
+        import astro
+        p = os.path.join(self.d, "light.fits")
+        fits.PrimaryHDU(np.random.RandomState(1).rand(80, 100).astype(np.float32)).writeto(p)
+        f = astro._read_float(p)                 # FITS-Light lesen
+        self.assertEqual(f.shape[2], 3)          # mono -> BGR
+        self.assertTrue(0.0 <= float(f.min()) and float(f.max()) <= 1.0)
+
     def test_stack_methods(self):
         import astro
         reg = astro.register_and_cache(self._lights(), os.path.join(self.w, "r"), log=lambda *a: None)

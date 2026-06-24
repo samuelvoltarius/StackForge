@@ -41,7 +41,6 @@ FRAME_RE = re.compile(r"\b(\d+)\s*/\s*(\d+)\b")
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Projekt-Root (ui/ liegt darunter)
 SCRIPT = os.path.join(HERE, "focus_cull_stack.py")
-SHINESTACKER = os.path.join(os.path.dirname(sys.executable), "shinestacker")
 ICON = os.path.join(HERE, "assets", "ForgePix.icns")
 ICON_PNG = os.path.join(HERE, "assets", "forgepix_512.png")
 APP_NAME = "ForgePix"
@@ -1257,6 +1256,14 @@ class MainWindow(QMainWindow):
             args += ["--vlm-qc"]  # manueller Wind/Bewegungs-QC
         return args
 
+    def _start_pipeline(self, proc, args):
+        """Pipeline-Subprozess starten — im gebündelten Binary (PyInstaller) über den
+        `--cli`-Einstiegspunkt des Binaries selbst, sonst `python -u focus_cull_stack.py`."""
+        if getattr(sys, "frozen", False):
+            proc.start(sys.executable, ["--cli"] + args[1:])   # args[0] = SCRIPT-Pfad weglassen
+        else:
+            proc.start(sys.executable, ["-u"] + args)
+
     def run(self, auto=False):
         # Doppelstart verhindern (Tastenkürzel umgehen die deaktivierten Buttons)
         if self.proc and self.proc.state() != QProcess.NotRunning:
@@ -1299,11 +1306,7 @@ class MainWindow(QMainWindow):
         self.proc.setProcessChannelMode(QProcess.MergedChannels)
         self.proc.readyReadStandardOutput.connect(self._on_output)
         self.proc.finished.connect(self._on_finished)
-        if getattr(sys, "frozen", False):
-            # Gebündeltes Binary: sich selbst im CLI-Modus aufrufen (args[0] = SCRIPT-Pfad weglassen)
-            self.proc.start(sys.executable, ["--cli"] + args[1:])
-        else:
-            self.proc.start(sys.executable, ["-u"] + args)
+        self._start_pipeline(self.proc, args)
         self.run_btn.setEnabled(False); self.auto_btn.setEnabled(False); self.stop_btn.setEnabled(True)
         self._set_status(tr("Läuft …"), color="#d4a72c", bg="#2a2510")
 
@@ -1336,7 +1339,7 @@ class MainWindow(QMainWindow):
         self.sug_proc.readyReadStandardError.connect(
             lambda: self._append(ANSI.sub("", bytes(self.sug_proc.readAllStandardError()).decode(errors="replace"))))
         self.sug_proc.finished.connect(self._on_suggest_done)
-        self.sug_proc.start(sys.executable, ["-u"] + args)
+        self._start_pipeline(self.sug_proc, args)
 
     def _on_suggest_done(self, code, _status):
         self.suggest_btn.setEnabled(True); self.run_btn.setEnabled(True); self.auto_btn.setEnabled(True)
@@ -2218,6 +2221,12 @@ class MainWindow(QMainWindow):
 
     def _restore_settings(self):
         st = QSettings("ServeOne", "ForgePix")
+        # Einmalige Migration: Einstellungen vom alten Namen „StackForge" übernehmen
+        if not st.allKeys():
+            old = QSettings("ServeOne", "StackForge")
+            if old.allKeys():
+                for k in old.allKeys():
+                    st.setValue(k, old.value(k))
         bool_keys = {"raw_dev", "raw_half", "vlm_on", "astro_fits", "astro_cosmetic", "astro_qc",
                      "reject_blurry"}
         for k, (setter, _g) in self._settings_map().items():
