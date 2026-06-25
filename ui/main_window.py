@@ -946,8 +946,29 @@ class MainWindow(QMainWindow):
         steps.setTextFormat(Qt.RichText); steps.setAlignment(Qt.AlignCenter)
         steps.setStyleSheet("font-size:13px;color:#b9bdb6;")
         lay.addWidget(steps)
+
+        # „Weiter wo du warst" — zuletzt verwendeten Ordner mit einem Klick wieder laden
+        last = QSettings("ServeOne", "ForgePix").value("in", "") or ""
+        if last and os.path.isdir(last):
+            lay.addSpacing(14)
+            rrow = QHBoxLayout(); rrow.addStretch(1)
+            resume = QPushButton("↩  " + tr("Weiter") + ":  " + os.path.basename(last.rstrip("/")))
+            resume.setObjectName("chip"); resume.setCursor(Qt.PointingHandCursor)
+            resume.setToolTip(tr("Zuletzt verwendeten Ordner wieder öffnen") + ":\n" + last)
+            resume.clicked.connect(lambda: self._resume_last(last))
+            rrow.addWidget(resume); rrow.addStretch(1); lay.addLayout(rrow)
+
         outer.addStretch(2)
         return page
+
+    def _resume_last(self, folder):
+        """Zuletzt verwendeten Ordner + Modul wiederherstellen und in den Arbeitsbereich wechseln."""
+        try:
+            ti = int(QSettings("ServeOne", "ForgePix").value("task_i", self.task_box.currentIndex()))
+        except (TypeError, ValueError):
+            ti = self.task_box.currentIndex()
+        self._choose_module(ti)
+        self.in_edit.setText(folder)
 
     def _choose_module(self, task_index):
         """Modul aus dem Startbildschirm wählen → Aufgabe setzen + in den Arbeitsbereich wechseln."""

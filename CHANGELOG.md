@@ -4,6 +4,11 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.9.4] – 2026-06-25
+### Hinzugefügt
+- **„Weiter wo du warst"** auf dem Startbildschirm: Ein Chip lädt den zuletzt verwendeten Ordner
+  samt Modul mit einem Klick wieder — erscheint nur, wenn der Ordner noch existiert.
+
 ## [1.9.3] – 2026-06-25
 ### Hinzugefügt
 - **Klickbare Befunde** im Entscheidungs-Panel: Ein Befund springt per Klick zur passenden
