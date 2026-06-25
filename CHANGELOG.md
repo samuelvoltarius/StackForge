@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.9.5] – 2026-06-26
+### Hinzugefügt
+- **Auto-Update-Hinweis:** Beim Start prüft ForgePix einmal leise die GitHub-Releases und zeigt
+  auf dem Startbildschirm einen dezenten Hinweis „Neue Version verfügbar → herunterladen", wenn
+  eine neuere Version vorliegt. Vollständig **abschaltbar** (Setup → „Beim Start auf Updates
+  prüfen"), läuft im Hintergrund-Thread und bleibt bei Offline/Fehler still. Es werden keine
+  Daten gesendet (reiner Lese-Aufruf der öffentlichen Releases-API).
+
 ## [1.9.4] – 2026-06-25
 ### Hinzugefügt
 - **„Weiter wo du warst"** auf dem Startbildschirm: Ein Chip lädt den zuletzt verwendeten Ordner

@@ -70,6 +70,43 @@ class _AnalyzeWorker(QThread):
             self.failed.emit(str(e))
 
 
+class _UpdateChecker(QThread):
+    """Fragt einmalig die neueste GitHub-Release-Version ab (nur lesen, leise bei Offline/Fehler)."""
+    found = Signal(str, str)  # (neueste Version ohne 'v', Release-URL)
+
+    REPO = "samuelvoltarius/ForgePix"
+
+    def run(self):
+        try:
+            import json
+            import urllib.request
+            url = f"https://api.github.com/repos/{self.REPO}/releases/latest"
+            req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json",
+                                                       "User-Agent": "ForgePix"})
+            with urllib.request.urlopen(req, timeout=4) as r:
+                data = json.load(r)
+            tag = str(data.get("tag_name", "")).lstrip("vV")
+            html = data.get("html_url") or f"https://github.com/{self.REPO}/releases"
+            if tag:
+                self.found.emit(tag, html)
+        except Exception:
+            pass  # offline / Rate-Limit / kein Release -> still bleiben
+
+
+def _version_newer(latest, current):
+    """True, wenn latest (z.B. '1.10.0') neuer als current ist — numerischer Tupel-Vergleich."""
+    def parts(v):
+        out = []
+        for chunk in str(v).split("."):
+            num = "".join(c for c in chunk if c.isdigit())
+            out.append(int(num) if num else 0)
+        return out
+    a, b = parts(latest), parts(current)
+    n = max(len(a), len(b))
+    a += [0] * (n - len(a)); b += [0] * (n - len(b))
+    return a > b
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -177,6 +214,16 @@ class MainWindow(QMainWindow):
         self.mode_box.currentIndexChanged.connect(self.set_mode.setCurrentIndex)
         self._settings_lay.addLayout(_row(tr("Modus:"), self.set_mode,
                                           tr("Anfänger = ein Klick. Profi = alle Regler + Wizard.")))
+
+        # Beim Start dezent auf neue Versionen prüfen (nur GitHub-Releases-API, abschaltbar)
+        self.chk_updates = QCheckBox(tr("Beim Start auf Updates prüfen"))
+        self.chk_updates.setToolTip(tr("Fragt einmal beim Start die GitHub-Releases ab und zeigt "
+                                       "einen Hinweis, wenn eine neuere Version vorliegt. Keine Daten gesendet."))
+        self.chk_updates.setChecked(
+            QSettings("ServeOne", "ForgePix").value("check_updates", "1") != "0")
+        self.chk_updates.toggled.connect(
+            lambda on: QSettings("ServeOne", "ForgePix").setValue("check_updates", "1" if on else "0"))
+        self._settings_lay.addWidget(self.chk_updates)
 
         # Externe Tools (optional) — Pfade frei einstellbar; leer = automatisch suchen
         try:
@@ -812,6 +859,24 @@ class MainWindow(QMainWindow):
             cb.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         for cb in self.settings_dialog.findChildren(QComboBox):
             cb.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self._maybe_check_updates()
+
+    def _maybe_check_updates(self):
+        """Beim Start einmal leise auf eine neuere Version prüfen (wenn nicht abgeschaltet)."""
+        if QSettings("ServeOne", "ForgePix").value("check_updates", "1") == "0":
+            return
+        self._updchk = _UpdateChecker()
+        self._updchk.found.connect(self._on_update_found)
+        self._updchk.start()
+
+    def _on_update_found(self, latest, url):
+        from constants import VERSION
+        if not _version_newer(latest, VERSION):
+            return
+        self.update_lbl.setText(
+            f"⬆ {tr('Neue Version verfügbar')}: <b>{latest}</b> "
+            f"<a href='{url}' style='color:#bdf0bd'>{tr('herunterladen')}</a>")
+        self.update_lbl.setVisible(True)
 
     def _on_language(self, _i):
         code = self._lang_codes[self.lang_box.currentIndex()]
@@ -873,7 +938,14 @@ class MainWindow(QMainWindow):
         outer = QVBoxLayout(page)
         outer.setContentsMargins(16, 12, 16, 12)
         # Top-Bar: Einstellungen schon am Start erreichbar (Sprache/Anfänger-Profi/KI)
-        topbar = QHBoxLayout(); topbar.addStretch(1)
+        topbar = QHBoxLayout()
+        # Update-Hinweis (links, erscheint nur wenn eine neuere Version gefunden wurde)
+        self.update_lbl = QLabel(""); self.update_lbl.setTextFormat(Qt.RichText)
+        self.update_lbl.setOpenExternalLinks(True); self.update_lbl.setVisible(False)
+        self.update_lbl.setStyleSheet("background:#1c2a1c;border:1px solid #2f5a32;border-radius:9px;"
+                                      "padding:5px 12px;color:#9be39b;font-size:12px;font-weight:600;")
+        topbar.addWidget(self.update_lbl)
+        topbar.addStretch(1)
         info_btn = QPushButton(tr("ℹ️  Was ist das?"))
         info_btn.setToolTip(tr("Kurz erklärt, was ForgePix macht."))
         info_btn.clicked.connect(self._show_about)
@@ -2438,6 +2510,9 @@ class MainWindow(QMainWindow):
         wk = getattr(self, "_analyze_worker", None)
         if wk and wk.isRunning():
             wk.wait(4000)
+        uc = getattr(self, "_updchk", None)
+        if uc and uc.isRunning():
+            uc.wait(4500)
         self._save_settings()
         QSettings("ServeOne", "ForgePix").setValue("geometry", self.saveGeometry())
         super().closeEvent(e)

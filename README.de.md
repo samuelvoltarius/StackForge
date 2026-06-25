@@ -51,6 +51,8 @@ Aus einer unscharfen Fokusreihe wird ein durchgehend scharfes Bild — und du si
   Retusche, Fokus‑Lücken → Fokus‑Map) und eine **„Warum diese Einstellungen?"**‑Begründung der Automatik.
 - **Schnell‑Export‑Chips** (📷 Instagram · 🌐 Web · 🖨 Druck) für Ein‑Klick‑Export direkt neben dem
   Ergebnis; **„Weiter wo du warst"** auf dem Startbildschirm öffnet den letzten Ordner + Modul.
+- **Update‑Hinweis:** beim Start wird leise die GitHub‑Release‑Version geprüft und ein dezenter
+  Hinweis „neue Version verfügbar" gezeigt, wenn es eine gibt — komplett optional (Setup), keine Daten gesendet.
 - **Komplett per Tastatur bedienbar** (⌘O Ordner, ⌘↩ Automatik, ⌘1–4 Module, F1 = Kürzel‑Übersicht …).
 - **Vier Module, eine App:** 🔬 **Makro** (Fokus‑Stacking, mit Presets Produkte/Münzen/Food),
   🌌 **Astro** (Stern‑Stacking), 🌗 **Hybrid** (Mond‑/Sonnen‑**Mosaik** + **Fokus+Astro**:

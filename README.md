@@ -51,6 +51,8 @@ A soft focus series becomes one fully sharp image — and you see *what* happens
   retouch, focus gaps → focus map) and a **“Why these settings?”** rationale from the automatic.
 - **Quick-export chips** (📷 Instagram · 🌐 Web · 🖨 Print) for one-click export right next to the
   result; **“Resume”** on the start screen reopens your last folder + module.
+- **Update hint:** on start it quietly checks the GitHub releases and shows a discreet “new version
+  available” note if there is one — fully optional (Setup), no data sent.
 - **Fully keyboard-operable** (⌘O folder, ⌘↩ automatic, ⌘1–4 modules, F1 = shortcut overview …).
 - **Four modules, one app:** 🔬 **Macro** (focus stacking, with Product/Coin/Food presets),
   🌌 **Astro** (star stacking), 🌗 **Hybrid** (Moon/Sun **mosaic** + **Focus+Astro**:
