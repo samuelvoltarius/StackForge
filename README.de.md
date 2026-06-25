@@ -42,6 +42,9 @@ Aus einer unscharfen Fokusreihe wird ein durchgehend scharfes Bild — und du si
 
 - **Ein‑Klick‑Automatik** — wählt brauchbare Fotos aus, richtet sie aus, verschmilzt sie zu
   einem durchgehend scharfen Bild und schärft schonend nach. **Anfänger‑** und **Profi‑Modus**.
+- **Null‑Klick im Anfänger‑Modus:** einfach einen **Ordner aufs Fenster ziehen** — ForgePix errät
+  das passende Modul (aus Dateitypen / Namen / einer kurzen EXIF‑Stichprobe) und startet die
+  Automatik. Rein → fertig.
 - **Start‑Auswahl:** beim Öffnen wählst du das **Modul** (jederzeit über „◀ Module“ wechselbar).
 - **Fokus‑Intelligenz** (Makro): verwackelte Fotos automatisch aussortieren, **Reihen‑Analyse**
   (Aufnahmeanalyse + Stack‑Optimizer + **Fokus‑Map**), **DOF‑/Focus‑Bracketing‑Assistent** mit
@@ -147,8 +150,9 @@ automatisch in der Sprachauswahl.
 ./run_tests.sh        # oder: python3 -m unittest discover -s tests
 ```
 
-29 Engine‑Tests (Standardbibliothek, kein pytest nötig) decken Fokus‑Analyse, Langzeit, Astro,
-Stacker, Mosaik, Export, Parallel‑Helfer, i18n‑Vollständigkeit und einen GUI‑Smoke‑Test ab.
+32 Engine‑Tests (Standardbibliothek, kein pytest nötig) decken Fokus‑Analyse, Langzeit, Astro,
+Stacker, Mosaik, Export, Parallel‑Helfer, Modul‑Erkennung, i18n‑Vollständigkeit und einen
+GUI‑Smoke‑Test ab.
 
 ## Lizenz
 

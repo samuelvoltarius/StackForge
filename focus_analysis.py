@@ -15,7 +15,7 @@ Reine OpenCV/NumPy. Auf kleinen Graustufen gerechnet → schnell, speicherschone
 import os
 import numpy as np
 import cv2
-from constants import RAW_EXTS
+from constants import RAW_EXTS, STD_EXTS, FITS_EXTS
 
 
 def _load_gray(path, max_side=1000):
@@ -326,6 +326,69 @@ def read_exif_optics(path):
                   else "mft" if crop < 2.3 else "fullframe")
     return {"focal_mm": focal, "f_number": fn, "distance_m": dist, "sensor": sensor,
             "model": d.get("Model"), "lens": d.get("LensModel")}
+
+
+def guess_module(folder):
+    """Best-effort: wahrscheinlichstes Modul aus Dateitypen/-namen + einer EXIF-Stichprobe raten.
+    Gibt (key, grund) mit key ∈ {makro, astro, hybrid, longexp}; Default 'makro'. Bewusst billig
+    (nur ein exiftool-Aufruf auf wenige Frames) und nie blockierend bei fehlendem exiftool."""
+    import glob
+    import os as _os
+    try:
+        files = sorted(f for f in glob.glob(_os.path.join(folder, "*")) if _os.path.isfile(f))
+    except Exception:
+        return "makro", "Standard"
+    exts = [_os.path.splitext(f)[1].lower() for f in files]
+    names = [_os.path.basename(f).lower() for f in files]
+    if any(e in FITS_EXTS for e in exts):
+        return "astro", "FITS-Dateien gefunden"
+    cal = ("light_", "_light", "dark_", "_dark", "flat_", "bias_", "_sub", "sub_")
+    if any(any(k in n for k in cal) for n in names):
+        return "astro", "Astro-typische Dateinamen (light/dark/flat …)"
+    imgs = [f for f, e in zip(files, exts) if e in RAW_EXTS or e in STD_EXTS]
+    if not imgs:
+        return "makro", "Standard"
+    expo, iso = _exif_expo_iso(imgs[:3])
+    if expo is not None:
+        if expo >= 1.0 and (iso or 0) >= 1600:
+            return "astro", f"lange Belichtung (~{expo:.0f}s) bei hoher ISO {int(iso)}"
+        if expo >= 1.5:
+            return "longexp", f"lange Belichtung (~{expo:.0f}s)"
+    return "makro", "Fokusreihe (Standard)"
+
+
+def _exif_expo_iso(paths):
+    """Median-Belichtungszeit (s) und -ISO einer kleinen Frame-Stichprobe via EINEM exiftool-Aufruf.
+    (None, None) wenn exiftool fehlt oder nichts lesbar ist."""
+    import shutil as _sh
+    import subprocess
+    import json as _json
+    import re
+    import statistics
+    if not paths or not _sh.which("exiftool"):
+        return None, None
+    try:
+        out = subprocess.run(["exiftool", "-json", "-n", "-ExposureTime", "-ISO", *paths],
+                             capture_output=True, text=True, timeout=10)
+        data = _json.loads(out.stdout)
+    except Exception:
+        return None, None
+    exps, isos = [], []
+    for d in data:
+        e = d.get("ExposureTime")
+        s = d.get("ISO")
+        try:
+            if e is not None:
+                exps.append(float(e))
+        except (TypeError, ValueError):
+            pass
+        try:
+            if s is not None:
+                isos.append(float(re.search(r"[\d.]+", str(s)).group()))
+        except (TypeError, ValueError, AttributeError):
+            pass
+    return (statistics.median(exps) if exps else None,
+            statistics.median(isos) if isos else None)
 
 
 # -------------------------------------------------------- Qualität des Stacks ----

@@ -16,7 +16,7 @@ from i18n import tr, set_language, available_languages, current_language
 
 
 
-from PySide6.QtCore import Qt, QProcess, QSettings, QRect, QSize, QThread, Signal
+from PySide6.QtCore import Qt, QProcess, QSettings, QRect, QSize, QThread, QTimer, Signal
 from PySide6.QtGui import (QPixmap, QFont, QIcon, QPainter, QColor, QPen, QCursor, QImage,
                            QShortcut, QKeySequence, QAction)
 from PySide6.QtWidgets import (
@@ -1027,17 +1027,41 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
             p = u.toLocalFile()
             folder = p if os.path.isdir(p) else (os.path.dirname(p) if os.path.isfile(p) else None)
             if folder:
-                # Modul-Auswahl offen? -> in den Arbeitsbereich wechseln
-                if self.top_stack.currentIndex() == 0:
+                # Modul-Auswahl offen? -> in den Arbeitsbereich wechseln + Modul erraten
+                from_welcome = self.top_stack.currentIndex() == 0
+                if from_welcome:
                     self.top_stack.setCurrentIndex(1)
                 self.in_edit.setText(folder)
                 self._append(f"📂 Ordner per Drag&Drop: {folder}\n")
+                # Modul nur raten, wenn der Nutzer noch keins bewusst gewählt hat (Drop von der Auswahl)
+                if from_welcome:
+                    self._guess_and_apply_module(folder)
                 self._set_status(tr("Ordner geladen: ") + os.path.basename(folder), color="#58a6ff", bg="#14202e")
-                makro = not (getattr(self, "is_astro", False) or getattr(self, "is_hybrid", False)
-                             or getattr(self, "is_longexp", False))
-                if makro and self.mode_box.currentIndex() == 1:  # Profi-Makro: gleich analysieren
-                    self.analyze_series()
+                if self.mode_box.currentIndex() == 0:
+                    # Null-Klick (Anfänger): direkt die Automatik starten — „rein → fertig"
+                    self._append(tr("⚡ Anfänger-Modus: starte Automatik …") + "\n")
+                    QTimer.singleShot(200, lambda: self.run(auto=True))
+                else:
+                    makro = not (getattr(self, "is_astro", False) or getattr(self, "is_hybrid", False)
+                                 or getattr(self, "is_longexp", False))
+                    if makro:  # Profi-Makro: gleich Reihen-Analyse
+                        self.analyze_series()
                 break
+
+    def _guess_and_apply_module(self, folder):
+        """Wahrscheinlichstes Modul aus dem Ordner raten und vorwählen (Einsteiger sparen die Wahl)."""
+        try:
+            from focus_analysis import guess_module
+            key, reason = guess_module(folder)
+        except Exception:
+            return
+        idx = {"makro": 0, "astro": 1, "hybrid": 2, "longexp": 3}.get(key, 0)
+        if idx != self.task_box.currentIndex():
+            self.task_box.setCurrentIndex(idx)
+            self._set_task()
+        label = self.task_box.currentText()
+        self._append(f"🔎 {tr('Erkannt')}: {label} — {reason}\n")
+        self._set_status(f"{tr('Erkannt')}: {label}", color="#7bd36a", bg="#1b2a1b")
 
     # ---------- Ordnerauswahl ----------
     def pick_input(self):

@@ -323,6 +323,22 @@ class TestGuiSmoke(unittest.TestCase):
         w.close()
 
 
+class TestGuessModule(TmpCase):
+    def test_fits_is_astro(self):
+        from focus_analysis import guess_module
+        open(os.path.join(self.d, "m31.fits"), "w").close()
+        self.assertEqual(guess_module(self.d)[0], "astro")
+
+    def test_calibration_names_are_astro(self):
+        from focus_analysis import guess_module
+        open(os.path.join(self.d, "light_001.jpg"), "w").close()
+        self.assertEqual(guess_module(self.d)[0], "astro")
+
+    def test_empty_defaults_makro(self):
+        from focus_analysis import guess_module
+        self.assertEqual(guess_module(self.d)[0], "makro")
+
+
 class TestParallel(unittest.TestCase):
     def test_pmap_preserves_order(self):
         from parallel import pmap

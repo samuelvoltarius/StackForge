@@ -42,6 +42,8 @@ A soft focus series becomes one fully sharp image — and you see *what* happens
 
 - **One‑click Automatic** — picks the usable frames, aligns them, merges them into a
   fully‑sharp image and sharpens gently. **Beginner** and **Pro** mode.
+- **Zero‑click in Beginner mode:** just **drop a folder** on the window — ForgePix guesses the
+  right module (from file types / names / a quick EXIF sample) and starts the automatic. In → done.
 - **Startup picker:** choose the **module** when you open the app (switch any time via “◀ Modules”).
 - **Focus intelligence** (macro): auto-drop shaky photos, **series analysis** (shot analysis +
   stack optimizer + **focus map**), **DOF / focus-bracketing assistant** with **EXIF read-out**,
@@ -145,8 +147,8 @@ language menu automatically.
 ./run_tests.sh        # or: python3 -m unittest discover -s tests
 ```
 
-29 engine tests (standard library, no pytest needed) cover focus analysis, long exposure, astro,
-stacker, mosaic, export, parallel helper, i18n completeness and a GUI smoke test.
+32 engine tests (standard library, no pytest needed) cover focus analysis, long exposure, astro,
+stacker, mosaic, export, parallel helper, module guessing, i18n completeness and a GUI smoke test.
 
 ## License
 
