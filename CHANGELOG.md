@@ -4,6 +4,15 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.16.15] – 2026-06-26
+### Hinzugefügt (Dual-Band: Foraxx-Palette)
+- **Dritte Palette „SHO Foraxx" (dynamisch):** Recherchiert (thecoldestnights.com / Foraxx-Methode)
+  und eingebaut — der Grün-Kanal wird je nach Hα·OIII-Stärke gemischt: G = f·Hα + (1−f)·OIII mit
+  f = (Hα·OIII)^(1−Hα·OIII). Dadurch **reines Hα → rot, Hα+OIII gemischt → gold, reines OIII → blau**
+  (nuancierter als das flache SHO; rein-Hα-Ziele bleiben korrekt rot statt erzwungenem Gold).
+  Auswahl jetzt: **HOO · SHO (gold) · SHO Foraxx (dynamisch)** — GUI-Dropdown + CLI `--palette
+  hoo|sho|foraxx`. SII bleibt synthetisch (kein echtes SII in Dual-Band).
+
 ## [1.16.14] – 2026-06-26
 ### Hinzugefügt (Dual-Band-Palette: synthetisches SHO)
 - **SHO/Hubble-Palette aus Dual-Band (gefaktes SII):** Neue Palette-Auswahl bei Dual-Band —

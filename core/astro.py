@@ -367,20 +367,35 @@ def dualband_hoo(bgr, unmix=0.20):
 
 
 def dualband_sho(bgr, unmix=0.20):
-    """SYNTHETISCHE SHO-/Hubble-Palette aus Dual-Band (Ha+OIII) — gold + blau.
-    ⚠️ Es gibt KEIN echtes SII in Dual-Band-Daten; das SII wird aus Hα **synthetisiert** (gängige
-    Narrowband-Praxis). Mapping wie in den Anleitungen: Rot = SII(≈Hα), Grün = 0.8·Hα + 0.2·OIII,
-    Blau = OIII → Hα-Bereiche werden gold/gelb, OIII-Bereiche blau (Hubble-Look). Nicht
-    wissenschaftlich (SII gefaked), nur fürs Aussehen."""
+    """SYNTHETISCHE SHO-/Hubble-Palette aus Dual-Band (Ha+OIII) — **gold + blau** (klassisch).
+    ⚠️ KEIN echtes SII in Dual-Band; SII wird aus Hα synthetisiert. Mapping wie in den Anleitungen:
+    Rot = SII(≈Hα), Grün = 0.8·Hα + 0.2·OIII, Blau = OIII → Hα-Bereiche werden gold, OIII blau.
+    Forciert den Gold-Look (auch bei reinen Hα-Zielen). Nicht wissenschaftlich, nur fürs Aussehen."""
     if bgr is None or bgr.ndim != 3 or bgr.shape[2] != 3:
         return bgr
-    ha_n, oiii_n = _extract_ha_oiii(bgr, unmix)
-    sii = ha_n                                  # synthetisches SII = Hα (kein echtes SII vorhanden)
-    out = np.zeros((*ha_n.shape, 3), np.float32)
-    out[..., 2] = sii                           # R = SII(synthetisch)
-    out[..., 1] = np.clip(0.8 * ha_n + 0.2 * oiii_n, 0, 1)  # G = Hα-dominiert → R+G = gold
-    out[..., 0] = oiii_n                         # B = OIII → blau
-    return _star_desat(out, ha_n, oiii_n)
+    ha, oiii = _extract_ha_oiii(bgr, unmix)
+    out = np.zeros((*ha.shape, 3), np.float32)
+    out[..., 2] = ha                            # R = SII(synthetisch ≈ Hα)
+    out[..., 1] = np.clip(0.8 * ha + 0.2 * oiii, 0, 1)        # G → R+G = gold
+    out[..., 0] = oiii                          # B = OIII → blau
+    return _star_desat(out, ha, oiii)
+
+
+def dualband_foraxx(bgr, unmix=0.20):
+    """SYNTHETISCHE SHO-Palette im **Foraxx-Stil** (dynamisch, thecoldestnights.com): der Grün-Kanal
+    wird je nach Hα·OIII-Stärke gemischt — G = f·Hα + (1−f)·OIII mit f = (Hα·OIII)^(1−Hα·OIII).
+    Dadurch: reines Hα → rot, Hα+OIII gemischt → gold, reines OIII → blau. Nuancierter als das
+    flache SHO, aber rein Hα-Ziele bleiben rot (kein erzwungenes Gold). SII synthetisch = Hα."""
+    if bgr is None or bgr.ndim != 3 or bgr.shape[2] != 3:
+        return bgr
+    ha, oiii = _extract_ha_oiii(bgr, unmix)
+    prod = np.clip(ha * oiii, 1e-6, 1.0)
+    fg = prod ** (1.0 - prod)
+    out = np.zeros((*ha.shape, 3), np.float32)
+    out[..., 2] = ha                            # R = SII(synthetisch ≈ Hα)
+    out[..., 1] = np.clip(fg * ha + (1.0 - fg) * oiii, 0, 1)  # G = dynamischer Hα/OIII-Blend
+    out[..., 0] = oiii                          # B = OIII
+    return _star_desat(out, ha, oiii)
 
 
 def color_balance(f, strength=1.0):
