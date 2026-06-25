@@ -87,7 +87,8 @@ Vorgebaute Pakete für **macOS · Windows · Linux** gibt es auf der
 - **Windows:** `ForgePix-Windows.zip` → entpacken, `ForgePix.exe` starten.
 - **Linux:** `ForgePix-Linux.tar.gz` → entpacken, `./ForgePix/ForgePix` starten.
 
-> Erststart unter macOS/Windows: ggf. „trotzdem öffnen" (App ist (noch) nicht signiert).
+> Erststart unter macOS/Windows: ggf. Rechtsklick → „Öffnen" (App ist noch nicht notarisiert —
+> [Signierung aktivieren](docs/SIGNING.md)).
 
 ## Aus dem Quellcode
 
