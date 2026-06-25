@@ -19,6 +19,7 @@
   "Analysiert die Bewegung in der Serie und schlägt den passenden Effekt vor": "Analyses the motion across the series and suggests the matching effect",
   "Anfänger = ein Klick. Profi = alle Regler + Wizard.": "Beginner = one click. Pro = all controls + wizard.",
   "Anfänger ⟷ Profi umschalten": "Toggle Beginner ⟷ Pro",
+  "Anhaken, wenn mit Dual-Band-/Schmalband-Filter (Ha+OIII) aufgenommen: dann werden Hα (rot) und OIII (teal) GETRENNT und als HOO neu kombiniert (rote Hα-Nebel + tealfarbene OIII-Bereiche statt rot-dominiert). Ohne Filter / Breitband: aus lassen (dann Farbkalibrierung + Grün-Entfernung).": "Tick if shot through a dual-band / narrowband filter (Ha+OIII): then Hα (red) and OIII (teal) are SEPARATED and recombined as HOO (red Hα nebulae + teal OIII areas instead of red-dominated). No filter / broadband: leave off (then color calibration + green removal).",
   "Anhaken, wenn mit Dual-Band-/Schmalband-Filter (Ha+OIII) aufgenommen: dann wird KEINE Grün-Entfernung gemacht, damit das OIII-Signal (Teal/Blaugrün) erhalten bleibt. Ohne Filter / Breitband: aus lassen.": "Tick if shot through a dual-band / narrowband filter (Ha+OIII): then NO green removal is applied so the OIII signal (teal/blue-green) is preserved. Leave off for no filter / broadband.",
   "Arbeits-Ordner": "Work folder",
   "Art": "Type",
