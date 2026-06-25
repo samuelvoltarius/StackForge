@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.16.17] – 2026-06-27
+### Tests & Doku (Dual-Band-Paletten nachgezogen)
+- **Tests für alle Paletten:** Bisher war nur HOO testabgedeckt. Jetzt auch **SHO** (Hα→gold),
+  **Foraxx** (reines Hα bleibt rot) und **Bicolor** (synthetisches Grün vorhanden) — 55 Tests grün.
+- **Handbuch (DE/EN) aktualisiert:** Der Astro-Abschnitt beschrieb nur HOO. Jetzt sind **Filter-Auswahl
+  (SVBony SV220 / L-eXtreme, Auto-Erkennung)** und alle **vier Paletten** (HOO · SHO · Foraxx · Bicolor)
+  dokumentiert.
+
 ## [1.16.16] – 2026-06-27
 ### Hinzugefügt (Dual-Band: Bicolor-Palette)
 - **Vierte Palette „Bicolor" (Cannistra-Technik):** Aus den zwei vorhandenen Schmalband-Kanälen

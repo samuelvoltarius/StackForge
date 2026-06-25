@@ -640,6 +640,45 @@ class TestAstroColorAndStretch(unittest.TestCase):
         self.assertGreater(out[0, 4, 0], 0.5)   # OIII → Blau hoch (teal)
         self.assertLess(out[0, 4, 2], 0.5)      # OIII → Rot niedrig
 
+    def test_dualband_sho_ha_gold(self):
+        # Synthetisches SHO: reines Hα soll gold werden (Rot UND Grün hoch, Blau niedrig).
+        import numpy as np
+        import astro
+        img = np.zeros((4, 6, 3), "float32")
+        img[:, 0:3] = (0, 0, 1.0)    # nur Hα
+        img[:, 3:6] = (1.0, 1.0, 0)  # nur OIII
+        out = astro.dualband_sho(img)
+        self.assertGreater(out[0, 0, 2], 0.5)   # Hα → Rot hoch
+        self.assertGreater(out[0, 0, 1], 0.3)   # Hα → Grün hoch (gold, nicht reines Rot)
+        self.assertLess(out[0, 0, 0], 0.5)      # Hα → Blau niedrig
+        self.assertGreater(out[0, 4, 0], 0.5)   # OIII → Blau hoch
+
+    def test_dualband_foraxx_pure_ha_red(self):
+        # Foraxx (dynamisch): reines Hα ohne OIII bleibt ROT (kein erzwungenes Gold).
+        import numpy as np
+        import astro
+        img = np.zeros((4, 6, 3), "float32")
+        img[:, 0:3] = (0, 0, 1.0)    # nur Hα, kein OIII
+        img[:, 3:6] = (1.0, 1.0, 0)  # nur OIII
+        out = astro.dualband_foraxx(img)
+        self.assertGreater(out[0, 0, 2], 0.5)            # Hα → Rot hoch
+        self.assertGreater(out[0, 0, 2], out[0, 0, 1])   # Rot > Grün → rot, nicht gold
+        self.assertGreater(out[0, 4, 0], 0.5)            # OIII → Blau hoch
+
+    def test_dualband_bicolor_synth_green(self):
+        # Bicolor (Cannistra): Grün wird aus den beiden Kanälen ERRECHNET (G=max(OIII,0.5·Hα)),
+        # d. h. reines Hα bekommt etwas Grün (≈0.5) statt 0 → weniger Magenta, wärmer.
+        import numpy as np
+        import astro
+        img = np.zeros((4, 6, 3), "float32")
+        img[:, 0:3] = (0, 0, 1.0)    # nur Hα
+        img[:, 3:6] = (1.0, 1.0, 0)  # nur OIII
+        out = astro.dualband_bicolor(img)
+        self.assertGreater(out[0, 0, 2], 0.5)            # Hα → Rot hoch
+        self.assertGreater(out[0, 0, 1], 0.2)            # Hα → synthetisches Grün vorhanden (>0)
+        self.assertGreater(out[0, 0, 2], out[0, 0, 1])   # bleibt rotdominiert (G≈0.5·R)
+        self.assertGreater(out[0, 4, 0], 0.5)            # OIII → Blau hoch
+
     def test_color_balance_strength_blend(self):
         import numpy as np
         import astro

@@ -75,6 +75,19 @@ are dropped automatically (with reasons).
   removal, sub-grading (FWHM/star count/guiding/clouds/trails).
 - **Output:** linear 16-bit TIFF + 32-bit linear + optional FITS — ready for GraXpert/StarNet/PixInsight.
 
+> **Dual-band / narrowband filter (Hα+OIII):** Set **Filter** to *Dual-band* (e.g. SVBony SV220,
+> Optolong L-eXtreme) — or it's auto-detected from the FITS `FILTER` header. Hα and OIII are then
+> cleanly **separated** and recombined. Pick a **palette**:
+>
+> - **HOO** — faithful: Hα red, OIII teal. The most honest rendition.
+> - **SHO synthetic** — Hubble gold + blue; the missing **SII is synthesized from Hα** (there is no
+>   real SII in a dual-band filter — deliberately "faked").
+> - **SHO Foraxx** — dynamic: pure Hα stays **red**, Hα+OIII mixes go **gold**, pure OIII **blue**.
+> - **Bicolor (Cannistra)** — the missing green channel is **computed** from Hα+OIII
+>   (G = max(OIII, 0.5·Hα)) → warmer, more natural, less magenta, more neutral stars.
+>
+> Without a filter / broadband: leave it off (normal color calibration + green-cast removal).
+
 ### 🌗 Hybrid
 Two special cases in one module (sub-mode chosen at the top of the group):
 

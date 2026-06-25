@@ -64,9 +64,19 @@ Mehrere Nahaufnahmen, bei denen der Fokus **von vorne nach hinten** wandert, wer
 - **Stack-Konfidenz** — nach jedem Stack ein Score (0–100) mit **echten Metriken**:
   Fokusbereich vollständig?, Halos, Ghosting, Schärfe — kein KI-Marketing, sondern Messwerte.
 
-> **Dual-Band/Schmalband-Filter (Hα+OIII):** Häkchen setzen (oder wird aus dem FITS-Header erkannt).
-> Dann werden Hα (rot) und OIII (teal) **getrennt** und als **HOO** neu kombiniert — rote Hα-Nebel
-> *und* tealfarbene OIII-Bereiche statt rot-dominiert. Ohne Filter/Breitband: aus lassen.
+> **Dual-Band/Schmalband-Filter (Hα+OIII):** Im **Filter**-Feld *Dual-Band* wählen (z. B. SVBony
+> SV220, Optolong L-eXtreme) — oder es wird aus dem FITS-Header (`FILTER`) automatisch erkannt.
+> Dann werden Hα und OIII **sauber getrennt** und neu kombiniert. Über **Palette** wählbar:
+>
+> - **HOO** — datentreu: Hα rot, OIII teal. Ehrlichste Wiedergabe.
+> - **SHO synthetisch** — Hubble-Look gold + blau; das fehlende **SII wird aus Hα synthetisiert**
+>   (kein echtes SII im Dual-Band — bewusst „gefaket").
+> - **SHO Foraxx** — dynamisch: reines Hα bleibt **rot**, Hα+OIII-Mischzonen werden **gold**,
+>   reines OIII **blau**. Nuancierter als das flache SHO.
+> - **Bicolor (Cannistra)** — der fehlende Grün-Kanal wird aus Hα+OIII **errechnet**
+>   (G = max(OIII, 0.5·Hα)) → wärmeres, natürlicheres Bild, weniger Magenta, neutralere Sterne.
+>
+> Ohne Filter/Breitband: aus lassen (normale Farbkalibrierung + Grünstich-Entfernung).
 
 ### 🌌 Astro
 Viele Aufnahmen desselben Himmelsausschnitts werden ausgerichtet und **gemittelt**, um
