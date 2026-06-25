@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.10.0] – 2026-06-26
+### Geändert (interne Modularisierung — keine Verhaltensänderung)
+- **`ui/main_window.py` von ~2640 auf ~2340 Zeilen verschlankt.** Zusammenhängende Teile in
+  eigene Module ausgelagert: `ui/theme.py` (Qt-Stylesheet), `ui/workers.py`
+  (Hintergrund-Threads + Versionsvergleich), `ui/welcome.py` (Startbildschirm & „Über"-Dialog
+  als Mixin), `ui/appinfo.py` (geteilte Pfad-/Namens-Konstanten). Erleichtert künftige Arbeit;
+  Funktion und Oberfläche unverändert (26 Tests grün, identisches Rendering).
+
 ## [1.9.5] – 2026-06-26
 ### Hinzugefügt
 - **Auto-Update-Hinweis:** Beim Start prüft ForgePix einmal leise die GitHub-Releases und zeigt

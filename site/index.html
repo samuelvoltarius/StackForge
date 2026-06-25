@@ -286,11 +286,11 @@
     <p class="section-lead"><span data-i18n="dl_lead">Always the latest version, straight from GitHub.</span>
       <span class="verline"><span data-i18n="dl_latest">Latest:</span> <b data-version>checking…</b></span></p>
     <div class="dl">
-      <div class="card"><div class="os">🍎</div><h4>Mac</h4><p data-i18n="dl_mac">Double‑click <code>ForgePix.app</code></p><a class="btn primary" data-release-link href="https://github.com/samuelvoltarius/ForgePix/releases/latest" target="_blank" rel="noopener" data-i18n="dl_btn">Download</a></div>
-      <div class="card"><div class="os">🪟</div><h4>Windows</h4><p data-i18n="dl_win">Run <code>run.bat</code></p><a class="btn primary" data-release-link href="https://github.com/samuelvoltarius/ForgePix/releases/latest" target="_blank" rel="noopener" data-i18n="dl_btn">Download</a></div>
-      <div class="card"><div class="os">🐧</div><h4>Linux</h4><p data-i18n="dl_linux">Run <code>./run.sh</code></p><a class="btn primary" data-release-link href="https://github.com/samuelvoltarius/ForgePix/releases/latest" target="_blank" rel="noopener" data-i18n="dl_btn">Download</a></div>
+      <div class="card"><div class="os">🍎</div><h4>Mac</h4><p data-i18n="dl_mac">Download the <b>.zip</b>, unzip, open the app.</p><a class="btn primary" data-os="mac" href="https://github.com/samuelvoltarius/ForgePix/releases/latest" target="_blank" rel="noopener" data-i18n="dl_btn">Download</a></div>
+      <div class="card"><div class="os">🐧</div><h4>Linux</h4><p data-i18n="dl_linux">Download the <b>.tar.gz</b>, extract, run.</p><a class="btn primary" data-os="linux" href="https://github.com/samuelvoltarius/ForgePix/releases/latest" target="_blank" rel="noopener" data-i18n="dl_btn">Download</a></div>
+      <div class="card"><div class="os">🪟</div><h4>Windows</h4><p data-i18n="dl_win">No installer yet — run from source (steps below).</p><a class="btn primary" data-os="win" href="#source" data-i18n="dl_src_btn">From source ↓</a></div>
     </div>
-    <div class="codeblock"><span class="c" data-i18n="code_comment"># prefer the command line? install from source:</span><br>
+    <div class="codeblock" id="source"><span class="c" data-i18n="code_comment"># prefer the command line? install from source:</span><br>
       git clone https://github.com/samuelvoltarius/ForgePix.git &amp;&amp; cd ForgePix<br>
       python3 -m pip install -r requirements.txt<br>
       python3 focus_stack_gui.py</div>
@@ -368,8 +368,8 @@ var I18N = {
   ai_quote:"„Die App erklärt, <b>warum</b> sie sich so entschieden hat.“",
   dl_eyebrow:"Hol es dir", dl_h2:"Download — kostenlos, kein Konto",
   dl_lead:"Immer die neueste Version, direkt von GitHub.", dl_latest:"Neueste:",
-  dl_mac:"Doppelklick auf <code>ForgePix.app</code>", dl_win:"<code>run.bat</code> starten", dl_linux:"<code>./run.sh</code> starten",
-  dl_btn:"Laden", code_comment:"# lieber per Kommandozeile? Aus dem Quellcode:",
+  dl_mac:"Die <b>.zip</b> laden, entpacken, App öffnen.", dl_linux:"Die <b>.tar.gz</b> laden, entpacken, starten.", dl_win:"Noch kein Installer — aus dem Quellcode starten (siehe unten).",
+  dl_btn:"Laden", dl_src_btn:"Aus Quellcode ↓", code_comment:"# lieber per Kommandozeile? Aus dem Quellcode:",
   bug_line:"🐞 Fehler gefunden oder eine Frage?", bug_report:"Auf GitHub melden →", bug_discuss:"In Discussions fragen",
   foot_tagline:"Kostenlose Foto‑Stacking‑App · MIT‑Lizenz", foot_issues:"Fehler melden", foot_discuss2:"Diskussionen",
   foot_releases:"Versionen", foot_help:"Hilfe"
@@ -409,6 +409,16 @@ var I18N = {
         if(!d || !d.tag_name) return;
         document.querySelectorAll("[data-version]").forEach(function(el){ el.textContent = d.tag_name; });
         if(d.html_url) document.querySelectorAll("[data-release-link]").forEach(function(a){ a.href = d.html_url; });
+        /* Wire each OS button straight to the matching release file (keeps site = repo). */
+        (d.assets||[]).forEach(function(a){
+          var n=(a.name||"").toLowerCase(), u=a.browser_download_url; if(!u) return;
+          if(n.indexOf("mac")>-1 || n.indexOf("dmg")>-1){ var b=document.querySelector('[data-os="mac"]'); if(b) b.href=u; }
+          else if(n.indexOf("linux")>-1 || n.indexOf("appimage")>-1){ var b=document.querySelector('[data-os="linux"]'); if(b) b.href=u; }
+          else if(n.indexOf("win")>-1 || n.indexOf(".exe")>-1 || n.indexOf(".msi")>-1){
+            var w=document.querySelector('[data-os="win"]');
+            if(w){ w.href=u; w.removeAttribute("data-i18n"); w.target="_blank"; w.rel="noopener"; w.textContent="Download"; }
+          }
+        });
       }).catch(function(){});
   }catch(e){}
 })();

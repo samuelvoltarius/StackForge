@@ -39,75 +39,21 @@ except Exception:
     np = None
 FRAME_RE = re.compile(r"\b(\d+)\s*/\s*(\d+)\b")
 
-HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Projekt-Root (ui/ liegt darunter)
-SCRIPT = os.path.join(HERE, "focus_cull_stack.py")
-ICON = os.path.join(HERE, "assets", "ForgePix.icns")
-ICON_PNG = os.path.join(HERE, "assets", "forgepix_512.png")
-APP_NAME = "ForgePix"
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
-IMG_EXTS = {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
+from ui.appinfo import HERE, SCRIPT, ICON, ICON_PNG, APP_NAME, IMG_EXTS  # noqa: E402,F401
 
 
+from ui.theme import THEME
+from ui.welcome import WelcomeMixin
 from ui.components import (CompareSlider, CurveWidget, AdjustDialog, RetouchDialog, _Canvas,
                            _bgr_to_pixmap, histogram_pixmap, adjust_image, HSL_BANDS,
                            help_btn, _row, reveal_in_files, open_path, notify)
 
 
-class _AnalyzeWorker(QThread):
-    """Fokusreihen-Analyse im Hintergrund-Thread (blockiert die GUI nicht, auch bei RAWs)."""
-    done = Signal(object)
-    failed = Signal(str)
-
-    def __init__(self, paths):
-        super().__init__()
-        self.paths = paths
-
-    def run(self):
-        try:
-            import focus_analysis as fa
-            self.done.emit(fa.analyze_series(self.paths, log=lambda *a: None))
-        except Exception as e:  # noqa: BLE001
-            self.failed.emit(str(e))
+from ui.workers import _AnalyzeWorker, _UpdateChecker, _version_newer  # noqa: F401
 
 
-class _UpdateChecker(QThread):
-    """Fragt einmalig die neueste GitHub-Release-Version ab (nur lesen, leise bei Offline/Fehler)."""
-    found = Signal(str, str)  # (neueste Version ohne 'v', Release-URL)
-
-    REPO = "samuelvoltarius/ForgePix"
-
-    def run(self):
-        try:
-            import json
-            import urllib.request
-            url = f"https://api.github.com/repos/{self.REPO}/releases/latest"
-            req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json",
-                                                       "User-Agent": "ForgePix"})
-            with urllib.request.urlopen(req, timeout=4) as r:
-                data = json.load(r)
-            tag = str(data.get("tag_name", "")).lstrip("vV")
-            html = data.get("html_url") or f"https://github.com/{self.REPO}/releases"
-            if tag:
-                self.found.emit(tag, html)
-        except Exception:
-            pass  # offline / Rate-Limit / kein Release -> still bleiben
-
-
-def _version_newer(latest, current):
-    """True, wenn latest (z.B. '1.10.0') neuer als current ist — numerischer Tupel-Vergleich."""
-    def parts(v):
-        out = []
-        for chunk in str(v).split("."):
-            num = "".join(c for c in chunk if c.isdigit())
-            out.append(int(num) if num else 0)
-        return out
-    a, b = parts(latest), parts(current)
-    n = max(len(a), len(b))
-    a += [0] * (n - len(a)); b += [0] * (n - len(b))
-    return a > b
-
-
-class MainWindow(QMainWindow):
+class MainWindow(WelcomeMixin, QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ForgePix — Fokus-Stacking mit KI")
@@ -932,122 +878,6 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, tr("Effekt vorschlagen"), f"{e}")
 
-    def _build_welcome(self):
-        """Start-Auswahlbildschirm: aufgeräumt, mit Logo, Modul-Karten und 3-Schritt-Ablauf."""
-        page = QWidget()
-        outer = QVBoxLayout(page)
-        outer.setContentsMargins(16, 12, 16, 12)
-        # Top-Bar: Einstellungen schon am Start erreichbar (Sprache/Anfänger-Profi/KI)
-        topbar = QHBoxLayout()
-        # Update-Hinweis (links, erscheint nur wenn eine neuere Version gefunden wurde)
-        self.update_lbl = QLabel(""); self.update_lbl.setTextFormat(Qt.RichText)
-        self.update_lbl.setOpenExternalLinks(True); self.update_lbl.setVisible(False)
-        self.update_lbl.setStyleSheet("background:#1c2a1c;border:1px solid #2f5a32;border-radius:9px;"
-                                      "padding:5px 12px;color:#9be39b;font-size:12px;font-weight:600;")
-        topbar.addWidget(self.update_lbl)
-        topbar.addStretch(1)
-        info_btn = QPushButton(tr("ℹ️  Was ist das?"))
-        info_btn.setToolTip(tr("Kurz erklärt, was ForgePix macht."))
-        info_btn.clicked.connect(self._show_about)
-        wset_btn = QPushButton(tr("⚙  Einstellungen"))
-        wset_btn.setToolTip(tr("Sprache, Anfänger/Profi, KI-Server — schon vor dem Start einstellbar."))
-        wset_btn.clicked.connect(self.settings_dialog.show)
-        topbar.addWidget(info_btn); topbar.addWidget(wset_btn)
-        outer.addLayout(topbar)
-        outer.addStretch(1)
-
-        # zentrierter Inhalts-Container mit fester Maximalbreite (auch auf breiten Screens schön)
-        center = QHBoxLayout(); outer.addLayout(center)
-        center.addStretch(1)
-        box = QWidget(); box.setMaximumWidth(880); center.addWidget(box); center.addStretch(1)
-        lay = QVBoxLayout(box); lay.setContentsMargins(24, 0, 24, 0); lay.setSpacing(0)
-
-        # Logo + Titel
-        if os.path.isfile(ICON_PNG):
-            logo = QLabel(); logo.setAlignment(Qt.AlignCenter)
-            logo.setPixmap(QPixmap(ICON_PNG).scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-            lay.addWidget(logo); lay.addSpacing(8)
-        head = QLabel("ForgePix")
-        head.setStyleSheet("font-size:32px;font-weight:800;letter-spacing:0.5px;")
-        head.setAlignment(Qt.AlignCenter); lay.addWidget(head)
-        tag = QLabel(tr("Fotos rein – fertiges Bild raus."))
-        tag.setStyleSheet("color:#9aa09a;font-size:13px;"); tag.setAlignment(Qt.AlignCenter)
-        lay.addWidget(tag); lay.addSpacing(20)
-        sub = QLabel(tr("Schritt 1: Wähle ein Modul"))
-        sub.setStyleSheet("color:#7bd36a;font-size:14px;font-weight:700;letter-spacing:0.3px;")
-        sub.setAlignment(Qt.AlignCenter); lay.addWidget(sub); lay.addSpacing(16)
-
-        grid = QGridLayout(); grid.setSpacing(18)
-        # (Modul, großes Emoji, Titel, Kategorie, Beispiele, Empfehlungs-Pill)
-        cards = [
-            (0, "🔬", tr("Makro"), tr("Fokus-Stacking"),
-             tr("Produkte · Münzen · Insekten · Food"), tr("10–40 Aufnahmen")),
-            (1, "🌌", tr("Astro"), tr("Deep-Sky / Sterne"),
-             tr("Milchstraße · Nebel · Galaxien"), tr("20–100+ Lights")),
-            (2, "🌗", tr("Hybrid"), tr("Mosaik & Fokus+Astro"),
-             tr("Mond · Sonne · große Panoramen"), tr("4–20+ Kacheln")),
-            (3, "📷", tr("Langzeit"), tr("Belichtung ohne ND-Filter"),
-             tr("Wasser · Wolken · Lichtspuren"), tr("10–300+ Bilder")),
-        ]
-        for n, (idx, emoji, name, cat, examples, pill) in enumerate(cards):
-            card = QPushButton(); card.setCursor(Qt.PointingHandCursor); card.setMinimumHeight(212)
-            card.setObjectName("card")
-            cv = QVBoxLayout(card); cv.setContentsMargins(20, 20, 20, 18); cv.setSpacing(4)
-            el = QLabel(emoji); el.setAlignment(Qt.AlignCenter); el.setStyleSheet("font-size:54px;")
-            tl = QLabel(name); tl.setAlignment(Qt.AlignCenter)
-            tl.setStyleSheet("font-size:22px;font-weight:800;color:#e8eae6;")
-            cl = QLabel(cat); cl.setAlignment(Qt.AlignCenter)
-            cl.setStyleSheet("color:#7bd36a;font-size:13px;font-weight:600;")
-            xl = QLabel(examples); xl.setWordWrap(True); xl.setAlignment(Qt.AlignCenter)
-            xl.setStyleSheet("color:#9aa09a;font-size:12px;")
-            pl = QLabel(pill); pl.setAlignment(Qt.AlignCenter)
-            pl.setStyleSheet("color:#7bd36a;background:#1c2a1c;border-radius:9px;"
-                             "padding:3px 12px;font-size:11px;font-weight:600;")
-            for w in (el, tl, cl, xl, pl):
-                w.setAttribute(Qt.WA_TransparentForMouseEvents)  # Klicks gehen an die Karte
-            cv.addWidget(el); cv.addSpacing(2); cv.addWidget(tl); cv.addWidget(cl)
-            cv.addSpacing(4); cv.addWidget(xl); cv.addStretch(1)
-            row = QHBoxLayout(); row.addStretch(1); row.addWidget(pl); row.addStretch(1); cv.addLayout(row)
-            card.clicked.connect(lambda _=False, t=idx: self._choose_module(t))
-            grid.addWidget(card, n // 2, n % 2)
-        lay.addLayout(grid)
-        lay.addSpacing(20)
-        steps = QLabel(tr("So geht's:&nbsp;&nbsp; <b style='color:#7bd36a'>1</b> Modul wählen &nbsp;→&nbsp; "
-                          "<b style='color:#7bd36a'>2</b> Ordner wählen oder aufs Fenster ziehen &nbsp;→&nbsp; "
-                          "<b style='color:#7bd36a'>3</b> ⚡ Automatik"))
-        steps.setTextFormat(Qt.RichText); steps.setAlignment(Qt.AlignCenter)
-        steps.setStyleSheet("font-size:13px;color:#b9bdb6;")
-        lay.addWidget(steps)
-
-        # „Weiter wo du warst" — zuletzt verwendeten Ordner mit einem Klick wieder laden
-        last = QSettings("ServeOne", "ForgePix").value("in", "") or ""
-        if last and os.path.isdir(last):
-            lay.addSpacing(14)
-            rrow = QHBoxLayout(); rrow.addStretch(1)
-            resume = QPushButton("↩  " + tr("Weiter") + ":  " + os.path.basename(last.rstrip("/")))
-            resume.setObjectName("chip"); resume.setCursor(Qt.PointingHandCursor)
-            resume.setToolTip(tr("Zuletzt verwendeten Ordner wieder öffnen") + ":\n" + last)
-            resume.clicked.connect(lambda: self._resume_last(last))
-            rrow.addWidget(resume); rrow.addStretch(1); lay.addLayout(rrow)
-
-        outer.addStretch(2)
-        return page
-
-    def _resume_last(self, folder):
-        """Zuletzt verwendeten Ordner + Modul wiederherstellen und in den Arbeitsbereich wechseln."""
-        try:
-            ti = int(QSettings("ServeOne", "ForgePix").value("task_i", self.task_box.currentIndex()))
-        except (TypeError, ValueError):
-            ti = self.task_box.currentIndex()
-        self._choose_module(ti)
-        self.in_edit.setText(folder)
-
-    def _choose_module(self, task_index):
-        """Modul aus dem Startbildschirm wählen → Aufgabe setzen + in den Arbeitsbereich wechseln."""
-        self.task_box.setCurrentIndex(task_index)
-        self._set_task()
-        self.top_stack.setCurrentIndex(1)
-
     # ---------- Tastatursteuerung ----------
     # Hinweis: Qt bildet "Ctrl+…" auf macOS automatisch auf ⌘ ab.
     SHORTCUTS = [
@@ -1120,39 +950,6 @@ class MainWindow(QMainWindow):
         lay.addWidget(sc)
         b = QPushButton(tr("Schließen")); b.clicked.connect(dlg.accept); lay.addWidget(b)
         dlg.show(); self._sc_dlg = dlg
-
-    def _show_about(self):
-        """Kurze, klare Erklärung was ForgePix ist und kann (für Einsteiger)."""
-        html = tr(
-            "<h3>Was ist ForgePix?</h3>"
-            "<p>ForgePix macht aus <b>vielen Fotos ein besseres Bild</b> — vollautomatisch, "
-            "und es <b>erklärt dabei, was es tut</b>.</p>"
-            "<p><b>🔬 Makro:</b> mehrere Nahaufnahmen mit wanderndem Fokus → ein durchgehend "
-            "scharfes Bild.<br>"
-            "<b>🌌 Astro:</b> viele Aufnahmen des Sternenhimmels → rauschfrei.<br>"
-            "<b>🌗 Hybrid:</b> Mond-/Sonnen-Mosaik oder Fokus+Astro.<br>"
-            "<b>📷 Langzeitbelichtung:</b> aus einer Serie ohne ND-Filter (seidiges Wasser, "
-            "Lichtspuren …).</p>"
-            "<p><b>So einfach:</b> Modul wählen → Ordner wählen (oder aufs Fenster ziehen) → "
-            "⚡ Automatik. Im <b>Anfänger-Modus</b> genügt ein Klick; der <b>Profi-Modus</b> "
-            "öffnet alle Regler.</p>"
-            "<p>Die KI ist <b>optional</b> — alles läuft auch ohne Server. Sie <b>berät</b> nur "
-            "und verändert nie heimlich Pixel.</p>"
-            "<p style='color:#9aa09a'>Mehr in der Anleitung (docs/GUIDE) und mit dem „?“ an jeder "
-            "Einstellung. Tastenkürzel: F1.</p>")
-        dlg = QDialog(self); dlg.setWindowTitle(tr("Über ForgePix")); dlg.resize(520, 460)
-        lay = QVBoxLayout(dlg)
-        lbl = QLabel(html); lbl.setWordWrap(True); lbl.setTextFormat(Qt.RichText); lbl.setAlignment(Qt.AlignTop)
-        sc = QScrollArea(); sc.setWidgetResizable(True); sc.setWidget(lbl); lay.addWidget(sc)
-        try:
-            from constants import VERSION as _v
-        except Exception:
-            _v = ""
-        web = QLabel(f"<a href='https://forgepix.app' style='color:#7bd36a'>forgepix.app</a>  ·  v{_v}")
-        web.setOpenExternalLinks(True); web.setAlignment(Qt.AlignCenter)
-        lay.addWidget(web)
-        b = QPushButton(tr("Schließen")); b.clicked.connect(dlg.accept); lay.addWidget(b)
-        dlg.show(); self._about_dlg = dlg
 
     def _set_task(self):
         i = self.task_box.currentIndex()
@@ -2516,100 +2313,6 @@ class MainWindow(QMainWindow):
         self._save_settings()
         QSettings("ServeOne", "ForgePix").setValue("geometry", self.saveGeometry())
         super().closeEvent(e)
-
-
-THEME = """
-/* ForgePix — Anthrazit + Chili-Grün (GreenChili). Statusfarben: grün=gut, gelb=Warnung,
-   rot=Problem, blau=Info. Akzent #4caf50-Familie. */
-QWidget { background:#16171a; color:#e8eae6; font-size:13px; }
-QMainWindow, QDialog { background:#16171a; }
-
-/* Karten/Gruppen — sichtbar abgehobene Flächen auf Anthrazit */
-QGroupBox {
-    background:#202227; border:1px solid #30343a; border-radius:12px;
-    margin-top:20px; padding:16px 12px 12px 12px; font-weight:600; }
-QGroupBox::title {
-    subcontrol-origin:margin; subcontrol-position:top left; left:14px; padding:3px 8px;
-    color:#7bd36a; font-size:12px; font-weight:700; background:#16171a; }
-QGroupBox::indicator { width:18px; height:18px; }
-
-QLabel { background:transparent; }
-
-/* Eingaben — flach, mit Grün-Fokus */
-QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QPlainTextEdit {
-    background:#26282e; border:1px solid #34383f; border-radius:8px; padding:6px 8px; color:#e8eae6;
-    selection-background-color:#4caf50; }
-QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
-    border:1px solid #5cc85c; background:#282b30; }
-QPlainTextEdit { background:#101113; border:1px solid #26282e; }
-QComboBox::drop-down { border:none; width:22px; }
-QComboBox QAbstractItemView {
-    background:#202227; border:1px solid #34383f; border-radius:8px;
-    selection-background-color:#4caf50; outline:none; padding:4px; }
-
-/* Standard-Buttons — flach, weicher Rand */
-QPushButton {
-    background:#2a2d33; border:1px solid #3a3e45; border-radius:9px; padding:8px 14px; color:#e8eae6; }
-QPushButton:hover { background:#33373e; border-color:#4a4f57; }
-QPushButton:pressed { background:#3c4149; }
-QPushButton:disabled { color:#6a6e73; background:#1d1f23; border-color:#26282e; }
-
-/* Primär-Aktion (objectName 'primary') — gefülltes Chili-Grün */
-QPushButton#primary {
-    background:#4caf50; border:1px solid #4caf50; color:#0d1f0e; font-weight:700; }
-QPushButton#primary:hover { background:#5cc85c; border-color:#5cc85c; }
-QPushButton#primary:pressed { background:#3f9942; }
-QPushButton#primary:disabled { background:#2f4630; border-color:#2f4630; color:#8aa88c; }
-
-/* Modul-Karten auf dem Startbildschirm */
-QPushButton#card {
-    background:#202227; border:1px solid #34383f; border-radius:16px; text-align:center; }
-QPushButton#card:hover { background:#23282a; border:2px solid #4caf50; }
-QPushButton#card:pressed { background:#1c2a1c; }
-
-/* Schnell-Export-Chips im Entscheidungs-Panel */
-QPushButton#chip {
-    background:#23252c; border:1px solid #3a3d47; border-radius:13px;
-    padding:4px 11px; font-size:12px; font-weight:600; color:#cfd2cd; }
-QPushButton#chip:hover { background:#2b3a2b; border-color:#4caf50; color:#dff3df; }
-QPushButton#chip:pressed { background:#1c2a1c; }
-QPushButton#chip:disabled { background:#1b1c21; border-color:#26282f; color:#5a5d63; }
-
-QCheckBox { spacing:7px; }
-QCheckBox::indicator {
-    width:18px; height:18px; border-radius:5px; border:1px solid #3c4047; background:#26282e; }
-QCheckBox::indicator:hover { border-color:#5cc85c; }
-QCheckBox::indicator:checked { background:#4caf50; border-color:#4caf50; }
-
-QProgressBar {
-    border:none; border-radius:7px; background:#26282e; text-align:center; height:16px; color:#cfd2cd; }
-QProgressBar::chunk { background:#4caf50; border-radius:7px; }
-
-/* Schieberegler — grüner Verlauf, heller Griff (statt Qt-Standard-Blau) */
-QSlider::groove:horizontal { height:5px; background:#34383f; border-radius:3px; }
-QSlider::sub-page:horizontal { background:#4caf50; border-radius:3px; }
-QSlider::add-page:horizontal { background:#34383f; border-radius:3px; }
-QSlider::handle:horizontal {
-    background:#e8eae6; width:15px; height:15px; margin:-6px 0; border-radius:8px; }
-QSlider::handle:horizontal:hover { background:#ffffff; }
-QSlider::groove:vertical { width:5px; background:#34383f; border-radius:3px; }
-QSlider::handle:vertical {
-    background:#e8eae6; width:15px; height:15px; margin:0 -6px; border-radius:8px; }
-
-QSplitter::handle { background:transparent; width:10px; }
-
-QScrollBar:vertical { background:transparent; width:10px; margin:2px; }
-QScrollBar::handle:vertical { background:#34383f; border-radius:5px; min-height:30px; }
-QScrollBar::handle:vertical:hover { background:#474c54; }
-QScrollBar::add-line, QScrollBar::sub-line { height:0; }
-QScrollBar:horizontal { background:transparent; height:10px; margin:2px; }
-QScrollBar::handle:horizontal { background:#34383f; border-radius:5px; min-width:30px; }
-
-QToolTip {
-    background:#26282e; color:#e8eae6; border:1px solid #4a7d4a; border-radius:8px; padding:6px 8px; }
-QMenu { background:#202227; border:1px solid #312f40; border-radius:8px; padding:4px; }
-QMenu::item:selected { background:#4caf50; border-radius:6px; }
-"""
 
 
 def main():
