@@ -3,152 +3,153 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ForgePix — Drop photos in, get a finished image out</title>
-<meta name="description" content="ForgePix is a free, open-source computational photography suite: focus stacking, astro, long exposure and mosaic. Drop your photos in, get a finished image out — in the best quality for further editing. Windows / macOS / Linux, MIT licensed, works fully offline.">
+<title>ForgePix — Many photos in, one perfect photo out</title>
+<meta name="description" content="ForgePix is a free app that combines a series of photos into one razor-sharp picture — automatically. Great for close-ups, the night sky and silky water. Windows, Mac &amp; Linux. No account, works offline.">
 <meta name="theme-color" content="#121316">
-<meta property="og:title" content="ForgePix ⚡ — Computational Photography Suite">
-<meta property="og:description" content="Focus stacking + Astro + Long exposure. Drop your photos in, get a finished image out. Free & open source.">
+<meta property="og:title" content="ForgePix — Many photos in, one perfect photo out">
+<meta property="og:description" content="A free app that turns a series of photos into one razor-sharp image — automatically. Close-ups, night sky, silky water.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://forgepix.app">
 <meta property="og:image" content="https://forgepix.app/assets/shots/p4_result.jpg">
-<link rel="icon" type="image/png" href="assets/forgepix_256.png">
+<link rel="icon" type="image/svg+xml" href="assets/forgepix.svg">
+<link rel="icon" type="image/png" sizes="256x256" href="assets/forgepix_256.png">
+<link rel="apple-touch-icon" href="assets/forgepix_256.png">
 <style>
   :root{
-    --bg:#121316; --bg2:#16181c; --card:#1b1d22; --card2:#202329;
-    --line:#2a2d34; --text:#e9eaec; --muted:#9aa0a6; --soft:#c5c8cd;
+    --bg:#111216; --bg2:#15171c; --card:#1a1c22; --card2:#1f222a;
+    --line:#2a2d35; --text:#eaebed; --muted:#9aa0a8; --soft:#c7cad0;
     --green:#4caf50; --green2:#5cc85c; --green-dim:#3a7d3d;
+    --gold:#f5a623;
     --radius:14px; --maxw:1120px;
     --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);
-    line-height:1.6;-webkit-font-smoothing:antialiased;}
+    line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
   a{color:inherit;text-decoration:none}
   img{max-width:100%;display:block}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
-  .muted{color:var(--muted)}
 
-  /* nav */
-  header.nav{position:sticky;top:0;z-index:50;background:rgba(18,19,22,.82);
+  header.nav{position:sticky;top:0;z-index:50;background:rgba(17,18,22,.86);
     backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-  .nav-inner{display:flex;align-items:center;gap:20px;height:62px}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
-  .brand img{width:30px;height:30px}
-  .brand .bolt{color:var(--green)}
-  nav.links{margin-left:auto;display:flex;gap:24px;align-items:center}
+  .nav-inner{display:flex;align-items:center;gap:18px;height:62px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:700;font-size:18px;letter-spacing:.2px}
+  .brand img{width:32px;height:32px;border-radius:8px}
+  nav.links{margin-left:auto;display:flex;gap:22px;align-items:center}
   nav.links a{color:var(--soft);font-size:14.5px;font-weight:500}
   nav.links a:hover{color:#fff}
-  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:10px;
-    padding:10px 18px;font-weight:600;font-size:14.5px;border:1px solid var(--line);
-    background:var(--card2);color:#fff;transition:.15s;white-space:nowrap}
+  .lang{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .lang button{background:transparent;border:0;color:var(--muted);font:inherit;font-size:13px;
+    font-weight:600;padding:6px 10px;cursor:pointer}
+  .lang button.on{background:var(--green);color:#0c1a0d}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:11px;
+    padding:13px 22px;font-weight:600;font-size:15px;border:1px solid var(--line);
+    background:var(--card2);color:#fff;transition:.15s;white-space:nowrap;cursor:pointer;min-height:46px}
   .btn:hover{border-color:var(--green-dim);transform:translateY(-1px)}
   .btn.primary{background:var(--green);border-color:var(--green);color:#0c1a0d}
   .btn.primary:hover{background:var(--green2)}
-  nav.links .btn{padding:9px 16px}
+  nav.links .btn{padding:9px 16px;min-height:0}
 
-  /* hero */
-  .hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+  .hero{position:relative;overflow:hidden}
   .hero:before{content:"";position:absolute;inset:0;
-    background:radial-gradient(900px 420px at 72% -8%,rgba(76,175,80,.22),transparent 60%),
-               radial-gradient(700px 380px at 8% 0%,rgba(76,175,80,.08),transparent 55%);}
-  .hero-inner{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:48px;
-    align-items:center;padding:78px 0 70px}
+    background:radial-gradient(900px 420px at 72% -8%,rgba(76,175,80,.20),transparent 60%),
+               radial-gradient(680px 360px at 6% 0%,rgba(245,166,35,.07),transparent 55%);}
+  .hero-inner{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:46px;
+    align-items:center;padding:70px 0 64px}
   .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);
-    background:var(--card);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--soft);
-    margin-bottom:22px}
+    background:var(--card);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--soft);margin-bottom:20px}
   .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
-  h1{font-size:51px;line-height:1.05;margin:0 0 18px;letter-spacing:-1.2px;font-weight:800}
+  h1{font-size:clamp(32px,6.4vw,50px);line-height:1.07;margin:0 0 18px;letter-spacing:-1px;font-weight:800}
   h1 .g{color:var(--green)}
   .lead{font-size:19px;color:var(--soft);max-width:540px;margin:0 0 14px}
-  .sub{font-size:15px;color:var(--muted);max-width:520px;margin:0 0 30px}
-  .cta{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+  .sub{font-size:15.5px;color:var(--muted);max-width:520px;margin:0 0 28px}
+  .cta{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}
   .meta{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;color:var(--muted)}
   .meta span{display:inline-flex;align-items:center;gap:7px}
-  .meta b{color:var(--soft);font-weight:600}
+  .meta b{color:var(--green);font-weight:700}
   .hero-shot{border:1px solid var(--line);border-radius:16px;overflow:hidden;
-    box-shadow:0 30px 70px -30px rgba(0,0,0,.8);background:var(--card)}
+    box-shadow:0 30px 70px -30px rgba(0,0,0,.85);background:var(--card)}
   .hero-shot img{width:100%}
 
-  /* sections */
-  section{padding:74px 0;border-bottom:1px solid var(--line)}
-  .eyebrow{color:var(--green);font-weight:700;font-size:13px;letter-spacing:1.5px;
-    text-transform:uppercase;margin:0 0 12px}
-  h2{font-size:33px;margin:0 0 14px;letter-spacing:-.6px;font-weight:800}
-  .section-lead{color:var(--muted);font-size:16.5px;max-width:640px;margin:0 0 40px}
+  section{padding:70px 0;border-top:1px solid var(--line)}
+  .eyebrow{color:var(--green);font-weight:700;font-size:13px;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 12px}
+  h2{font-size:clamp(26px,4.5vw,33px);margin:0 0 12px;letter-spacing:-.5px;font-weight:800}
+  .section-lead{color:var(--muted);font-size:16.5px;max-width:660px;margin:0 0 38px}
 
-  /* why grid */
   .why{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-  .why .item{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    padding:22px}
-  .why .item .ck{color:var(--green);font-weight:800;font-size:18px;margin-bottom:8px}
+  .why .item{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+  .why .item .ic{font-size:24px;margin-bottom:10px}
   .why .item h3{margin:0 0 6px;font-size:17px}
   .why .item p{margin:0;color:var(--muted);font-size:14.5px}
 
-  /* steps */
   .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-  .step{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    overflow:hidden}
-  .step .ph{aspect-ratio:4/3;background:#0d0e11;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .step .ph{aspect-ratio:4/3;background:#0d0e11;overflow:hidden}
   .step .ph img{width:100%;height:100%;object-fit:cover}
   .step .cap{padding:14px 16px}
   .step .n{color:var(--green);font-weight:800;font-size:13px;letter-spacing:1px}
   .step h4{margin:4px 0 4px;font-size:15.5px}
   .step p{margin:0;color:var(--muted);font-size:13px}
 
-  /* modules */
   .mods{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
   .mod{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--line);
-    border-radius:var(--radius);padding:26px;display:flex;gap:18px}
-  .mod .ico{font-size:34px;line-height:1;filter:saturate(1.1)}
-  .mod h3{margin:0 0 7px;font-size:19px}
+    border-radius:var(--radius);padding:24px;display:flex;gap:18px}
+  .mod .ico{font-size:34px;line-height:1}
+  .mod h3{margin:0 0 7px;font-size:18.5px}
   .mod p{margin:0;color:var(--muted);font-size:14.5px}
-  .mod .tag{display:inline-block;margin-top:10px;font-size:12px;color:var(--green);
-    border:1px solid var(--green-dim);border-radius:999px;padding:2px 10px}
 
-  /* gallery */
   .gal{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
   .gal figure{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
   .gal img{width:100%;aspect-ratio:16/10;object-fit:cover}
   .gal figcaption{padding:10px 14px;font-size:13px;color:var(--muted)}
 
-  /* highlights two-col */
   .hl{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:start}
-  .hl ul{list-style:none;padding:0;margin:0;columns:1}
-  .hl li{padding:9px 0 9px 28px;position:relative;border-bottom:1px solid var(--line);font-size:15px;color:var(--soft)}
-  .hl li:before{content:"›";position:absolute;left:6px;color:var(--green);font-weight:800}
+  .hl ul{list-style:none;padding:0;margin:0}
+  .hl li{padding:10px 0 10px 28px;position:relative;border-bottom:1px solid var(--line);font-size:15px;color:var(--soft)}
+  .hl li:before{content:"✓";position:absolute;left:4px;color:var(--green);font-weight:800}
   .hl li b{color:#fff;font-weight:600}
   .ai-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px}
   .ai-card h3{margin:0 0 10px;font-size:19px}
   .ai-card p{color:var(--muted);font-size:14.5px;margin:0 0 14px}
   .quote{border-left:3px solid var(--green);padding:6px 0 6px 16px;color:var(--soft);font-style:italic;font-size:14.5px}
 
-  /* download */
-  .dl{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:26px}
+  .dl{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:22px}
   .dl .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;text-align:center}
   .dl .os{font-size:30px;margin-bottom:8px}
   .dl h4{margin:0 0 6px;font-size:17px}
   .dl p{margin:0 0 16px;color:var(--muted);font-size:13.5px}
-  .codeblock{background:#0c0d10;border:1px solid var(--line);border-radius:12px;padding:18px 20px;
-    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;color:var(--soft);overflow:auto}
+  .verline{color:var(--muted);font-size:14px;margin-top:8px}
+  .verline b{color:var(--green)}
+  .codeblock{background:#0c0d10;border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:var(--soft);overflow:auto;margin-bottom:22px}
   .codeblock .c{color:var(--green)}
+  .helpbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card);
+    border:1px solid var(--line);border-radius:var(--radius);padding:18px 22px}
+  .helpbar .t{font-size:15px;color:var(--soft)}
+  .helpbar a{color:var(--green);font-weight:600;font-size:15px}
+  .helpbar a:hover{text-decoration:underline}
 
-  footer{padding:46px 0;color:var(--muted);font-size:14px}
+  footer{padding:44px 0;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
   .foot-inner{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
   .foot-inner .brand{font-size:16px}
   footer a{color:var(--soft)} footer a:hover{color:#fff}
   .foot-right{margin-left:auto;display:flex;gap:20px;flex-wrap:wrap}
 
   @media(max-width:880px){
-    .hero-inner{grid-template-columns:1fr;gap:34px;padding:54px 0 48px}
-    h1{font-size:39px}
-    .why,.steps,.gal,.dl{grid-template-columns:1fr 1fr}
+    .hero-inner{grid-template-columns:1fr;gap:30px;padding:46px 0 44px}
+    .hero-shot{order:-1}
+    .why,.steps,.gal{grid-template-columns:1fr 1fr}
     .mods,.hl{grid-template-columns:1fr}
     nav.links a:not(.btn){display:none}
+    .cta .btn{flex:1 1 auto}
   }
   @media(max-width:560px){
+    section{padding:52px 0}
     .why,.steps,.gal,.dl{grid-template-columns:1fr}
-    h1{font-size:33px} h2{font-size:26px}
+    .lead{font-size:17.5px}
+    .meta{gap:10px;flex-direction:column}
+    .foot-right{margin-left:0}
   }
 </style>
 </head>
@@ -156,122 +157,99 @@
 
 <header class="nav">
   <div class="wrap nav-inner">
-    <a class="brand" href="#top"><img src="assets/forgepix_256.png" alt="ForgePix logo">ForgePix<span class="bolt">⚡</span></a>
+    <a class="brand" href="#top"><img src="assets/forgepix.svg" alt="ForgePix logo">ForgePix</a>
     <nav class="links">
-      <a href="#why">Why</a>
-      <a href="#how">How it works</a>
-      <a href="#modules">Modules</a>
-      <a href="#download">Download</a>
+      <a href="#what" data-i18n="nav_what">What it does</a>
+      <a href="#how" data-i18n="nav_how">How it works</a>
+      <a href="#tools" data-i18n="nav_tools">Tools</a>
+      <a href="#download" data-i18n="nav_download">Download</a>
+      <span class="lang">
+        <button data-lang-btn="en">EN</button>
+        <button data-lang-btn="de">DE</button>
+      </span>
       <a class="btn" href="https://github.com/samuelvoltarius/ForgePix" target="_blank" rel="noopener">GitHub ★</a>
     </nav>
   </div>
 </header>
 
 <a id="top"></a>
-<section class="hero" style="border-bottom:none;padding:0">
+<section class="hero" style="border-top:none">
   <div class="wrap hero-inner">
     <div>
-      <span class="pill"><span class="dot"></span> Free &amp; open source · MIT</span>
-      <h1>Drop your photos in.<br>Get a <span class="g">finished image</span> out.</h1>
-      <p class="lead">ForgePix is a computational photography suite for <b>focus stacking</b>,
-        <b>astrophotography</b>, <b>long exposure</b> and <b>mosaics</b> — in the best possible
-        quality for further editing.</p>
-      <p class="sub">It analyses your series, drops the rejects, computes the optimal frame count
-        and merges everything into one razor‑sharp result — and shows you <i>why</i> at every step.</p>
+      <span class="pill"><span class="dot"></span> <span data-i18n="hero_pill">Free &amp; open source</span> · <span data-version>latest version</span></span>
+      <h1 data-i18n="hero_h1">Many photos in.<br>One <span class="g">perfect photo</span> out.</h1>
+      <p class="lead" data-i18n="hero_lead">ForgePix takes a bunch of photos of the same thing and automatically builds <b>one razor‑sharp picture</b> out of them.</p>
+      <p class="sub" data-i18n="hero_sub">No technical know‑how needed. Drop your photos in, press one button, get a finished image. It’s free, needs no account, and works without internet.</p>
       <div class="cta">
-        <a class="btn primary" href="https://github.com/samuelvoltarius/ForgePix/releases" target="_blank" rel="noopener">⬇ Download</a>
-        <a class="btn" href="https://github.com/samuelvoltarius/ForgePix" target="_blank" rel="noopener">View on GitHub</a>
+        <a class="btn primary" data-release-link href="https://github.com/samuelvoltarius/ForgePix/releases/latest" target="_blank" rel="noopener">⬇ <span data-i18n="hero_dl">Download free</span> · <span data-version>latest</span></a>
+        <a class="btn" href="https://github.com/samuelvoltarius/ForgePix" target="_blank" rel="noopener" data-i18n="hero_github">See on GitHub</a>
       </div>
       <div class="meta">
-        <span><b>✓</b> Windows · macOS · Linux</span>
-        <span><b>✓</b> Works fully offline</span>
-        <span><b>✓</b> No AI required</span>
+        <span><b>✓</b> <span data-i18n="meta1">Windows · Mac · Linux</span></span>
+        <span><b>✓</b> <span data-i18n="meta2">No account, no internet needed</span></span>
+        <span><b>✓</b> <span data-i18n="meta3">Free forever</span></span>
       </div>
     </div>
-    <div class="hero-shot">
-      <img src="assets/shots/01_start.png" alt="ForgePix start screen">
-    </div>
+    <div class="hero-shot"><img src="assets/shots/01_start.png" alt="The ForgePix start screen"></div>
   </div>
 </section>
 
-<section id="why">
+<section id="what">
   <div class="wrap">
-    <p class="eyebrow">Why ForgePix</p>
-    <h2>One app, the whole pipeline</h2>
-    <p class="section-lead">Everything you need to turn a stack of frames into a clean,
-      print‑ready photograph — without a maze of plugins or a subscription.</p>
+    <p class="eyebrow" data-i18n="what_eyebrow">What ForgePix does for you</p>
+    <h2 data-i18n="what_h2">It does the hard parts automatically</h2>
+    <p class="section-lead" data-i18n="what_lead">You take the photos — ForgePix turns them into one clean, sharp result. In plain words:</p>
     <div class="why">
-      <div class="item"><div class="ck">✓</div><h3>Analyses your series</h3><p>Reads the real sharpness profile of every frame, tile by tile.</p></div>
-      <div class="item"><div class="ck">✓</div><h3>Removes rejects automatically</h3><p>Shaky or redundant frames are dropped — with the reason shown.</p></div>
-      <div class="item"><div class="ck">✓</div><h3>Optimal frame count</h3><p>DOF / focus‑bracketing assistant tells you how many shots you actually need.</p></div>
-      <div class="item"><div class="ck">✓</div><h3>Long exposure, no ND filter</h3><p>Silky water &amp; clouds, light trails or remove movers — from a simple burst.</p></div>
-      <div class="item"><div class="ck">✓</div><h3>Astro + macro in one app</h3><p>Star stacking and focus stacking share the same clean workflow.</p></div>
-      <div class="item"><div class="ck">✓</div><h3>Works without AI</h3><p>Fully local, no server, no model download. AI is optional and only advises.</p></div>
+      <div class="item"><div class="ic">🔍</div><h3 data-i18n="w1t">Makes everything sharp</h3><p data-i18n="w1p">Lots of photos that are each only sharp in places become one photo that’s sharp everywhere.</p></div>
+      <div class="item"><div class="ic">🗑️</div><h3 data-i18n="w2t">Throws out bad shots</h3><p data-i18n="w2p">Shaky or useless photos are removed automatically — and it tells you why.</p></div>
+      <div class="item"><div class="ic">🔢</div><h3 data-i18n="w3t">Tells you how many to take</h3><p data-i18n="w3p">A simple helper works out how many photos you actually need. No guessing.</p></div>
+      <div class="item"><div class="ic">💧</div><h3 data-i18n="w4t">Silky water, no special gear</h3><p data-i18n="w4p">Turn a quick burst into smooth water or light trails — without an expensive filter.</p></div>
+      <div class="item"><div class="ic">🌌</div><h3 data-i18n="w5t">Stars and close‑ups</h3><p data-i18n="w5p">Night‑sky shots and tiny‑detail shots — both in the same easy app.</p></div>
+      <div class="item"><div class="ic">🔒</div><h3 data-i18n="w6t">Stays on your computer</h3><p data-i18n="w6p">Everything runs on your own machine. Nothing is uploaded. No account, no AI required.</p></div>
     </div>
   </div>
 </section>
 
 <section id="how">
   <div class="wrap">
-    <p class="eyebrow">How it works</p>
-    <h2>A soft series becomes one sharp image</h2>
-    <p class="section-lead">…and you see exactly what happens at each step.</p>
+    <p class="eyebrow" data-i18n="how_eyebrow">How it works</p>
+    <h2 data-i18n="how_h2">From a blurry series to one sharp photo</h2>
+    <p class="section-lead" data-i18n="how_lead">Four simple steps — and you can see what happens at each one.</p>
     <div class="steps">
-      <div class="step"><div class="ph"><img src="assets/shots/p1_input.jpg" alt="Input series"></div>
-        <div class="cap"><div class="n">1 · INPUT</div><h4>The series</h4><p>9 frames, each only partly sharp.</p></div></div>
-      <div class="step"><div class="ph"><img src="assets/shots/p2_analyse.png" alt="Analysis"></div>
-        <div class="cap"><div class="n">2 · ANALYSIS</div><h4>Cull &amp; optimise</h4><p>Shaky dropped, optimal frame count.</p></div></div>
-      <div class="step"><div class="ph"><img src="assets/shots/05_focusmap.png" alt="Focus map"></div>
-        <div class="cap"><div class="n">3 · FOCUS MAP</div><h4>Which area, which photo</h4><p>See where each sharp region comes from.</p></div></div>
-      <div class="step"><div class="ph"><img src="assets/shots/p4_result.jpg" alt="Result"></div>
-        <div class="cap"><div class="n">4 · RESULT</div><h4>Fully sharp</h4><p>One clean image, ready to edit.</p></div></div>
+      <div class="step"><div class="ph"><img src="assets/shots/p1_input.jpg" alt="Your photos"></div><div class="cap"><div class="n" data-i18n="s1n">1 · YOUR PHOTOS</div><h4 data-i18n="s1t">Drop them in</h4><p data-i18n="s1p">A few shots, each sharp only in places.</p></div></div>
+      <div class="step"><div class="ph"><img src="assets/shots/p2_analyse.png" alt="Auto check"></div><div class="cap"><div class="n" data-i18n="s2n">2 · AUTO‑CHECK</div><h4 data-i18n="s2t">Cleans up</h4><p data-i18n="s2p">Bad photos removed, the rest lined up.</p></div></div>
+      <div class="step"><div class="ph"><img src="assets/shots/05_focusmap.png" alt="Combine"></div><div class="cap"><div class="n" data-i18n="s3n">3 · COMBINE</div><h4 data-i18n="s3t">Picks the best bits</h4><p data-i18n="s3p">Takes the sharp part from each photo.</p></div></div>
+      <div class="step"><div class="ph"><img src="assets/shots/p4_result.jpg" alt="Done"></div><div class="cap"><div class="n" data-i18n="s4n">4 · DONE</div><h4 data-i18n="s4t">One clean photo</h4><p data-i18n="s4p">Sharp everywhere, ready to use.</p></div></div>
     </div>
   </div>
 </section>
 
-<section id="modules">
+<section id="tools">
   <div class="wrap">
-    <p class="eyebrow">Four modules, one app</p>
-    <h2>From macro to the night sky</h2>
-    <p class="section-lead">Pick a module when you open the app — switch any time.</p>
+    <p class="eyebrow" data-i18n="tools_eyebrow">Four tools in one app</p>
+    <h2 data-i18n="tools_h2">Pick what you want to do</h2>
+    <p class="section-lead" data-i18n="tools_lead">Choose when you open the app — switch any time.</p>
     <div class="mods">
-      <div class="mod"><div class="ico">🔬</div><div>
-        <h3>Macro · Focus stacking</h3>
-        <p>Razor‑sharp product, coin, food and insect shots. Presets, shaky‑frame rejection,
-          series analysis, focus map and a DOF / bracketing assistant.</p>
-        <span class="tag">Product · Coin · Food presets</span></div></div>
-      <div class="mod"><div class="ico">🌌</div><div>
-        <h3>Astro · Star stacking</h3>
-        <p>Calibration (darks/flats/bias), star alignment with field rotation, hot‑pixel fix,
-          sigma rejection, drizzle‑lite, explainable sub‑grading, 32‑bit &amp; FITS export.</p>
-        <span class="tag">GraXpert &amp; StarNet++ one‑click</span></div></div>
-      <div class="mod"><div class="ico">🌗</div><div>
-        <h3>Hybrid · Mosaic + Focus‑Astro</h3>
-        <p>Stitch Moon/Sun panoramas, or denoise each position then focus‑stack for deep,
-          clean detail.</p>
-        <span class="tag">Moon · Sun · deep detail</span></div></div>
-      <div class="mod"><div class="ico">📷</div><div>
-        <h3>Long exposure · No ND filter</h3>
-        <p>Silky water/clouds, light trails or remove movers — from a burst, with a
-          continuous <i>virtual exposure time</i> slider.</p>
-        <span class="tag">Smooth · Trails · Declutter</span></div></div>
+      <div class="mod"><div class="ico">🔬</div><div><h3 data-i18n="m1t">Close‑ups</h3><p data-i18n="m1p">Razor‑sharp photos of small things — products, coins, food, jewellery, insects. ForgePix combines your shots so the whole subject is in focus.</p></div></div>
+      <div class="mod"><div class="ico">🌌</div><div><h3 data-i18n="m2t">Night sky</h3><p data-i18n="m2p">Combine many star photos into one clean, bright night‑sky image with less noise. It even drops the photos spoiled by clouds or a passing satellite.</p></div></div>
+      <div class="mod"><div class="ico">🌗</div><div><h3 data-i18n="m3t">Moon &amp; panoramas</h3><p data-i18n="m3p">Stitch several shots of the Moon or Sun into one big, detailed picture — or combine frames for extra clarity.</p></div></div>
+      <div class="mod"><div class="ico">📷</div><div><h3 data-i18n="m4t">Long exposure</h3><p data-i18n="m4p">Silky water, soft clouds or light trails — made from a normal burst of photos. No tripod tricks, no special filter needed.</p></div></div>
     </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <p class="eyebrow">A closer look</p>
-    <h2>Built for photographers, not engineers</h2>
-    <p class="section-lead">Plain‑language labels, a “?” on every setting, beginner &amp; pro modes,
-      and a Camera‑Raw editor built in.</p>
+    <p class="eyebrow" data-i18n="in_eyebrow">A look inside</p>
+    <h2 data-i18n="in_h2">Made for everyone, not just experts</h2>
+    <p class="section-lead" data-i18n="in_lead">Clear buttons, a help “?” on every option, a simple Beginner mode, and a photo editor built right in.</p>
     <div class="gal">
-      <figure><img src="assets/shots/02_makro.png" alt="Macro module"><figcaption>Macro module — analyse, stack, before/after.</figcaption></figure>
-      <figure><img src="assets/shots/04_editor.png" alt="Camera-Raw editor"><figcaption>Camera‑Raw editor — curve, HSL, histogram.</figcaption></figure>
-      <figure><img src="assets/shots/03_astro.png" alt="Astro module"><figcaption>Astro module — calibration &amp; sub‑grading.</figcaption></figure>
-      <figure><img src="assets/shots/05_focusmap.png" alt="Focus map"><figcaption>Focus map — which frame is sharp where.</figcaption></figure>
-      <figure><img src="assets/shots/06_longexp.png" alt="Long exposure"><figcaption>Long exposure — virtual exposure time.</figcaption></figure>
-      <figure><img src="assets/shots/01_start.png" alt="Start screen"><figcaption>Start screen — choose your module.</figcaption></figure>
+      <figure><img src="assets/shots/02_makro.png" alt=""><figcaption data-i18n="g1">Drop photos in and press one button.</figcaption></figure>
+      <figure><img src="assets/shots/04_editor.png" alt=""><figcaption data-i18n="g2">Built‑in editor — brightness, colour, crop.</figcaption></figure>
+      <figure><img src="assets/shots/03_astro.png" alt=""><figcaption data-i18n="g3">Night‑sky tool with simple settings.</figcaption></figure>
+      <figure><img src="assets/shots/05_focusmap.png" alt=""><figcaption data-i18n="g4">See which photo is sharp where.</figcaption></figure>
+      <figure><img src="assets/shots/06_longexp.png" alt=""><figcaption data-i18n="g5">Long exposure — slide for more or less effect.</figcaption></figure>
+      <figure><img src="assets/shots/01_start.png" alt=""><figcaption data-i18n="g6">Start screen — pick what you want to do.</figcaption></figure>
     </div>
   </div>
 </section>
@@ -279,61 +257,162 @@
 <section>
   <div class="wrap hl">
     <div>
-      <p class="eyebrow">Highlights</p>
-      <h2>Everything in the box</h2>
+      <p class="eyebrow" data-i18n="hl_eyebrow">What you get</p>
+      <h2 data-i18n="hl_h2">Everything’s included</h2>
       <ul>
-        <li><b>One‑click Automatic</b> — picks frames, aligns, merges, sharpens. Beginner &amp; Pro.</li>
-        <li><b>Own engine</b> (OpenCV/NumPy) — no external stacking software required.</li>
-        <li><b>RAW</b> (ARW/NEF/CR2/DNG…) developed faithfully to 16‑bit — EXIF kept.</li>
-        <li><b>Camera‑Raw editor</b> — exposure, white balance, tone curve, per‑color HSL, crop.</li>
-        <li><b>Retouch + ghost map</b> — brush sharp areas over halos &amp; ghosting.</li>
-        <li><b>Export presets</b> — Instagram / WhatsApp / Web / 4K / 16‑bit print + PSD layers.</li>
-        <li><b>Batch &amp; watch‑folder</b>, before/after slider, film strip.</li>
-        <li><b>Fully keyboard‑operable</b>, German &amp; English built in.</li>
+        <li data-i18n="li1"><b>One‑button automatic</b> — or a Pro mode with full control.</li>
+        <li data-i18n="li2"><b>Opens your camera’s photos</b>, including RAW files — colours stay true.</li>
+        <li data-i18n="li3"><b>Built‑in photo editor</b> — brightness, colour, crop, and more.</li>
+        <li data-i18n="li4"><b>Fix‑up brush</b> for the few tricky spots.</li>
+        <li data-i18n="li5"><b>Before/after slider</b> so you can see the difference.</li>
+        <li data-i18n="li6"><b>Ready‑made export</b> for Instagram, WhatsApp, web, 4K or printing.</li>
+        <li data-i18n="li7"><b>Whole folders at once</b>, and a watch mode for new photos.</li>
+        <li data-i18n="li8"><b>English &amp; German</b>, and you can do everything with the keyboard.</li>
       </ul>
     </div>
     <div class="ai-card">
-      <h3>Runs everywhere — AI is optional</h3>
-      <p>Automatic works <b>completely without AI</b>: settings come from the measured sharpness
-        profile. No Ollama, no server, no model download.</p>
-      <p>Optionally connect an OpenAI‑compatible server (llama.cpp / LM Studio / vLLM) or a
-        provider key. The AI only advises &amp; checks — it never touches your pixels.</p>
-      <div class="quote">“The software explains <b>why</b> it chose these settings.”</div>
+      <h3 data-i18n="ai_h3">Runs on its own</h3>
+      <p data-i18n="ai_p1">ForgePix works <b>completely offline</b>. No account, no sign‑up, no internet, no AI needed — your photos never leave your computer.</p>
+      <p data-i18n="ai_p2">If you like, you can connect an AI later — but only for <b>tips and checks</b>. It never touches your photos.</p>
+      <div class="quote" data-i18n="ai_quote">“The app explains <b>why</b> it made each choice.”</div>
     </div>
   </div>
 </section>
 
 <section id="download">
   <div class="wrap">
-    <p class="eyebrow">Get it</p>
-    <h2>Free download — MIT licensed</h2>
-    <p class="section-lead">Grab the latest release, or run from source. No account, no telemetry.</p>
+    <p class="eyebrow" data-i18n="dl_eyebrow">Get it</p>
+    <h2 data-i18n="dl_h2">Download — free, no account</h2>
+    <p class="section-lead"><span data-i18n="dl_lead">Always the latest version, straight from GitHub.</span>
+      <span class="verline"><span data-i18n="dl_latest">Latest:</span> <b data-version>checking…</b></span></p>
     <div class="dl">
-      <div class="card"><div class="os">🍎</div><h4>macOS</h4><p>Double‑click <code>ForgePix.app</code></p>
-        <a class="btn primary" href="https://github.com/samuelvoltarius/ForgePix/releases" target="_blank" rel="noopener">Download</a></div>
-      <div class="card"><div class="os">🪟</div><h4>Windows</h4><p>Run <code>run.bat</code></p>
-        <a class="btn primary" href="https://github.com/samuelvoltarius/ForgePix/releases" target="_blank" rel="noopener">Download</a></div>
-      <div class="card"><div class="os">🐧</div><h4>Linux</h4><p>Run <code>./run.sh</code></p>
-        <a class="btn primary" href="https://github.com/samuelvoltarius/ForgePix/releases" target="_blank" rel="noopener">Download</a></div>
+      <div class="card"><div class="os">🍎</div><h4>Mac</h4><p data-i18n="dl_mac">Double‑click <code>ForgePix.app</code></p><a class="btn primary" data-release-link href="https://github.com/samuelvoltarius/ForgePix/releases/latest" target="_blank" rel="noopener" data-i18n="dl_btn">Download</a></div>
+      <div class="card"><div class="os">🪟</div><h4>Windows</h4><p data-i18n="dl_win">Run <code>run.bat</code></p><a class="btn primary" data-release-link href="https://github.com/samuelvoltarius/ForgePix/releases/latest" target="_blank" rel="noopener" data-i18n="dl_btn">Download</a></div>
+      <div class="card"><div class="os">🐧</div><h4>Linux</h4><p data-i18n="dl_linux">Run <code>./run.sh</code></p><a class="btn primary" data-release-link href="https://github.com/samuelvoltarius/ForgePix/releases/latest" target="_blank" rel="noopener" data-i18n="dl_btn">Download</a></div>
     </div>
-    <div class="codeblock"><span class="c"># or run from source</span><br>
+    <div class="codeblock"><span class="c" data-i18n="code_comment"># prefer the command line? install from source:</span><br>
       git clone https://github.com/samuelvoltarius/ForgePix.git &amp;&amp; cd ForgePix<br>
       python3 -m pip install -r requirements.txt<br>
       python3 focus_stack_gui.py</div>
+    <div class="helpbar">
+      <span class="t" data-i18n="bug_line">🐞 Found a bug or have a question?</span>
+      <a href="https://github.com/samuelvoltarius/ForgePix/issues" target="_blank" rel="noopener" data-i18n="bug_report">Report it on GitHub →</a>
+      <a href="https://github.com/samuelvoltarius/ForgePix/discussions" target="_blank" rel="noopener" data-i18n="bug_discuss">Ask in Discussions</a>
+    </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap foot-inner">
-    <a class="brand" href="#top"><img src="assets/forgepix_256.png" alt="" style="width:24px;height:24px">ForgePix<span class="bolt" style="color:var(--green)">⚡</span></a>
-    <span class="muted">Computational Photography Suite · MIT License</span>
+    <a class="brand" href="#top"><img src="assets/forgepix.svg" alt="" style="width:24px;height:24px;border-radius:6px">ForgePix</a>
+    <span style="color:var(--muted)"><span data-i18n="foot_tagline">Free photo‑stacking app · MIT licensed</span></span>
     <div class="foot-right">
       <a href="https://github.com/samuelvoltarius/ForgePix" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://github.com/samuelvoltarius/ForgePix/releases" target="_blank" rel="noopener">Releases</a>
-      <a href="https://github.com/samuelvoltarius/ForgePix/blob/main/docs/GUIDE.en.md" target="_blank" rel="noopener">Guide</a>
+      <a href="https://github.com/samuelvoltarius/ForgePix/issues" target="_blank" rel="noopener" data-i18n="foot_issues">Report a bug</a>
+      <a href="https://github.com/samuelvoltarius/ForgePix/discussions" target="_blank" rel="noopener" data-i18n="foot_discuss2">Discussions</a>
+      <a data-release-link href="https://github.com/samuelvoltarius/ForgePix/releases/latest" target="_blank" rel="noopener" data-i18n="foot_releases">Releases</a>
+      <a href="https://github.com/samuelvoltarius/ForgePix/blob/main/docs/GUIDE.en.md" target="_blank" rel="noopener" data-i18n="foot_help">Help</a>
     </div>
   </div>
 </footer>
+
+<script>
+/* ---- Translations (DE/EN) ---- */
+var I18N = {
+ en:{}, /* English is the default text already in the HTML */
+ de:{
+  nav_what:"Was es macht", nav_how:"So funktioniert's", nav_tools:"Werkzeuge", nav_download:"Download",
+  hero_pill:"Kostenlos &amp; Open Source",
+  hero_h1:"Viele Fotos rein.<br>Ein <span class=\"g\">perfektes Foto</span> raus.",
+  hero_lead:"ForgePix nimmt viele Fotos vom selben Motiv und macht daraus automatisch <b>ein gestochen scharfes Bild</b>.",
+  hero_sub:"Kein Technik‑Wissen nötig. Fotos reinziehen, einen Knopf drücken, fertiges Bild bekommen. Kostenlos, ohne Konto, funktioniert ohne Internet.",
+  hero_dl:"Gratis laden", hero_github:"Auf GitHub ansehen",
+  meta1:"Windows · Mac · Linux", meta2:"Kein Konto, kein Internet nötig", meta3:"Für immer kostenlos",
+  what_eyebrow:"Was ForgePix für dich macht", what_h2:"Es übernimmt die schwierigen Teile automatisch",
+  what_lead:"Du machst die Fotos — ForgePix macht daraus ein sauberes, scharfes Ergebnis. Einfach gesagt:",
+  w1t:"Macht alles scharf", w1p:"Viele Fotos, die jeweils nur stellenweise scharf sind, werden zu einem Foto, das überall scharf ist.",
+  w2t:"Wirft schlechte Fotos raus", w2p:"Verwackelte oder unbrauchbare Fotos werden automatisch entfernt — und es sagt dir warum.",
+  w3t:"Sagt dir, wie viele du brauchst", w3p:"Ein einfacher Helfer berechnet, wie viele Fotos du wirklich brauchst. Kein Raten.",
+  w4t:"Seidiges Wasser, ohne Spezial‑Ausrüstung", w4p:"Mach aus einer schnellen Serie glattes Wasser oder Lichtspuren — ohne teuren Filter.",
+  w5t:"Sterne und Nahaufnahmen", w5p:"Sternenhimmel und winzige Details — beides in derselben einfachen App.",
+  w6t:"Bleibt auf deinem Computer", w6p:"Alles läuft auf deinem eigenen Rechner. Nichts wird hochgeladen. Kein Konto, keine KI nötig.",
+  how_eyebrow:"So funktioniert's", how_h2:"Von einer unscharfen Serie zu einem scharfen Foto",
+  how_lead:"Vier einfache Schritte — und du siehst bei jedem, was passiert.",
+  s1n:"1 · DEINE FOTOS", s1t:"Reinziehen", s1p:"Ein paar Fotos, jedes nur stellenweise scharf.",
+  s2n:"2 · AUTO‑PRÜFUNG", s2t:"Räumt auf", s2p:"Schlechte Fotos raus, der Rest ausgerichtet.",
+  s3n:"3 · KOMBINIEREN", s3t:"Nimmt die besten Teile", s3p:"Nimmt aus jedem Foto den scharfen Teil.",
+  s4n:"4 · FERTIG", s4t:"Ein sauberes Foto", s4p:"Überall scharf, sofort nutzbar.",
+  tools_eyebrow:"Vier Werkzeuge in einer App", tools_h2:"Wähl, was du machen willst",
+  tools_lead:"Wähl beim Öffnen der App — jederzeit umschaltbar.",
+  m1t:"Nahaufnahmen", m1p:"Gestochen scharfe Fotos kleiner Dinge — Produkte, Münzen, Essen, Schmuck, Insekten. ForgePix kombiniert deine Aufnahmen, sodass das ganze Motiv scharf ist.",
+  m2t:"Sternenhimmel", m2p:"Kombiniere viele Sternfotos zu einem sauberen, hellen Nachthimmel mit weniger Rauschen. Fotos mit Wolken oder einem Satelliten werden sogar aussortiert.",
+  m3t:"Mond &amp; Panoramen", m3p:"Setze mehrere Aufnahmen von Mond oder Sonne zu einem großen, detailreichen Bild zusammen — oder kombiniere für mehr Klarheit.",
+  m4t:"Langzeitbelichtung", m4p:"Seidiges Wasser, weiche Wolken oder Lichtspuren — aus einer normalen Fotoserie. Keine Stativ‑Tricks, kein Spezialfilter nötig.",
+  in_eyebrow:"Ein Blick hinein", in_h2:"Für alle gemacht, nicht nur für Profis",
+  in_lead:"Klare Knöpfe, ein Hilfe‑„?“ bei jeder Option, ein einfacher Anfänger‑Modus und ein eingebauter Foto‑Editor.",
+  g1:"Fotos reinziehen und einen Knopf drücken.", g2:"Eingebauter Editor — Helligkeit, Farbe, Zuschnitt.",
+  g3:"Sternenhimmel‑Werkzeug mit einfachen Einstellungen.", g4:"Sieh, welches Foto wo scharf ist.",
+  g5:"Langzeit — Regler für mehr oder weniger Effekt.", g6:"Startbildschirm — wähl, was du tun willst.",
+  hl_eyebrow:"Was du bekommst", hl_h2:"Alles ist dabei",
+  li1:"<b>Ein‑Knopf‑Automatik</b> — oder ein Profi‑Modus mit voller Kontrolle.",
+  li2:"<b>Öffnet die Fotos deiner Kamera</b>, auch RAW — Farben bleiben echt.",
+  li3:"<b>Eingebauter Foto‑Editor</b> — Helligkeit, Farbe, Zuschnitt und mehr.",
+  li4:"<b>Korrektur‑Pinsel</b> für die wenigen kniffligen Stellen.",
+  li5:"<b>Vorher/Nachher‑Regler</b>, damit du den Unterschied siehst.",
+  li6:"<b>Fertige Export‑Vorlagen</b> für Instagram, WhatsApp, Web, 4K oder Druck.",
+  li7:"<b>Ganze Ordner auf einmal</b>, plus ein Überwach‑Modus für neue Fotos.",
+  li8:"<b>Deutsch &amp; Englisch</b>, und alles geht auch per Tastatur.",
+  ai_h3:"Läuft von allein",
+  ai_p1:"ForgePix läuft <b>komplett offline</b>. Kein Konto, keine Anmeldung, kein Internet, keine KI nötig — deine Fotos verlassen nie deinen Computer.",
+  ai_p2:"Wenn du willst, kannst du später eine KI verbinden — aber nur für <b>Tipps und Prüfungen</b>. Sie fasst deine Fotos nie an.",
+  ai_quote:"„Die App erklärt, <b>warum</b> sie sich so entschieden hat.“",
+  dl_eyebrow:"Hol es dir", dl_h2:"Download — kostenlos, kein Konto",
+  dl_lead:"Immer die neueste Version, direkt von GitHub.", dl_latest:"Neueste:",
+  dl_mac:"Doppelklick auf <code>ForgePix.app</code>", dl_win:"<code>run.bat</code> starten", dl_linux:"<code>./run.sh</code> starten",
+  dl_btn:"Laden", code_comment:"# lieber per Kommandozeile? Aus dem Quellcode:",
+  bug_line:"🐞 Fehler gefunden oder eine Frage?", bug_report:"Auf GitHub melden →", bug_discuss:"In Discussions fragen",
+  foot_tagline:"Kostenlose Foto‑Stacking‑App · MIT‑Lizenz", foot_issues:"Fehler melden", foot_discuss2:"Diskussionen",
+  foot_releases:"Versionen", foot_help:"Hilfe"
+ }
+};
+
+(function(){
+  function setLang(lang){
+    document.documentElement.lang = lang;
+    var dict = I18N[lang] || {};
+    document.querySelectorAll("[data-i18n]").forEach(function(el){
+      var k = el.getAttribute("data-i18n");
+      if(lang==="en"){ if(el.hasAttribute("data-en")) el.innerHTML = el.getAttribute("data-en"); }
+      else if(dict[k]!=null){
+        if(!el.hasAttribute("data-en")) el.setAttribute("data-en", el.innerHTML); /* remember EN once */
+        el.innerHTML = dict[k];
+      }
+    });
+    document.querySelectorAll("[data-lang-btn]").forEach(function(b){
+      b.classList.toggle("on", b.getAttribute("data-lang-btn")===lang);
+    });
+    try{ localStorage.setItem("fp_lang", lang); }catch(e){}
+  }
+  var urlLang = new URLSearchParams(location.search).get("lang");
+  var saved = null; try{ saved = localStorage.getItem("fp_lang"); }catch(e){}
+  var browser = (navigator.language||navigator.userLanguage||"").toLowerCase().indexOf("de")===0 ? "de" : "en";
+  setLang(urlLang || saved || browser);
+  document.querySelectorAll("[data-lang-btn]").forEach(function(b){
+    b.addEventListener("click", function(){ setLang(b.getAttribute("data-lang-btn")); });
+  });
+
+  /* ---- Latest version from GitHub (auto) ---- */
+  try{
+    fetch("https://api.github.com/repos/samuelvoltarius/ForgePix/releases/latest", {headers:{"Accept":"application/vnd.github+json"}})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        if(!d || !d.tag_name) return;
+        document.querySelectorAll("[data-version]").forEach(function(el){ el.textContent = d.tag_name; });
+        if(d.html_url) document.querySelectorAll("[data-release-link]").forEach(function(a){ a.href = d.html_url; });
+      }).catch(function(){});
+  }catch(e){}
+})();
+</script>
 
 </body>
 </html>

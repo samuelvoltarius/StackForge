@@ -684,9 +684,19 @@ class MainWindow(QMainWindow):
 
         split.addWidget(left)
 
-        # ---- rechte Spalte: Bild GROSS oben, Log klein unten (Foto-zentriert) ----
-        right = QWidget()
-        rv = QVBoxLayout(right)
+        # ---- MITTE: großes Bild + Ansicht-Umschalter + Aktionen ----
+        center = QWidget()
+        rv = QVBoxLayout(center)
+        # Umschalter: Ergebnis · Fokus-Map · Geister-Karte
+        vbar = QHBoxLayout(); vbar.setSpacing(6)
+        self.view_result = QPushButton(tr("Ergebnis")); self.view_focusmap = QPushButton(tr("Fokus-Map"))
+        self.view_ghost = QPushButton(tr("Geister-Karte"))
+        for b, m in ((self.view_result, "result"), (self.view_focusmap, "focusmap"), (self.view_ghost, "ghost")):
+            b.setCheckable(True); b.setEnabled(False)
+            b.clicked.connect(lambda _=False, mode=m: self._set_view(mode))
+            vbar.addWidget(b)
+        self.view_result.setChecked(True); vbar.addStretch(1)
+        rv.addLayout(vbar)
         self._preview_empty = ("<div style='font-size:64px'>📂</div>"
                                "<div style='font-size:16px;color:#cfd2cd;margin-top:8px'>"
                                + tr("Ordner hierher ziehen") + "</div>"
@@ -697,7 +707,6 @@ class MainWindow(QMainWindow):
         self.preview.setAlignment(Qt.AlignCenter)
         self.preview.setMinimumHeight(320)
         self.preview.setStyleSheet("color:#8a8f88;border:2px dashed #34383f;border-radius:12px;")
-        rv.addWidget(QLabel(tr("Ergebnis")))
         rv.addWidget(self.preview, 6)
         self.progress = QProgressBar(); self.progress.setRange(0, 0); self.progress.hide()
         rv.addWidget(self.progress)
@@ -738,13 +747,13 @@ class MainWindow(QMainWindow):
         res_btns.addStretch(1)
         rv.addLayout(res_btns)
 
-        # Filmstreifen: alle Fotos mit Schärfe-Wert, behalten/verworfen
+        # Filmstreifen: alle Fotos mit Schärfe-Wert, behalten/verworfen (unter dem Bild)
         self.strip_label = QLabel("Bilder (grün = verwendet, rot = aussortiert):")
         self.strip_label.hide()
         rv.addWidget(self.strip_label)
         self.strip_scroll = QScrollArea()
         self.strip_scroll.setWidgetResizable(True)
-        self.strip_scroll.setFixedHeight(150)
+        self.strip_scroll.setFixedHeight(132)
         self.strip_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.strip_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.strip_host = QWidget()
@@ -754,17 +763,28 @@ class MainWindow(QMainWindow):
         self.strip_scroll.hide()
         rv.addWidget(self.strip_scroll)
 
-        # Log: klein, ganz unten (für Fotografen Nebensache — das Bild zählt)
-        line = QFrame(); line.setFrameShape(QFrame.HLine); rv.addWidget(line)
-        rv.addWidget(QLabel(tr("Log")))
+        # ---- RECHTS: Entscheidungs-Panel (Score/„Warum") + Log ----
+        rightcol = QWidget()
+        rc = QVBoxLayout(rightcol)
+        rc.addWidget(QLabel(tr("Analyse & Ergebnis")))
+        self.decision = QLabel(tr("Noch kein Ergebnis.\nWähle einen Ordner und starte die Automatik."))
+        self.decision.setWordWrap(True); self.decision.setTextFormat(Qt.RichText)
+        self.decision.setAlignment(Qt.AlignTop)
+        self.decision.setStyleSheet("background:#1c1b22;border:1px solid #2a2836;border-radius:10px;"
+                                    "padding:12px;color:#cfd2cd;")
+        dsc = QScrollArea(); dsc.setWidgetResizable(True); dsc.setWidget(self.decision)
+        dsc.setFrameShape(QFrame.NoFrame)
+        rc.addWidget(dsc, 3)
+        rc.addWidget(QLabel(tr("Log")))
         self.log = QPlainTextEdit(); self.log.setReadOnly(True)
-        self.log.setFont(QFont("Menlo", 11))
+        self.log.setFont(QFont("Menlo", 10))
         self.log.setMaximumBlockCount(5000)
-        self.log.setMaximumHeight(150)
-        rv.addWidget(self.log, 1)
+        rc.addWidget(self.log, 2)
 
-        split.addWidget(right)
-        split.setSizes([470, 970])   # ~⅓ Einstellungen / ~⅔ Bild
+        split.addWidget(center)
+        split.addWidget(rightcol)
+        split.setSizes([430, 720, 320])   # Einstellungen · Bild · Entscheidung
+        split.setStretchFactor(1, 1)
 
         self.result_path = None
         self.before_path = None
@@ -1542,13 +1562,21 @@ class MainWindow(QMainWindow):
             self.preview.setText("(kein Stack-Output — Selektionslauf?)")
             return
         self.result_path = res
+        self._focusmap_cache = None   # neue Reihe -> Fokus-Map neu berechnen
         # „Vorher“: schärfster behaltener Frame (Makro) — sonst ein repräsentatives Original
         self.before_path = self._sharpest_kept(res) or self._representative_input()
+        self.view_result.setChecked(True)
         self._set_preview(res)
         self.open_btn.setEnabled(True)
         self.openfolder_btn.setEnabled(True); self.adjust_btn.setEnabled(True)
         self.cmp_btn.setEnabled(bool(self.before_path))
         self.ghost_btn.setEnabled(bool(self._ghostmap_path()))
+        # Ansicht-Umschalter: Ergebnis immer, Geister-Karte wenn da, Fokus-Map nur Makro
+        makro = not (getattr(self, "is_astro", False) or getattr(self, "is_hybrid", False)
+                     or getattr(self, "is_longexp", False))
+        self.view_result.setEnabled(True)
+        self.view_ghost.setEnabled(bool(self._ghostmap_path()))
+        self.view_focusmap.setEnabled(makro)
         self.send_btn.setEnabled(True); self.reimport_btn.setEnabled(True)
         self.export_btn.setEnabled(True); self.tools_btn.setEnabled(True)
         # GraXpert/StarNet nur bei Himmels-Modulen sinnvoll (Astro/Langzeit/Hybrid), nicht Makro
@@ -1566,18 +1594,84 @@ class MainWindow(QMainWindow):
         self._build_filmstrip(res)
         self._show_quality()
 
+    def _set_view(self, mode):
+        """Mittleres Bild umschalten: Ergebnis · Fokus-Map · Geister-Karte."""
+        for b, m in ((self.view_result, "result"), (self.view_focusmap, "focusmap"),
+                     (self.view_ghost, "ghost")):
+            b.setChecked(m == mode)
+        if mode == "result" and self.result_path:
+            self._set_preview(self.result_path)
+        elif mode == "focusmap":
+            p = self._focusmap_png()
+            if p:
+                self._set_preview(p)
+            else:
+                self._append("\n(Fokus-Map: zu wenige Bilder oder nicht berechenbar.)\n")
+        elif mode == "ghost":
+            g = self._ghostmap_path()
+            if g:
+                self._set_preview(g)
+
+    def _focusmap_png(self):
+        """Fokus-Herkunfts-Karte als PNG (berechnet bei Bedarf, gecacht)."""
+        if getattr(self, "_focusmap_cache", None):
+            return self._focusmap_cache
+        try:
+            import focus_analysis as fa
+            import focus_cull_stack as F
+            paths = getattr(self, "_analyze_paths", None) or F.list_images(self.in_edit.text().strip())
+            if not paths or len(paths) < 3:
+                return None
+            fm = fa.focus_map(paths)
+            p = os.path.join("/tmp", "fp_focusmap_view.png")
+            cv2.imwrite(p, fm)
+            self._focusmap_cache = p
+            return p
+        except Exception:
+            return None
+
     def _show_quality(self):
-        """Stack-Qualität (aus quality.json der Pipeline) in der Vorschau-Tooltip + Log zeigen."""
+        """Stack-Qualität (aus quality.json) ins Log + ins rechte Entscheidungs-Panel schreiben."""
         qf = os.path.join(self._work_dir(), "quality.json")
-        if not os.path.isfile(qf):
-            return
+        q = None
+        if os.path.isfile(qf):
+            try:
+                import json as _json
+                q = _json.load(open(qf))
+            except Exception:
+                q = None
+        # Cull-Report für „X von Y verwendet"
+        kept = total = None
         try:
             import json as _json
-            q = _json.load(open(qf))
+            rep = os.path.join(os.path.dirname(os.path.dirname(self.result_path)), "cull_report.json")
+            if os.path.isfile(rep):
+                d = _json.load(open(rep)); kept = d.get("kept"); total = d.get("total")
         except Exception:
-            return
-        findings = " · ".join(q.get("findings", []))
-        self._append(f"\n🏅 Stack-Qualität: {q.get('score')}/100 — {findings}\n")
+            pass
+        if q:
+            findings = " · ".join(q.get("findings", []))
+            self._append(f"\n🏅 Stack-Qualität: {q.get('score')}/100 — {findings}\n")
+        # Entscheidungs-Panel (rechts) aufbauen
+        score = q.get("score") if q else None
+        col = "#4caf50" if (score or 0) >= 85 else "#d4a72c" if (score or 0) >= 70 else "#e5534b"
+        html = []
+        if score is not None:
+            html.append(f"<div style='font-size:30px;font-weight:800;color:{col}'>{score}<span "
+                        f"style='font-size:14px;color:#9aa09a'>/100</span></div>"
+                        f"<div style='color:#9aa09a;font-size:11px;margin-bottom:8px'>"
+                        + tr("Stack-Konfidenz") + "</div>")
+        if kept is not None and total:
+            html.append(f"<b>{kept}</b> " + tr("von") + f" <b>{total}</b> " + tr("Fotos verwendet")
+                        + f" <span style='color:#9aa09a'>({total - kept} " + tr("aussortiert") + ")</span><br><br>")
+        if q and q.get("findings"):
+            html.append("<b>" + tr("Befunde") + ":</b><ul style='margin:4px 0 0 -18px'>")
+            for f in q["findings"]:
+                html.append(f"<li>{f}</li>")
+            html.append("</ul>")
+        html.append("<br><span style='color:#7bd36a'>→ </span>" + tr("Bearbeiten (E) · Export (⌘E) · "
+                    "Werkzeuge für Geister-Karte/Retusche."))
+        self.decision.setText("".join(html) if html else tr("Ergebnis fertig."))
 
     def open_compare(self):
         if not (self.result_path and self.before_path):
