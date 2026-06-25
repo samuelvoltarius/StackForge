@@ -775,6 +775,20 @@ class MainWindow(QMainWindow):
         dsc = QScrollArea(); dsc.setWidgetResizable(True); dsc.setWidget(self.decision)
         dsc.setFrameShape(QFrame.NoFrame)
         rc.addWidget(dsc, 3)
+
+        # Schnell-Export: Ein-Klick-Presets direkt neben dem Ergebnis
+        rc.addWidget(QLabel(tr("Schnell-Export")))
+        chips = QWidget(); chl = QHBoxLayout(chips); chl.setContentsMargins(0, 0, 0, 0); chl.setSpacing(6)
+        self.export_chips = []
+        for key, lbl in [("instagram", "📷 Instagram"), ("web", "🌐 Web"),
+                         ("print", "🖨 " + tr("Druck"))]:
+            b = QPushButton(lbl); b.setObjectName("chip")
+            b.setToolTip(tr("Ergebnis sofort in dieses Format exportieren (ohne Dialog)."))
+            b.clicked.connect(lambda _=False, k=key: self._quick_export(k))
+            b.setEnabled(False); chl.addWidget(b); self.export_chips.append(b)
+        chl.addStretch(1)
+        rc.addWidget(chips)
+
         rc.addWidget(QLabel(tr("Log")))
         self.log = QPlainTextEdit(); self.log.setReadOnly(True)
         self.log.setFont(QFont("Menlo", 10))
@@ -1585,6 +1599,8 @@ class MainWindow(QMainWindow):
         self.view_focusmap.setEnabled(makro)
         self.send_btn.setEnabled(True); self.reimport_btn.setEnabled(True)
         self.export_btn.setEnabled(True); self.tools_btn.setEnabled(True)
+        for b in getattr(self, "export_chips", []):
+            b.setEnabled(True)
         # GraXpert/StarNet nur bei Himmels-Modulen sinnvoll (Astro/Langzeit/Hybrid), nicht Makro
         sky = (getattr(self, "is_astro", False) or getattr(self, "is_longexp", False)
                or getattr(self, "is_hybrid", False))
@@ -2177,6 +2193,22 @@ class MainWindow(QMainWindow):
         self._strip_idx = (getattr(self, "_strip_idx", 0) + d) % len(paths)
         self._set_preview(paths[self._strip_idx])
 
+    def _quick_export(self, key):
+        """Ein-Klick-Export eines einzelnen Presets (ohne Dialog) direkt aus dem Panel."""
+        if not self.result_path or cv2 is None:
+            QMessageBox.information(self, tr("Exportieren"), tr("Erst ein Ergebnis erzeugen.")); return
+        try:
+            import focus_cull_stack as F
+            stack_dir = os.path.dirname(self.result_path)
+            export_dir = os.path.join(self._work_dir(), "export")
+            os.makedirs(export_dir, exist_ok=True)
+            F.export_targets(stack_dir, export_dir, [key],
+                             only=os.path.basename(self.result_path))
+        except Exception as e:
+            QMessageBox.warning(self, tr("Exportieren"), f"{e}"); return
+        self._append(f"\n📦 {key} → {export_dir}\n")
+        reveal_in_files(export_dir)
+
     def export_result(self):
         """Export-Dialog: auswählen WAS exportiert wird (Ziele, Schärfung, Photoshop-Ebenen,
         16-bit-TIFF), dann schreiben + Ordner zeigen."""
@@ -2413,6 +2445,14 @@ QPushButton#card {
     background:#202227; border:1px solid #34383f; border-radius:16px; text-align:center; }
 QPushButton#card:hover { background:#23282a; border:2px solid #4caf50; }
 QPushButton#card:pressed { background:#1c2a1c; }
+
+/* Schnell-Export-Chips im Entscheidungs-Panel */
+QPushButton#chip {
+    background:#23252c; border:1px solid #3a3d47; border-radius:13px;
+    padding:4px 11px; font-size:12px; font-weight:600; color:#cfd2cd; }
+QPushButton#chip:hover { background:#2b3a2b; border-color:#4caf50; color:#dff3df; }
+QPushButton#chip:pressed { background:#1c2a1c; }
+QPushButton#chip:disabled { background:#1b1c21; border-color:#26282f; color:#5a5d63; }
 
 QCheckBox { spacing:7px; }
 QCheckBox::indicator {
