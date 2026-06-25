@@ -4,7 +4,7 @@ import os
 import hashlib
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Projekt-Root (ui/ liegt darunter)
-SCRIPT = os.path.join(HERE, "focus_cull_stack.py")
+SCRIPT = os.path.join(HERE, "core", "focus_cull_stack.py")          # Pipeline-Skript liegt in core/
 ICON = os.path.join(HERE, "assets", "ForgePix.icns")
 ICON_PNG = os.path.join(HERE, "assets", "forgepix_512.png")
 APP_NAME = "ForgePix"

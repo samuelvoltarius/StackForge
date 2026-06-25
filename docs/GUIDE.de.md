@@ -208,27 +208,27 @@ Nichts davon ist Pflicht — ForgePix ist eigenständig.
 
 ## Kommandozeile (CLI)
 
-Die GUI ruft `focus_cull_stack.py` auf — das geht auch direkt:
+Die GUI ruft `core/focus_cull_stack.py` auf — das geht auch direkt:
 
 ```bash
 # Makro-Automatik
-python3 focus_cull_stack.py --input fotos/ --auto
+python3 core/focus_cull_stack.py --input fotos/ --auto
 
 # Astro mit Feldrotation, Hot-Pixel, Drizzle, FITS
-python3 focus_cull_stack.py --input lights/ --astro --astro-align rotate \
+python3 core/focus_cull_stack.py --input lights/ --astro --astro-align rotate \
     --astro-cosmetic --astro-drizzle 2 --fits-out --dark darks/ --flat flats/
 
 # Langzeitbelichtung, glatt, 60 % virtuelle Belichtung
-python3 focus_cull_stack.py --input serie/ --longexp --longexp-mode smooth --longexp-strength 60
+python3 core/focus_cull_stack.py --input serie/ --longexp --longexp-mode smooth --longexp-strength 60
 
 # Hybrid Fokus+Astro (je Unterordner eine Position)
-python3 focus_cull_stack.py --input positionen/ --hybrid-fa
+python3 core/focus_cull_stack.py --input positionen/ --hybrid-fa
 
 # Batch über mehrere Serien (je Unterordner ein Stack)
-python3 focus_cull_stack.py --input serien/ --batch --astro
+python3 core/focus_cull_stack.py --input serien/ --batch --astro
 ```
 
-`python3 focus_cull_stack.py --help` zeigt alle Optionen.
+`python3 core/focus_cull_stack.py --help` zeigt alle Optionen.
 
 ---
 

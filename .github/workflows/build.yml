@@ -53,6 +53,7 @@ jobs:
         shell: bash
         run: |
           pyinstaller --noconfirm --windowed --name ForgePix ${{ matrix.iconflag }} \
+            --paths core \
             --add-data "lang${{ matrix.sep }}lang" \
             --add-data "assets/forgepix_512.png${{ matrix.sep }}assets" \
             --hidden-import focus_cull_stack --hidden-import focus_analysis \

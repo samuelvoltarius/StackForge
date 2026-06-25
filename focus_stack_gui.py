@@ -15,7 +15,9 @@ import sys
 # Projekt-Root auf den Importpfad — NUR im Quellcode-Modus. Im gebündelten Binary
 # (PyInstaller) würde das den Pfad verschmutzen und cv2 doppelt auflösen (Rekursionsfehler).
 if not getattr(sys, "frozen", False):
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    _root = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, _root)
+    sys.path.insert(0, os.path.join(_root, "core"))   # Engine-Module liegen jetzt in core/
 
 from ui.main_window import MainWindow, THEME, main, APP_NAME, ICON, ICON_PNG  # noqa: F401
 from ui.components import (  # noqa: F401  (Rück-Export für bestehende Skripte/Tests)

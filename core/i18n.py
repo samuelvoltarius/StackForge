@@ -12,7 +12,12 @@ Eigene Sprache hinzufügen: `lang/de.json` kopieren, Werte übersetzen, Datei z.
 import json
 import os
 
-_LANG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lang")
+_d = os.path.dirname(os.path.abspath(__file__))
+# lang/ liegt im gebündelten Binary neben i18n (_MEIPASS/lang), im Quellcode im Projekt-Root
+# (i18n.py liegt jetzt in core/ → ein Verzeichnis höher).
+_LANG_DIR = os.path.join(_d, "lang")
+if not os.path.isdir(_LANG_DIR):
+    _LANG_DIR = os.path.join(os.path.dirname(_d), "lang")
 _current = "de"
 _table = {}
 

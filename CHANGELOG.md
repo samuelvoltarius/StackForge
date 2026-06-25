@@ -4,6 +4,16 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.16.8] – 2026-06-26
+### Geändert (Aufräumen — Projektstruktur)
+- **Engine-Module nach `core/` verschoben:** Der Projekt-Root enthält jetzt nur noch die
+  Start-Datei `focus_stack_gui.py` (+ `ui/`, `core/`, `assets/`, `docs/`, `lang/`, `tests/`) statt
+  13 lose `.py`-Dateien — übersichtlicher, weniger erschlagend. Kein Verhaltenswechsel: Engine
+  (astro/stacker/focus_*/longexp/mosaic/parallel/siril/tools/constants/i18n) liegt in `core/`,
+  per Pfad eingebunden (`--paths core` im Build, hidden-imports unverändert). i18n findet `lang/`
+  weiterhin (Quelle + Bundle), `SCRIPT` zeigt auf `core/`. 50 Tests grün, App + Pipeline + i18n
+  in Source-Mode verifiziert.
+
 ## [1.16.7] – 2026-06-26
 ### Hinzugefügt
 - **Auto-Maske im Editor (lokale Helligkeit, ohne Malen):** Neue Option „🎯 Auto-Maske: nur Motiv

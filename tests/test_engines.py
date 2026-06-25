@@ -16,7 +16,9 @@ import unittest
 import numpy as np
 import cv2
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _ROOT)
+sys.path.insert(0, os.path.join(_ROOT, "core"))   # Engine-Module liegen in core/
 
 
 def _rng():
