@@ -112,14 +112,68 @@ def disagreement_map(images, max_side=700):
     return std / (std.max() + 1e-6)
 
 
-def ghost_overlay(result_bgr, images, thresh=0.35):
-    """Rote Überlagerung auf dem Ergebnis, wo die Frames stark uneinig sind (Ghosting-Verdacht)."""
-    m = disagreement_map(images)
-    m = cv2.resize(m, (result_bgr.shape[1], result_bgr.shape[0]))
+def disagreement_map_streamed(paths, max_side=700, align_mode="rigid", detector="ORB",
+                              do_align=True, log=print):
+    """Wie disagreement_map, aber speicherschonend: lädt EIN Frame nach dem anderen (downscaled,
+    grau, aufs erste ausgerichtet) und berechnet die Pro-Pixel-Streuung online (Welford).
+    Für sehr große/gestreamte Stacks, wo nicht alle Frames in den RAM passen."""
+    ref_bgr = None
+    mean = m2 = None
+    count = 0
+
+    def _small_gray(im):
+        g = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY) if im.ndim == 3 else im
+        if g.dtype != np.uint8:
+            g = (g / 256).astype(np.uint8) if g.max() > 255 else g.astype(np.uint8)
+        s = max_side / max(g.shape)
+        if s < 1.0:
+            g = cv2.resize(g, (int(g.shape[1] * s), int(g.shape[0] * s)), interpolation=cv2.INTER_AREA)
+        return g
+
+    for p in paths:
+        im = cv2.imread(p, cv2.IMREAD_UNCHANGED)
+        if im is None:
+            continue
+        g = _small_gray(im)
+        if ref_bgr is None:
+            ref_bgr = cv2.cvtColor(g, cv2.COLOR_GRAY2BGR)
+            mean = np.zeros(g.shape, np.float32)
+            m2 = np.zeros(g.shape, np.float32)
+        else:
+            if g.shape != ref_bgr.shape[:2]:
+                g = cv2.resize(g, (ref_bgr.shape[1], ref_bgr.shape[0]))
+            if do_align:
+                try:
+                    g = cv2.cvtColor(align_images([ref_bgr, cv2.cvtColor(g, cv2.COLOR_GRAY2BGR)],
+                                                  ref_idx=0, mode=align_mode, detector=detector,
+                                                  log=lambda *a: None)[1], cv2.COLOR_BGR2GRAY)
+                except Exception:
+                    pass
+        f = g.astype(np.float32)
+        count += 1
+        delta = f - mean
+        mean += delta / count
+        m2 += delta * (f - mean)
+        log(f"    Geister-Analyse {count}/{len(paths)}")
+    if count < 2:
+        return None
+    std = np.sqrt(m2 / count)
+    std = cv2.GaussianBlur(std, (0, 0), 3)
+    return std / (std.max() + 1e-6)
+
+
+def ghost_overlay_from_map(result_bgr, dmap, thresh=0.35):
+    """Rote Ghosting-Überlagerung aus einer fertigen Streuungs-Karte (dmap in [0..1])."""
+    m = cv2.resize(dmap, (result_bgr.shape[1], result_bgr.shape[0]))
     base = (result_bgr / 256).astype(np.uint8) if result_bgr.dtype == np.uint16 else result_bgr.copy()
     a = (np.clip((m - thresh) / max(1e-6, 1 - thresh), 0, 1) * 0.6)[..., None]
     red = np.zeros_like(base); red[..., 2] = 255
     return (base * (1 - a) + red * a).astype(np.uint8)
+
+
+def ghost_overlay(result_bgr, images, thresh=0.35):
+    """Rote Überlagerung auf dem Ergebnis, wo die Frames stark uneinig sind (Ghosting-Verdacht)."""
+    return ghost_overlay_from_map(result_bgr, disagreement_map(images), thresh)
 
 
 def focus_stack(images, min_size=32, deghost=False, deghost_thresh=0.35, log=print):

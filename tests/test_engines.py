@@ -465,6 +465,49 @@ class TestExifCopyPiexif(TmpCase):
         self.assertEqual(d["Exif"].get(piexif.ExifIFD.FNumber), (28, 10))
 
 
+class TestExifTiff(TmpCase):
+    def test_exif_into_tiff_without_exiftool_keeps_pixels(self):
+        try:
+            import piexif
+            import tifffile
+            import numpy as np
+            import cv2
+        except Exception:
+            self.skipTest("piexif/tifffile/cv2 fehlt")
+        import shutil
+        import focus_cull_stack as F
+        src = os.path.join(self.d, "src.jpg")
+        cv2.imwrite(src, (np.zeros((30, 30, 3)) + 90).astype("uint8"))
+        piexif.insert(piexif.dump({"0th": {piexif.ImageIFD.Model: b"ILCE-7M5"}, "Exif": {}}), src)
+        dst = os.path.join(self.d, "out.tif")
+        data = (np.arange(20 * 20 * 3).reshape(20, 20, 3) % 1000).astype("uint16")
+        import tifffile as tf
+        tf.imwrite(dst, data)
+        before = tf.imread(dst).copy()
+        orig = shutil.which
+        F.shutil.which = lambda n: None if n == "exiftool" else orig(n)
+        try:
+            F.copy_exif(src, [dst])
+        finally:
+            F.shutil.which = orig
+        with tf.TiffFile(dst) as t:
+            tags = {tg.code: tg.value for tg in t.pages[0].tags}
+        self.assertEqual(tags.get(272), "ILCE-7M5")           # Model
+        self.assertTrue(np.array_equal(before, tf.imread(dst)))  # Pixel bit-identisch
+
+
+class TestStreamedGhost(unittest.TestCase):
+    def test_streamed_disagreement_map(self):
+        import glob
+        import stacker
+        imgs = sorted(glob.glob("testdata/amber-flies/*.jpg"))
+        if len(imgs) < 3:
+            self.skipTest("zu wenige Beispielbilder")
+        dmap = stacker.disagreement_map_streamed(imgs, log=lambda *a: None)
+        self.assertIsNotNone(dmap)
+        self.assertAlmostEqual(float(dmap.max()), 1.0, places=3)
+
+
 class TestParallel(unittest.TestCase):
     def test_pmap_preserves_order(self):
         from parallel import pmap

@@ -480,21 +480,92 @@ def _copy_exif_piexif(src, targets):
     except Exception as e:
         print(f"  EXIF-Übernahme übersprungen (Quelle nicht lesbar: {e})", file=sys.stderr)
         return
-    if not exif_bytes:
-        return
     jpgs = [t for t in targets if os.path.splitext(t)[1].lower() in (".jpg", ".jpeg")]
-    skipped = len(targets) - len(jpgs)
+    tiffs = [t for t in targets if os.path.splitext(t)[1].lower() in (".tif", ".tiff")]
     done = 0
-    for t in jpgs:
+    if exif_bytes:
+        for t in jpgs:
+            try:
+                piexif.insert(exif_bytes, t)
+                done += 1
+            except Exception:
+                pass
+    done += _embed_tiff_meta(src, tiffs)
+    other = len(targets) - len(jpgs) - len(tiffs)
+    msg = f"  EXIF (eingebaut) übernommen -> {done} Datei(en)"
+    if other:
+        msg += f"; {other} sonstige übersprungen"
+    print(msg)
+
+
+def _embed_tiff_meta(src, tiffs):
+    """Kern-EXIF in TIFF-Ausgaben schreiben (Make/Model/DateTime als Baseline-Tags + lesbare
+    Zusammenfassung in ImageDescription). piexif kann kein TIFF -> tifffile. Voll-EXIF-IFD bleibt
+    exiftool vorbehalten; die wichtigen Provenienz-Daten sind so aber auch ohne exiftool drin."""
+    if not tiffs:
+        return 0
+    try:
+        import tifffile
+        import focus_analysis as fa
+    except Exception:
+        return 0
+    opt = fa.read_exif_optics(src) or {}
+    expo, iso = fa._exif_expo_iso([src])
+    make, dt = _exif_make_datetime(src)
+    model = opt.get("model")
+
+    def ascii_(s):  # TIFF-Strings müssen 7-bit-ASCII sein
+        return str(s).encode("ascii", "ignore").decode().strip() if s else ""
+
+    parts = []
+    if model:
+        parts.append(ascii_(model))
+    if opt.get("focal_mm"):
+        parts.append(f"{opt['focal_mm']:.0f}mm")
+    if opt.get("f_number"):
+        parts.append(f"f/{opt['f_number']:.1f}")
+    if iso:
+        parts.append(f"ISO{int(iso)}")
+    if expo:
+        parts.append(f"{expo:g}s" if expo >= 1 else f"1/{round(1 / expo)}s")
+    if opt.get("lens"):
+        parts.append(ascii_(opt["lens"]))
+    desc = " | ".join(p for p in parts if p)
+    extra = []
+    if ascii_(make):
+        extra.append((271, "s", 0, ascii_(make), True))
+    if ascii_(model):
+        extra.append((272, "s", 0, ascii_(model), True))
+    if ascii_(dt):
+        extra.append((306, "s", 0, ascii_(dt), True))
+    if desc:
+        extra.append((270, "s", 0, desc, True))
+    if not extra:
+        return 0
+    done = 0
+    for t in tiffs:
         try:
-            piexif.insert(exif_bytes, t)
+            # tifffile zum Lesen UND Schreiben -> kein BGR/RGB-Swap, Pixel bleiben bit-identisch
+            data = tifffile.imread(t)
+            # metadata=None -> tifffile belegt ImageDescription (270) nicht selbst, Platz für unsere
+            tifffile.imwrite(t, data, metadata=None, extratags=extra)
             done += 1
         except Exception:
             pass
-    msg = f"  EXIF (eingebaut) übernommen -> {done} JPEG"
-    if skipped:
-        msg += f"; {skipped} Nicht-JPEG übersprungen (für volle TIFF-Metadaten exiftool installieren)"
-    print(msg)
+    return done
+
+
+def _exif_make_datetime(src):
+    """Hersteller + Aufnahmedatum via ExifRead (für TIFF-Provenienz). (None, None) bei Fehlen."""
+    try:
+        import exifread
+        with open(src, "rb") as f:
+            t = exifread.process_file(f, details=False)
+        make = str(t.get("Image Make")) if t.get("Image Make") else None
+        dt = (t.get("EXIF DateTimeOriginal") or t.get("Image DateTime"))
+        return make, (str(dt) if dt else None)
+    except Exception:
+        return None, None
 
 
 def _piexif_bytes_from(src, piexif):
@@ -703,7 +774,22 @@ def run_own_engine(selected_dir, work_dir, args):
         result = stacker.focus_stack_streamed(paths, align_mode=args.transform,
                                               detector=args.detector, chunk=chunk,
                                               do_align=not args.no_align)
-        imgs = None  # nicht alle im RAM -> Geister-Karte/Deghost hier nicht verfügbar
+        imgs = None  # nicht alle im RAM
+        # Geister-Karte speicherschonend (ein Frame nach dem anderen) — auch für großen Stack
+        if len(paths) >= 3:
+            try:
+                dmap = stacker.disagreement_map_streamed(
+                    paths, align_mode=args.transform, detector=args.detector,
+                    do_align=not args.no_align, log=(print if getattr(args, "ghost_map", False)
+                                                     else (lambda *a: None)))
+                if dmap is not None:
+                    gm_path = os.path.join(work_dir, "ghostmap.jpg")
+                    cv2.imwrite(gm_path, stacker.ghost_overlay_from_map(result, dmap),
+                                [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+                    if getattr(args, "ghost_map", False):
+                        print(f"  Geister-Karte: {gm_path}")
+            except Exception as e:
+                print(f"  (Geister-Karte im Großstack übersprungen: {e})", file=sys.stderr)
     else:
         print(f"  Lade {len(paths)} Frames …")
         imgs = [cv2.imread(p, cv2.IMREAD_UNCHANGED) for p in paths]

@@ -4,6 +4,19 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.15.0] – 2026-06-26
+### Hinzugefügt
+- **EXIF auch in 16-bit-TIFF — ohne exiftool:** TIFF-Ausgaben bekommen jetzt die Kern-Provenienz
+  (Kamera/Modell/Datum als Baseline-Tags + lesbare Zusammenfassung mit Brennweite/Blende/ISO/
+  Belichtung in der Bildbeschreibung) eingebaut via `tifffile` — **pixelidentisch** (Lesen/Schreiben
+  über tifffile, kein BGR/RGB-Swap). Die vollständige EXIF-Unter-IFD je Einzeltag bleibt der
+  exiftool-Kür vorbehalten (wird automatisch bevorzugt, wenn vorhanden).
+- **Geister-Karte auch bei großen/gestreamten Stacks:** Neue speicherschonende
+  `disagreement_map_streamed()` (lädt EIN Frame nach dem anderen, Online-Varianz nach Welford,
+  downscaled + ausgerichtet). Damit gibt es Ghost-Map/KI-Retusche-Hinweis jetzt auch im
+  RAM-schonenden Großstack-Pfad (vorher dort nicht verfügbar).
+- +2 Tests (42 gesamt).
+
 ## [1.14.3] – 2026-06-26
 ### Hinzugefügt (selbst-enthaltend)
 - **EXIF-Übernahme ohne exiftool — mitgeliefert:** Kamera/Objektiv/Brennweite/Blende/ISO/Belichtung

@@ -165,9 +165,10 @@ Nach jedem Lauf rechts in der Ergebnis-Leiste:
   neue Fotos fertig kopiert sind. (Makro, Astro, Langzeit)
 
 EXIF ist **eingebaut** und wird mitgeliefert — **kein exiftool nötig**: **Lesen** (DOF-Rechner,
-KI-Kontext, Modul-Erkennung) via `ExifRead`, **Übernahme auf JPEG-Ausgaben** via `piexif`
-(Kamera/Objektiv/Brennweite/Blende/ISO/Belichtung). Nur für die **vollständigen** Metadaten auf
-**16-bit-TIFF** ist optional **`exiftool`** die Kür (`brew install exiftool`); wird automatisch
+KI-Kontext, Modul-Erkennung) via `ExifRead`; **Übernahme auf JPEG** via `piexif` (volle EXIF);
+**TIFF** bekommt die Kern-Provenienz (Kamera/Modell/Datum + lesbare Zusammenfassung mit
+Brennweite/Blende/ISO/Belichtung) via `tifffile` — pixelidentisch. Nur die **vollständige EXIF-
+Unter-IFD** auf TIFF (jedes Einzeltag) ist optional **`exiftool`** vorbehalten; es wird automatisch
 bevorzugt, wenn vorhanden.
 
 ---

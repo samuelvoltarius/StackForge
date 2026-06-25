@@ -163,9 +163,10 @@ After each run, in the result bar on the right:
   finish copying. (Macro, Astro, Long exposure)
 
 EXIF is **built‑in** and ships with the app — **no exiftool needed**: **reading** (DOF assistant,
-AI context, module guessing) via `ExifRead`, **copying onto JPEG outputs** via `piexif`
-(camera/lens/focal/aperture/ISO/exposure). Only for the **full** metadata on **16‑bit TIFF** is
-**`exiftool`** an optional bonus (`brew install exiftool`); it is preferred automatically when present.
+AI context, module guessing) via `ExifRead`; **copying onto JPEG** via `piexif` (full EXIF); **TIFF**
+gets core provenance (camera/model/date + a readable summary with focal/aperture/ISO/exposure) via
+`tifffile` — pixel‑identical. Only the **full EXIF sub‑IFD** on TIFF (every individual tag) is left
+to optional **`exiftool`**; it is preferred automatically when present.
 
 ---
 
