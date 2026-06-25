@@ -323,5 +323,22 @@ class TestGuiSmoke(unittest.TestCase):
         w.close()
 
 
+class TestParallel(unittest.TestCase):
+    def test_pmap_preserves_order(self):
+        from parallel import pmap
+        items = list(range(50))
+        self.assertEqual(pmap(lambda x: x * x, items), [x * x for x in items])
+
+    def test_pmap_handles_empty_and_single(self):
+        from parallel import pmap
+        self.assertEqual(pmap(lambda x: x, []), [])
+        self.assertEqual(pmap(lambda x: x + 1, [41]), [42])
+
+    def test_cpu_workers_sane(self):
+        from parallel import cpu_workers
+        self.assertGreaterEqual(cpu_workers(), 1)
+        self.assertLessEqual(cpu_workers(memory_heavy=True), cpu_workers())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

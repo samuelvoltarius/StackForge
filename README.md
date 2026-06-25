@@ -73,6 +73,9 @@ A soft focus series becomes one fully sharp image — and you see *what* happens
   *with reasons*), 32‑bit linear export + **FITS**. **GraXpert & StarNet++ one‑click** (if installed:
   run + re‑import automatically; otherwise file hand‑off).
 - **Large stacks** are streamed in bundles (memory‑friendly).
+- **Fast:** RAW development and sharpness analysis run across **all CPU cores**; sharpness results
+  are **cached** per file (re‑runs are instant) and the embedded camera JPEG is used for the culling
+  pass — big RAW series analyse much faster.
 
 ## Runs everywhere — AI is optional
 
@@ -142,8 +145,8 @@ language menu automatically.
 ./run_tests.sh        # or: python3 -m unittest discover -s tests
 ```
 
-26 engine tests (standard library, no pytest needed) cover focus analysis, long exposure, astro,
-stacker, mosaic, export, i18n completeness and a GUI smoke test.
+29 engine tests (standard library, no pytest needed) cover focus analysis, long exposure, astro,
+stacker, mosaic, export, parallel helper, i18n completeness and a GUI smoke test.
 
 ## License
 

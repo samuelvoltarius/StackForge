@@ -43,9 +43,22 @@ def load_gray(path, max_side=1600):
     ext = os.path.splitext(path)[1].lower()
     if ext in RAW_EXTS:
         import rawpy
-        with rawpy.imread(path) as raw:
-            rgb = raw.postprocess(use_camera_wb=True, output_bps=8, half_size=True)
-        gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+        gray = None
+        # Schnellpfad: eingebettetes Kamera-JPEG (reicht fürs Schärfe-Culling, viel schneller).
+        # Nur wenn groß genug, sonst voller Entwicklungs-Fallback.
+        try:
+            with rawpy.imread(path) as raw:
+                th = raw.extract_thumb()
+            if getattr(th, "format", None) == rawpy.ThumbFormat.JPEG:
+                tg = cv2.imdecode(np.frombuffer(th.data, np.uint8), cv2.IMREAD_GRAYSCALE)
+                if tg is not None and max(tg.shape) >= 1024:
+                    gray = tg
+        except Exception:
+            gray = None
+        if gray is None:
+            with rawpy.imread(path) as raw:
+                rgb = raw.postprocess(use_camera_wb=True, output_bps=8, half_size=True)
+            gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
     else:
         gray = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
         if gray is None:
@@ -80,9 +93,12 @@ def develop_all(paths, dev_dir, args):
     if os.path.isdir(dev_dir):
         shutil.rmtree(dev_dir)
     os.makedirs(dev_dir)
-    out = []
-    # Index-Präfix erhält die Aufnahmereihenfolge (Nachbar-Logik des Cullings hängt davon ab)
-    for i, p in enumerate(paths):
+    from parallel import pmap
+
+    # Index-Präfix erhält die Aufnahmereihenfolge (Nachbar-Logik des Cullings hängt davon ab).
+    # Über alle Kerne entwickeln (rawpy/cv2 geben den GIL frei); pmap erhält die Reihenfolge.
+    def _one(item):
+        i, p = item
         ext = os.path.splitext(p)[1].lower()
         name = os.path.basename(p)
         if ext in RAW_EXTS:
@@ -91,12 +107,12 @@ def develop_all(paths, dev_dir, args):
             bgr = develop_raw_to_bgr(p, args.raw_wb, args.raw_auto_bright,
                                      args.raw_bps, args.raw_half)
             cv2.imwrite(outp, bgr, [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
-            out.append(outp)
-        else:
-            dst = os.path.join(dev_dir, f"{i:04d}_" + name)
-            shutil.copy2(p, dst)
-            out.append(dst)
-    return out
+            return outp
+        dst = os.path.join(dev_dir, f"{i:04d}_" + name)
+        shutil.copy2(p, dst)
+        return dst
+
+    return pmap(_one, list(enumerate(paths)), memory_heavy=True)
 
 
 def peak_local_sharpness(gray, grid=8, pct=95):
@@ -136,13 +152,17 @@ class Frame:
 
 
 def analyze(paths, max_side):
-    frames = []
-    grays = []
-    for p in paths:
+    from parallel import pmap
+
+    def _one(p):
         g = load_gray(p, max_side=max_side)
         peak, mean = peak_local_sharpness(g)
-        frames.append(Frame(path=p, name=os.path.basename(p), peak_sharp=peak, mean_sharp=mean))
-        grays.append(cv2.resize(g, (64, 64), interpolation=cv2.INTER_AREA))
+        frame = Frame(path=p, name=os.path.basename(p), peak_sharp=peak, mean_sharp=mean)
+        return frame, cv2.resize(g, (64, 64), interpolation=cv2.INTER_AREA)
+
+    results = pmap(_one, paths)  # geordnet -> Aufnahmereihenfolge bleibt
+    frames = [r[0] for r in results]
+    grays = [r[1] for r in results]
     return frames, grays
 
 

@@ -73,6 +73,9 @@ Aus einer unscharfen Fokusreihe wird ein durchgehend scharfes Bild — und du si
   fliegen raus *mit Begründung*), 32‑bit‑Linear‑Export + **FITS**. **GraXpert & StarNet++ per Ein‑Klick**
   (falls installiert: automatisch ausführen + reimportieren; sonst Datei‑Übergabe).
 - **Große Stacks** werden gebündelt gestreamt (speicherschonend).
+- **Schnell:** RAW‑Entwicklung und Schärfe‑Analyse laufen über **alle CPU‑Kerne**; Schärfe‑Werte
+  werden pro Datei **gecacht** (Re‑Runs sind sofort) und fürs Culling das eingebettete Kamera‑JPEG
+  genutzt — große RAW‑Serien werden deutlich schneller analysiert.
 
 ## Läuft überall — KI ist optional
 
@@ -144,8 +147,8 @@ automatisch in der Sprachauswahl.
 ./run_tests.sh        # oder: python3 -m unittest discover -s tests
 ```
 
-26 Engine‑Tests (Standardbibliothek, kein pytest nötig) decken Fokus‑Analyse, Langzeit, Astro,
-Stacker, Mosaik, Export, i18n‑Vollständigkeit und einen GUI‑Smoke‑Test ab.
+29 Engine‑Tests (Standardbibliothek, kein pytest nötig) decken Fokus‑Analyse, Langzeit, Astro,
+Stacker, Mosaik, Export, Parallel‑Helfer, i18n‑Vollständigkeit und einen GUI‑Smoke‑Test ab.
 
 ## Lizenz
 

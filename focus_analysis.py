@@ -22,9 +22,22 @@ def _load_gray(path, max_side=1000):
     ext = os.path.splitext(path)[1].lower()
     if ext in RAW_EXTS:
         import rawpy
-        with rawpy.imread(path) as raw:
-            rgb = raw.postprocess(output_bps=8, use_camera_wb=True, no_auto_bright=True, half_size=True)
-        g = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+        g = None
+        # Schnellpfad: eingebettetes Kamera-JPEG nutzen (für reine Schärfe-Analyse völlig ausreichend
+        # und viel schneller als volle Entwicklung). Nur wenn groß genug, sonst sauberer Fallback.
+        try:
+            with rawpy.imread(path) as raw:
+                th = raw.extract_thumb()
+            if getattr(th, "format", None) == rawpy.ThumbFormat.JPEG:
+                tg = cv2.imdecode(np.frombuffer(th.data, np.uint8), cv2.IMREAD_GRAYSCALE)
+                if tg is not None and max(tg.shape) >= 1024:
+                    g = tg
+        except Exception:
+            g = None
+        if g is None:
+            with rawpy.imread(path) as raw:
+                rgb = raw.postprocess(output_bps=8, use_camera_wb=True, no_auto_bright=True, half_size=True)
+            g = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
     else:
         g = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
     if g is None:
@@ -54,11 +67,38 @@ def tile_sharpness(gray, grid=12):
 def sharpness_matrix(paths, grid=12, max_side=1000, log=print):
     """(N_frames × grid²)-Matrix der Kachel-Schärfen. Nicht lesbare Frames → Nullzeile."""
     dim = grid * grid
-    rows = []
-    for i, p in enumerate(paths):
+    import hashlib
+    import tempfile
+    from parallel import pmap
+
+    cache_dir = os.path.join(tempfile.gettempdir(), "forgepix_sharp")
+    try:
+        os.makedirs(cache_dir, exist_ok=True)
+    except Exception:
+        cache_dir = None
+
+    def _row(p):
+        # Pro-Datei-Cache (Schlüssel = Pfad + mtime + Parameter): Re-Runs überspringen die Rechnung
+        cf = None
+        if cache_dir:
+            try:
+                key = f"{os.path.abspath(p)}:{os.path.getmtime(p)}:{grid}:{max_side}"
+                cf = os.path.join(cache_dir, hashlib.md5(key.encode()).hexdigest() + ".npy")
+                if os.path.exists(cf):
+                    return np.load(cf)
+            except Exception:
+                cf = None
         g = _load_gray(p, max_side)
-        rows.append(tile_sharpness(g, grid) if g is not None else np.zeros(dim, np.float32))
-        log(f"  analysiere {i + 1}/{len(paths)}")
+        row = tile_sharpness(g, grid) if g is not None else np.zeros(dim, np.float32)
+        if cf:
+            try:
+                np.save(cf, row)
+            except Exception:
+                pass
+        return row
+
+    rows = pmap(_row, paths)  # geordnet -> Frame-Reihenfolge bleibt erhalten
+    log(f"  analysiere {len(paths)}/{len(paths)}")
     return np.vstack(rows) if rows else np.zeros((0, dim), np.float32)
 
 
