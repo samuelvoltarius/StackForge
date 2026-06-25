@@ -92,6 +92,23 @@ def analyze_frame(path):
             "ok": True, "reasons": []}
 
 
+def subs_summary_text(frames):
+    """Kompakte, neutrale Text-Zusammenfassung der Sub-Bewertung (für KI-Erklärung oder Log).
+    Erwartet die frames-Liste aus select_subs (Dicts mit name/stars/fwhm/ecc/bg/keep/reasons)."""
+    ok = [f for f in frames if f.get("ok")]
+    kept = [f for f in ok if f.get("keep")]
+    dropped = [f for f in ok if not f.get("keep")]
+    lines = [f"{len(ok)} bewertbare Subs: {len(kept)} behalten, {len(dropped)} aussortiert."]
+    if ok:
+        import numpy as _np
+        lines.append(f"Median: FWHM {_np.median([f['fwhm'] for f in ok]):.1f}, "
+                     f"Sterne {_np.median([f['stars'] for f in ok]):.0f}.")
+    for f in dropped:
+        r = "; ".join(f.get("reasons", [])) or "Grenzwerte überschritten"
+        lines.append(f"- {f['name']}: {r}")
+    return "\n".join(lines)
+
+
 def select_subs(paths, fwhm_factor=1.5, ecc_max=1.7, star_frac=0.5, bg_factor=1.6, log=print):
     """Alle Frames bewerten und schlechte aussortieren — mit Begründung je Frame.
     Schwellen relativ zum Median der Serie (robust gegen unterschiedliche Setups)."""

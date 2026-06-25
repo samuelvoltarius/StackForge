@@ -4,6 +4,17 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.14.0] – 2026-06-26
+### Hinzugefügt (KI-Hinweise, optional)
+- **Geister-Karte an die KI:** Nach dem Stacken bekommt die Post-Stack-KI (Feinschliff) optional
+  die **Geister-Karte** mit und nennt konkrete **Retusche-Stellen** („wo ist Ghosting?"). Die
+  Karte wird dafür intern erzeugt, auch ohne `--ghost-map`. Erscheint als „KI-Retusche-Hinweis"
+  im Log; ohne KI-Server passiert nichts.
+- **Astro-Sub-Auswahl in Klartext:** Bei Astro fasst die KI (falls Server da) in 1–3 Sätzen
+  zusammen, **welche Subs warum** rausfliegen (Wolken/Guiding/FWHM/Spuren) — rein textbasiert,
+  datensparsam. Neue reine Funktion `astro_quality.subs_summary_text()`.
+- +2 Tests (37 gesamt).
+
 ## [1.13.0] – 2026-06-26
 ### Hinzugefügt (KI-Kontext + Transparenz)
 - **Reicherer KI-Vorschlag:** Der KI-Settings-Vorschlag bekommt jetzt zusätzlich **EXIF-Eckdaten**

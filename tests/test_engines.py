@@ -376,6 +376,44 @@ class TestAIContext(unittest.TestCase):
         self.assertIn("Personen scharf", text)
 
 
+class TestGhostAndSubsAI(unittest.TestCase):
+    def test_ghostmap_attached_and_advice(self):
+        import numpy as np
+        import cv2
+        import focus_cull_stack as F
+        gm = os.path.join(self.tmp(), "gm.jpg")
+        cv2.imwrite(gm, (np.zeros((40, 40, 3)) + 128).astype("uint8"))
+        cap = {}
+        orig = F._vlm_chat
+        F._vlm_chat = lambda e, m, msg, **k: (cap.__setitem__("m", msg)
+                                              or '{"sharpen":10,"ghost_advice":"linker Flügel"}')
+        try:
+            res = (np.zeros((60, 60, 3)) + 100).astype("uint8")
+            out = F.ai_enhance_params(res, "http://x/v1", "m", ghostmap_path=gm)
+        finally:
+            F._vlm_chat = orig
+        text = cap["m"][0]["content"][0]["text"]
+        imgs = [c for c in cap["m"][0]["content"] if c.get("type") == "image_url"]
+        self.assertIn("GEISTER-KARTE", text)
+        self.assertEqual(len(imgs), 2)            # Ergebnis + Geister-Karte
+        self.assertEqual(out.get("ghost_advice"), "linker Flügel")
+
+    def test_subs_summary_text(self):
+        import astro_quality as AQ
+        frames = [
+            {"ok": True, "keep": True, "name": "s1", "fwhm": 3.0, "stars": 400, "reasons": []},
+            {"ok": True, "keep": False, "name": "s2", "fwhm": 3.1, "stars": 120,
+             "reasons": ["wenige Sterne — Wolken?"]},
+        ]
+        txt = AQ.subs_summary_text(frames)
+        self.assertIn("1 behalten", txt)
+        self.assertIn("s2", txt)
+
+    def tmp(self):
+        import tempfile
+        return tempfile.mkdtemp()
+
+
 class TestParallel(unittest.TestCase):
     def test_pmap_preserves_order(self):
         from parallel import pmap

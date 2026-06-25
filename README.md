@@ -149,7 +149,7 @@ language menu automatically.
 ./run_tests.sh        # or: python3 -m unittest discover -s tests
 ```
 
-35 engine tests (standard library, no pytest needed) cover focus analysis, long exposure, astro,
+37 engine tests (standard library, no pytest needed) cover focus analysis, long exposure, astro,
 stacker, mosaic, export, parallel helper, module guessing, AI context, i18n completeness and a GUI
 smoke test.
 

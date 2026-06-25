@@ -490,8 +490,9 @@ def export_web_jpg(stack_dir, export_dir):
         print(f"  Web-JPG: {out}")
 
 
-def ai_enhance_params(result_bgr, endpoint, model, api_key=None):
-    """KI beurteilt das fertige Bild und schlägt TREUE Nachbearbeitung vor."""
+def ai_enhance_params(result_bgr, endpoint, model, api_key=None, ghostmap_path=None):
+    """KI beurteilt das fertige Bild und schlägt TREUE Nachbearbeitung vor.
+    Optional: Geister-Karte (ghostmap_path) mitgeben -> KI nennt Bewegungsartefakte/Retusche-Stellen."""
     img = result_bgr
     if img.dtype != np.uint8:
         img = (img / 256).astype(np.uint8) if img.max() > 255 else img.astype(np.uint8)
@@ -501,15 +502,25 @@ def ai_enhance_params(result_bgr, endpoint, model, api_key=None):
         img = cv2.resize(img, (int(w * f), int(h * f)), interpolation=cv2.INTER_AREA)
     ok, buf = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
     b64 = base64.b64encode(buf.tobytes()).decode()
+    has_ghost = bool(ghostmap_path and os.path.exists(ghostmap_path))
     prompt = ("Du beurteilst ein fertig gestacktes Foto und empfiehlst TREUE, nicht-generative "
               "Nachbearbeitung (es werden keine Inhalte erfunden). Wie viel Schärfen, Klarheit "
               "(Mikrokontrast) und Entrauschen ist sinnvoll, ohne dass es künstlich/überzogen "
-              "wirkt? Werte 0-50. Bei rauschfreiem, schon scharfem Bild ruhig niedrig. "
-              'Antworte NUR als JSON: {"sharpen":0-50,"sharpen_radius":0.5-3,'
-              '"clarity":0-50,"denoise":0-50,"rationale":"kurz"}')
-    messages = [{"role": "user", "content": [
-        {"type": "text", "text": prompt},
-        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}]}]
+              "wirkt? Werte 0-50. Bei rauschfreiem, schon scharfem Bild ruhig niedrig. ")
+    if has_ghost:
+        prompt += ("Ich zeige dir zusätzlich eine GEISTER-KARTE: helle Bereiche = Bewegungs-/"
+                   "Stacking-Artefakte (Ghosting). Nenne in 'ghost_advice' kurz und konkret, WO "
+                   "(z. B. linker Flügel, untere Bildmitte) retuschiert werden sollte, oder "
+                   "schreibe 'keine auffälligen Artefakte'. ")
+    prompt += ('Antworte NUR als JSON: {"sharpen":0-50,"sharpen_radius":0.5-3,'
+               '"clarity":0-50,"denoise":0-50,"rationale":"kurz"'
+               + (',"ghost_advice":"kurz"' if has_ghost else '') + '}')
+    content = [{"type": "text", "text": prompt},
+               {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}]
+    if has_ghost:
+        content.append({"type": "text", "text": "Geister-Karte (helle Bereiche = Artefakte):"})
+        content.append({"type": "image_url", "image_url": {"url": _encode_jpeg_dataurl(ghostmap_path)}})
+    messages = [{"role": "user", "content": content}]
     out = {"sharpen": 12.0, "sharpen_radius": 1.0, "clarity": 8.0, "denoise": 0.0,
            "rationale": "(Standard)"}
     try:
@@ -522,17 +533,21 @@ def ai_enhance_params(result_bgr, endpoint, model, api_key=None):
     return out
 
 
-def apply_ai_enhance(result, args):
+def apply_ai_enhance(result, args, ghostmap_path=None):
     """Treuer Feinschliff (Entrauschen -> Klarheit -> Schärfen). Mit KI falls Server da,
-    sonst fester schonender Standard — funktioniert also auch ganz ohne KI."""
+    sonst fester schonender Standard — funktioniert also auch ganz ohne KI.
+    ghostmap_path: optionale Geister-Karte -> KI nennt Bewegungsartefakte/Retusche-Stellen."""
     import stacker
     if getattr(args, "vlm_endpoint", None):
-        p = ai_enhance_params(result, args.vlm_endpoint, args.vlm_model, getattr(args,'vlm_key',None))
+        p = ai_enhance_params(result, args.vlm_endpoint, args.vlm_model,
+                              getattr(args, 'vlm_key', None), ghostmap_path=ghostmap_path)
     else:
         p = {"sharpen": 12.0, "sharpen_radius": 1.0, "clarity": 8.0, "denoise": 0.0,
              "rationale": "fester Standard (ohne KI)"}
     print(f"  Feinschliff (treu): schärfen={p.get('sharpen')} klarheit={p.get('clarity')} "
           f"entrauschen={p.get('denoise')} — {p.get('rationale', '')}")
+    if p.get("ghost_advice"):
+        print(f"  KI-Retusche-Hinweis (Ghosting): {p['ghost_advice']}")
     result = stacker.denoise(result, float(p.get("denoise", 0)))
     result = stacker.local_contrast(result, float(p.get("clarity", 0)))
     result = stacker.unsharp_mask(result, float(p.get("sharpen", 0)),
@@ -605,6 +620,7 @@ def run_own_engine(selected_dir, work_dir, args):
         return None
     per = sample.shape[0] * sample.shape[1] * (sample.shape[2] if sample.ndim == 3 else 1) * sample.itemsize
     budget = int(getattr(args, "ram_budget_gb", 3) * (1024 ** 3))
+    gm_path = None  # Geister-Karte (für Anzeige + KI-Retusche-Hinweis)
     need = int(per * len(paths) * 2.5)  # Frames + Pyramiden grob
     if need > budget and len(paths) > 4:
         chunk = max(3, budget // int(per * 3))
@@ -630,12 +646,20 @@ def run_own_engine(selected_dir, work_dir, args):
             gm_path = os.path.join(work_dir, "ghostmap.jpg")
             cv2.imwrite(gm_path, gm, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
             print(f"  Geister-Karte: {gm_path}")
+        elif len(imgs) >= 3:
+            # Geister-Karte intern erzeugen (für KI-Retusche-Hinweis), auch ohne --ghost-map
+            try:
+                gm = stacker.ghost_overlay(result, imgs)
+                gm_path = os.path.join(work_dir, "ghostmap.jpg")
+                cv2.imwrite(gm_path, gm, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+            except Exception:
+                gm_path = None
     if getattr(args, "denoise", 0) and args.denoise > 0:
         result = stacker.denoise(result, args.denoise)
     if args.sharpen > 0:
         result = stacker.unsharp_mask(result, args.sharpen, args.sharpen_radius)
     if getattr(args, "ai_enhance", False):
-        result = apply_ai_enhance(result, args)
+        result = apply_ai_enhance(result, args, ghostmap_path=gm_path)
 
     stack_dir = os.path.join(work_dir, "stack")
     if os.path.isdir(stack_dir):
@@ -879,6 +903,21 @@ def run_astro(input_dir, work_dir, args):
         import astro_quality
         print("  Sub-Bewertung (erklärbar, klassisch) …")
         _frames, kept = astro_quality.select_subs(paths)
+        # Optional: KI fasst in Klartext zusammen, welche Subs warum rausfliegen (nur Text, datensparsam)
+        if getattr(args, "vlm_endpoint", None):
+            try:
+                summary = astro_quality.subs_summary_text(_frames)
+                prompt = ("Du erklärst einem Astrofotografen die automatische Sub-Auswahl (Light-Frames) "
+                          "in 1-3 kurzen, freundlichen Sätzen auf Deutsch. Nenne die Hauptgründe "
+                          "(Wolken/Dunst=wenige Sterne, Guidingfehler=längliche Sterne, unscharf=FWHM, "
+                          "Spuren). Keine Zahlen-Wiederholung, nur Klartext. Daten:\n" + summary)
+                txt = _vlm_chat(args.vlm_endpoint, args.vlm_model,
+                                [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
+                                max_tokens=200, api_key=getattr(args, 'vlm_key', None))
+                if txt.strip():
+                    print("  KI-Erklärung Sub-Auswahl: " + txt.strip())
+            except Exception as e:
+                print(f"  (KI-Erklärung übersprungen: {e})", file=sys.stderr)
         if len(kept) >= 2:
             paths = kept
         else:
