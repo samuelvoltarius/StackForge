@@ -971,9 +971,10 @@ def main():
                     help="Astro-Farbkalibrierung 0.0–1.0 (-1 = Auto/KI). 0 = aus, 1 = voll neutralisieren")
     ap.add_argument("--dualband", action="store_true",
                     help="Dual-Band/Schmalband-Filter (Ha+OIII): KEINE Grün-Entfernung — OIII (teal) bleibt erhalten")
-    ap.add_argument("--palette", choices=["hoo", "sho", "foraxx"], default="hoo",
+    ap.add_argument("--palette", choices=["hoo", "sho", "foraxx", "bicolor"], default="hoo",
                     help="Dual-Band-Palette: hoo (rot+teal, datentreu), sho (Hubble gold+blau, SII aus "
-                         "Ha SYNTHETISIERT) oder foraxx (dynamisch: reines Ha rot, gemischt gold)")
+                         "Ha SYNTHETISIERT), foraxx (dynamisch: reines Ha rot, gemischt gold) oder "
+                         "bicolor (Cannistra: synth. Grün aus Ha+OIII, natürlicher)")
     ap.add_argument("--bg-extract", action="store_true",
                     help="Astro: Hintergrund/Gradient entfernen (Lichtverschmutzung)")
     ap.add_argument("--fits-out", action="store_true",
@@ -1213,12 +1214,14 @@ def _detect_dualband(paths):
 
 
 def _dualband_view(result, palette, astro):
-    """Dual-Band-Vorschau nach gewählter Palette: hoo (rot+teal), sho (gold+blau) oder
-    foraxx (dynamisch). Default hoo."""
+    """Dual-Band-Vorschau nach gewählter Palette: hoo (rot+teal), sho (gold+blau),
+    foraxx (dynamisch) oder bicolor (synth. Grün, Cannistra). Default hoo."""
     if palette == "sho":
         return astro.dualband_sho(result)
     if palette == "foraxx":
         return astro.dualband_foraxx(result)
+    if palette == "bicolor":
+        return astro.dualband_bicolor(result)
     return astro.dualband_hoo(result)
 
 

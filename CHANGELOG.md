@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.16.16] – 2026-06-27
+### Hinzugefügt (Dual-Band: Bicolor-Palette)
+- **Vierte Palette „Bicolor" (Cannistra-Technik):** Aus den zwei vorhandenen Schmalband-Kanälen
+  (Hα, OIII) wird der fehlende **synthetisch errechnet** — hier das **Grün** als G = max(OIII, 0.5·Hα).
+  Ergebnis: natürlicheres, wärmeres Bernstein/Gold, **weniger Magenta** und neutralere Sterne als
+  reines HOO. Auswahl jetzt: **HOO · SHO (gold) · SHO Foraxx · Bicolor** — GUI-Dropdown + CLI
+  `--palette hoo|sho|foraxx|bicolor`. Wie immer: SII bleibt außen vor (nur Hα+OIII vorhanden).
+
 ## [1.16.15] – 2026-06-26
 ### Hinzugefügt (Dual-Band: Foraxx-Palette)
 - **Dritte Palette „SHO Foraxx" (dynamisch):** Recherchiert (thecoldestnights.com / Foraxx-Methode)

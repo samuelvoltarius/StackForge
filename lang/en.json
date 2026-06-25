@@ -47,6 +47,7 @@
   "Belichtung ohne ND-Filter": "Exposure without an ND filter",
   "Bereit": "Ready",
   "Bewertet jede Aufnahme (Sternzahl/FWHM/Elongation/Wolken/Spuren) und lässt schlechte Subs weg — mit Begründung im Log. Aus = alle Aufnahmen verwenden.": "Grades every frame (star count/FWHM/elongation/clouds/trails) and drops bad subs — with reasons in the log. Off = use all frames.",
+  "Bicolor (Cannistra: synth. Grün, natürlicher)": "Bicolor (Cannistra: synthetic green, more natural)",
   "Bild im Filmstreifen wechseln": "Switch image in the film strip",
   "Bildauswahl": "Image selection",
   "Bitte mindestens ein Ziel auswählen.": "Please select at least one target.",

@@ -352,6 +352,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.astro_palette.addItem(tr("HOO (rot + teal, datentreu)"), "hoo")
         self.astro_palette.addItem(tr("SHO synthetisch (Hubble gold + blau, SII gefaked)"), "sho")
         self.astro_palette.addItem(tr("SHO Foraxx (dynamisch: reines Hα rot, gemischt gold)"), "foraxx")
+        self.astro_palette.addItem(tr("Bicolor (Cannistra: synth. Grün, natürlicher)"), "bicolor")
         self.astro_drizzle = QComboBox()
         self.astro_drizzle.addItem(tr("Aus"), 1)
         self.astro_drizzle.addItem(tr("2× (feineres Sampling)"), 2)

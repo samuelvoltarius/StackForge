@@ -398,6 +398,23 @@ def dualband_foraxx(bgr, unmix=0.20):
     return _star_desat(out, ha, oiii)
 
 
+def dualband_bicolor(bgr, unmix=0.20):
+    """Bicolor-Technik (nach Cannistra): aus zwei Kanälen (Hα, OIII) wird der fehlende **synthetisch
+    errechnet**, damit Farben/Sterne natürlicher werden (weniger Magenta als reines HOO).
+    Hier: Rot = Hα, Blau = OIII, **Grün = synthetisch** aus beiden (Mittel, OIII-betont):
+    G = max(OIII, 0.5·Hα). Ergebnis: Hα-Bereiche bernstein/rot, OIII cyan-blau, Übergänge weich;
+    Sterne werden neutraler. SII bleibt außen vor (nur Hα+OIII)."""
+    if bgr is None or bgr.ndim != 3 or bgr.shape[2] != 3:
+        return bgr
+    ha, oiii = _extract_ha_oiii(bgr, unmix)
+    g = np.maximum(oiii, 0.5 * ha)              # synthetisches Grün aus den beiden Kanälen
+    out = np.zeros((*ha.shape, 3), np.float32)
+    out[..., 2] = ha                            # R = Hα
+    out[..., 1] = np.clip(g, 0, 1)              # G = synthetisch (errechnet)
+    out[..., 0] = oiii                          # B = OIII
+    return _star_desat(out, ha, oiii)
+
+
 def color_balance(f, strength=1.0):
     """Farbkalibrierung fürs Anzeigen (gegen Rotstich von OSC + LP-Filter):
       1. Himmelshintergrund PRO KANAL neutralisieren (Sky -> neutrales Grau),
