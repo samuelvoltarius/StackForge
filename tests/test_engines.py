@@ -521,6 +521,50 @@ class TestExifTiff(TmpCase):
         self.assertTrue(np.array_equal(before, tf.imread(dst)))  # Pixel bit-identisch
 
 
+class TestAstroColorAndStretch(unittest.TestCase):
+    def test_bayer_fits_is_debayered_to_color(self):
+        try:
+            from astropy.io import fits
+            import numpy as np
+            import astro
+        except Exception:
+            self.skipTest("astropy fehlt")
+        import tempfile
+        import os as _os
+        # 2D-Bayer-FITS mit BAYERPAT -> muss als 3-Kanal-Farbe zurückkommen
+        d = (np.random.rand(40, 60) * 1000).astype("uint16")
+        p = _os.path.join(tempfile.mkdtemp(), "bayer.fits")
+        hdu = fits.PrimaryHDU(d)
+        hdu.header["BAYERPAT"] = "GRBG"
+        hdu.writeto(p, overwrite=True)
+        out = astro._read_float(p)
+        self.assertEqual(out.ndim, 3)
+        self.assertEqual(out.shape[2], 3)
+
+    def test_autostretch_lifts_faint_and_clamps(self):
+        import numpy as np
+        import astro
+        f = np.zeros((60, 60, 3), "float32") + 0.02   # Hintergrund-Boden
+        f[10:20, 10:20] = 0.15                          # schwaches Nebelsignal (über dem Boden)
+        f[40:48, 40:48] = 0.9                           # heller Kern
+        out = astro.autostretch(f, strength=14.0, protect_core=True)
+        self.assertTrue(0.0 <= out.min() and out.max() <= 1.0)
+        self.assertGreater(out[10:20, 10:20].mean(), f[10:20, 10:20].mean())  # Schwaches angehoben
+        self.assertGreater(out[40:48, 40:48].mean(), 0.5)                     # Kern bleibt hell
+
+    def test_ai_stretch_params_clamped(self):
+        import numpy as np
+        import focus_cull_stack as F
+        orig = F._vlm_chat
+        F._vlm_chat = lambda e, m, msg, **k: '{"strength":99,"saturation":3.0,"protect_core":false}'
+        try:
+            p = F.ai_astro_stretch_params((np.zeros((20, 20, 3)) + 0.2).astype("float32"), "x", "m")
+        finally:
+            F._vlm_chat = orig
+        self.assertLessEqual(p["strength"], 30.0)
+        self.assertLessEqual(p["saturation"], 1.6)
+
+
 class TestStreamedGhost(unittest.TestCase):
     def test_streamed_disagreement_map(self):
         import glob

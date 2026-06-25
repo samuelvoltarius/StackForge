@@ -20,15 +20,63 @@ import cv2
 
 from constants import RAW_EXTS
 
+# OSC-Bayer-Muster (FITS BAYERPAT) -> OpenCV-Debayer-Code. Achtung: OpenCVs Bayer-Benennung ist
+# ggü. der üblichen FITS-Konvention um eine Zeile/Spalte verschoben (bekannte Falle).
+_BAYER2CV = {
+    "RGGB": cv2.COLOR_BayerBG2BGR,
+    "BGGR": cv2.COLOR_BayerRG2BGR,
+    "GRBG": cv2.COLOR_BayerGB2BGR,
+    "GBRG": cv2.COLOR_BayerGR2BGR,
+}
+
+
+def detect_bayer(d):
+    """CFA-Muster selbst erkennen, wenn kein BAYERPAT im Header steht. Probiert alle 4 Muster,
+    debayert einen zentralen Ausschnitt und wählt das mit den GERINGSTEN Farb-Artefakten
+    (falsche Muster erzeugen starkes Farb-Zipper/Schachbrett). Default RGGB bei Fehler."""
+    try:
+        a = np.nan_to_num(np.asarray(d)).astype(np.float32)
+        if a.ndim != 2:
+            return "RGGB"
+        mx = float(a.max()) or 1.0
+        h, w = a.shape
+        cy, cx = (h // 4) * 2, (w // 4) * 2        # zentriert, gerade Offsets (CFA-Phase wahren)
+        s = min(400, (min(h, w) // 2) * 2)
+        crop = a[cy:cy + s, cx:cx + s]
+        raw16 = np.clip(crop / mx * 65535.0, 0, 65535).astype(np.uint16)
+        best, best_score = "RGGB", None
+        for pat, code in _BAYER2CV.items():
+            bgr = cv2.cvtColor(raw16, code).astype(np.float32) / 65535.0
+            chroma = bgr - bgr.mean(axis=2, keepdims=True)   # Farbabweichung vom Grau
+            score = float(np.mean(np.abs(cv2.Laplacian(chroma, cv2.CV_32F))))
+            if best_score is None or score < best_score:
+                best, best_score = pat, score
+        return best
+    except Exception:
+        return "RGGB"
+
 
 def _read_float(path):
     """Bild als float32 [0..1] (BGR) lesen — TIFF/PNG/JPG/FITS; RAW via rawpy."""
     ext = os.path.splitext(path)[1].lower()
     if ext in (".fit", ".fits", ".fts"):
         from astropy.io import fits
-        d = np.asarray(fits.getdata(path)).astype(np.float32)
+        with fits.open(path) as hdul:
+            hdu = hdul[0]
+            d = np.asarray(hdu.data).astype(np.float32)
+            bayer = str(hdu.header.get("BAYERPAT", "")).strip().upper()
         if d.ndim == 3 and d.shape[0] in (3, 4):     # (C,H,W) -> (H,W,C)
             d = np.moveaxis(d[:3], 0, -1)
+        # OSC-Kameras (z. B. Seestar/ASI) liefern Bayer-Rohdaten als 2D-FITS -> debayern = Farbe.
+        # BAYERPAT aus dem Header, sonst SELBST erkennen (gegen Dateien ohne Header-Eintrag).
+        if d.ndim == 2:
+            if bayer not in _BAYER2CV:
+                bayer = detect_bayer(d)
+            if bayer in _BAYER2CV:
+                mx = float(np.nanmax(d)) or 1.0
+                raw16 = np.clip(np.nan_to_num(d) / mx * 65535.0, 0, 65535).astype(np.uint16)
+                bgr = cv2.cvtColor(raw16, _BAYER2CV[bayer])      # -> BGR (Farbe!)
+                return bgr.astype(np.float32) / 65535.0
         mx = float(np.nanmax(d)) if d.size else 1.0
         f = d / mx if mx > 1.5 else np.clip(d, 0, 1)  # ADU -> 0..1
         if f.ndim == 2:
@@ -230,11 +278,44 @@ def background_extract(f, strength=0.12):
     return np.clip(out, 0, 1)
 
 
-def autostretch(f, black_clip=0.001):
-    """asinh-Stretch fürs Anzeigen des (linearen, dunklen) Astro-Ergebnisses."""
+def color_balance(f):
+    """Farbkalibrierung fürs Anzeigen (gegen Rotstich von OSC + LP-Filter):
+      1. Himmelshintergrund PRO KANAL neutralisieren (Sky -> neutrales Grau),
+      2. Kanäle so abgleichen, dass helle, unklippte Referenzen (Sterne) ~neutral werden.
+    So treten die echten Nebelfarben hervor (rotes Ha, blaue Reflexion, teal O-III) statt alles rot.
+    Wirkt nur aufs Vorschau-/JPG-Bild; die linearen Exports bleiben unangetastet."""
+    if f is None or f.ndim != 3 or f.shape[2] != 3:
+        return f
+    out = f.astype(np.float32).copy()
+    bg = np.array([np.quantile(out[..., c], 0.30) for c in range(3)], np.float32)
+    out = np.clip(out - bg.reshape(1, 1, 3), 0, None)          # Hintergrund neutral
+    hi = np.array([np.quantile(out[..., c], 0.995) for c in range(3)], np.float32)
+    scale = np.clip(hi.mean() / np.clip(hi, 1e-6, None), 0.4, 2.5).astype(np.float32)
+    out = out * scale.reshape(1, 1, 3)                          # Sterne ~neutral -> echte Farben
+    return np.clip(out, 0, None)
+
+
+def autostretch(f, black_clip=0.0008, strength=14.0, protect_core=True, saturation=1.25):
+    """asinh-Auto-Stretch fürs Anzeigen des (linearen, dunklen) Astro-Ergebnisses.
+
+    strength  : wie stark schwaches Signal angehoben wird (höher = heller/aggressiver).
+    protect_core: helle Bereiche (Nebel-Kern, helle Sterne) werden sanfter gestreckt, damit der
+                  Kern nicht zu einem flachen weißen Klecks ausbleicht — Detail/Farbe bleibt.
+    saturation: leichter Farb-Boost (Astro-Farben sind nach dem Strecken oft blass)."""
     g = _gray(f)
     bg = np.quantile(g, black_clip)
     x = np.clip(f - bg, 0, None)
-    x = x / (np.quantile(x, 0.9995) + 1e-6)
-    out = np.arcsinh(x * 10.0) / np.arcsinh(10.0)
+    norm = np.quantile(_gray(x), 0.9995) + 1e-6
+    x = x / norm
+    out = np.clip(np.arcsinh(x * strength) / np.arcsinh(strength), 0, 1)
+    if protect_core:
+        # In den hellsten ~15 % nur sanft strecken (Kern-Schutz) und mit der starken Kurve mischen.
+        gentle = np.clip(np.arcsinh(x * (strength * 0.2)) / np.arcsinh(strength * 0.2), 0, 1)
+        lum = _gray(out)
+        hi = np.clip((lum - 0.85) / 0.15, 0, 1)
+        hi = cv2.GaussianBlur(hi, (0, 0), 2)[..., None] if hi.ndim == 2 else hi[..., None]
+        out = out * (1 - hi) + gentle * hi
+    if saturation != 1.0 and out.ndim == 3:
+        lum = _gray(out)[..., None]
+        out = np.clip(lum + (out - lum) * saturation, 0, 1)
     return np.clip(out, 0, 1)

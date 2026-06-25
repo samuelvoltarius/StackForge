@@ -679,6 +679,42 @@ def ai_enhance_params(result_bgr, endpoint, model, api_key=None, ghostmap_path=N
     return out
 
 
+def ai_astro_stretch_params(view_bgr, endpoint, model, api_key=None):
+    """KI beurteilt das (vor-gestreckte) Astro-Bild und schlägt Aufhellung vor — TREU.
+    Wichtig: der helle Kern/Sterne sollen NICHT weiter aufgehellt werden, nur das schwache
+    Signal (Nebel/Hintergrund). Gibt {strength, saturation, protect_core, rationale}."""
+    img = np.clip(view_bgr * 255, 0, 255).astype(np.uint8) if view_bgr.dtype != np.uint8 else view_bgr
+    h, w = img.shape[:2]
+    if max(h, w) > 1024:
+        f = 1024 / max(h, w)
+        img = cv2.resize(img, (int(w * f), int(h * f)), interpolation=cv2.INTER_AREA)
+    ok, buf = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+    b64 = base64.b64encode(buf.tobytes()).decode()
+    prompt = ("Du beurteilst ein gestapeltes Astrofoto (Deep-Sky). Ist das schwache Signal "
+              "(Nebel/Hintergrund) zu dunkel oder schon gut sichtbar? Schlage eine TREUE Aufhellung "
+              "vor. WICHTIG: der helle Kern und helle Sterne duerfen NICHT weiter aufgehellt werden "
+              "(kein Ausbleichen) — nur das schwache Signal anheben. "
+              "strength 5-30 (hoeher=heller, hebt Schwaches), saturation 1.0-1.6 (Farbe), "
+              "protect_core true/false (Kern-Schutz, meist true). "
+              'Antworte NUR als JSON: {"strength":14,"saturation":1.25,"protect_core":true,'
+              '"rationale":"kurz"}')
+    messages = [{"role": "user", "content": [
+        {"type": "text", "text": prompt},
+        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}]}]
+    out = {"strength": 14.0, "saturation": 1.25, "protect_core": True, "rationale": "(Standard)"}
+    txt = _vlm_chat(endpoint, model, messages, max_tokens=250, api_key=api_key)
+    s, e = txt.find("{"), txt.rfind("}")
+    if s >= 0 and e > s:
+        try:
+            out.update(json.loads(txt[s:e + 1]))
+        except Exception:
+            pass
+    out["strength"] = float(max(3.0, min(30.0, out.get("strength", 14.0))))
+    out["saturation"] = float(max(1.0, min(1.6, out.get("saturation", 1.25))))
+    out["protect_core"] = bool(out.get("protect_core", True))
+    return out
+
+
 def apply_ai_enhance(result, args, ghostmap_path=None):
     """Treuer Feinschliff (Entrauschen -> Klarheit -> Schärfen). Mit KI falls Server da,
     sonst fester schonender Standard — funktioniert also auch ganz ohne KI.
@@ -1166,7 +1202,24 @@ def _astro_write(result, work_dir, paths, args, astro):
             print(f"  FITS (32-bit linear): {outf}")
         except Exception as e:
             print(f"  FITS-Export übersprungen ({e})", file=sys.stderr)
-    view = astro.autostretch(result) if args.astro_stretch else result
+    # Farbkalibrierung (Hintergrund neutralisieren + Sterne neutral) nur fürs Vorschau-Bild —
+    # die linearen Exports oben bleiben faithful für GraXpert/StarNet/PixInsight.
+    view_src = astro.color_balance(result)
+    if args.astro_stretch:
+        view = astro.autostretch(view_src)
+        # KI schlägt Aufhellung fürs fertige Bild vor (Kern bleibt geschützt) — nur wenn Server da
+        if getattr(args, "vlm_endpoint", None):
+            try:
+                p = ai_astro_stretch_params(view, args.vlm_endpoint, args.vlm_model,
+                                            getattr(args, "vlm_key", None))
+                view = astro.autostretch(view_src, strength=p["strength"],
+                                         saturation=p["saturation"], protect_core=p["protect_core"])
+                print(f"  KI-Aufhellung: Stärke {p['strength']:.0f}, Sättigung {p['saturation']:.2f}"
+                      f", Kern-Schutz {'an' if p['protect_core'] else 'aus'} — {p.get('rationale', '')}")
+            except Exception as e:
+                print(f"  (KI-Aufhellung übersprungen: {e})", file=sys.stderr)
+    else:
+        view = view_src
     out_view = os.path.join(stack_dir, f"{args.prefix}{base}_astro.jpg")
     cv2.imwrite(out_view, np.clip(view * 255, 0, 255).astype(np.uint8),
                 [int(cv2.IMWRITE_JPEG_QUALITY), 95])
