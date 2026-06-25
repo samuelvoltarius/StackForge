@@ -4,6 +4,18 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.10.1] – 2026-06-26
+### Behoben
+- **Absturz beim Beenden vermeidbar gemacht:** Der Update-Check lief als `QThread` und konnte beim
+  schnellen Beenden kurz nach dem Start einen `qFatal`/Abort auslösen (Thread beim Aufräumen noch
+  aktiv). Läuft jetzt als reiner Python-Daemon-Thread → das kann nicht mehr passieren.
+### Geändert (interne Modularisierung 2/n — keine Verhaltensänderung)
+- **`ui/main_window.py` von ~2340 auf ~1940 Zeilen** verschlankt. Weitere zusammenhängende Teile
+  ausgelagert: `ui/settings_io.py` (Einstellungen laden/speichern), `ui/export.py`
+  (Schnell-Export + Export-Dialog), `ui/result_view.py` (Ergebnis-/Vorschau-Anzeige, Ansicht-
+  Umschalter, Entscheidungs-Panel). Funktion und Oberfläche unverändert (26 Tests grün,
+  Rendering offscreen geprüft).
+
 ## [1.10.0] – 2026-06-26
 ### Geändert (interne Modularisierung — keine Verhaltensänderung)
 - **`ui/main_window.py` von ~2640 auf ~2340 Zeilen verschlankt.** Zusammenhängende Teile in

@@ -5,7 +5,7 @@ ui/workers.py — Hintergrund-Threads & Versions-Helfer für ForgePix.
 Aus ui/main_window.py ausgelagert (Modularisierung): enthält keine GUI-/self-Abhängigkeiten,
 nur QThread-Worker und eine reine Vergleichsfunktion.
 """
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QObject, QThread, Signal
 
 
 class _AnalyzeWorker(QThread):
@@ -25,13 +25,22 @@ class _AnalyzeWorker(QThread):
             self.failed.emit(str(e))
 
 
-class _UpdateChecker(QThread):
-    """Fragt einmalig die neueste GitHub-Release-Version ab (nur lesen, leise bei Offline/Fehler)."""
+class _UpdateChecker(QObject):
+    """Fragt einmalig die neueste GitHub-Release-Version ab (nur lesen, leise bei Offline/Fehler).
+
+    Läuft bewusst in einem Python-Daemon-Thread (kein QThread): so kann beim App-Ende NIE ein
+    QThread-„destroyed while running"-Abort auftreten, selbst wenn man sofort nach dem Start quittet.
+    Das Ergebnis wird per Signal (Queued-Connection) in den GUI-Thread zurückgegeben.
+    """
     found = Signal(str, str)  # (neueste Version ohne 'v', Release-URL)
 
     REPO = "samuelvoltarius/ForgePix"
 
-    def run(self):
+    def start(self):
+        import threading
+        threading.Thread(target=self._work, daemon=True).start()
+
+    def _work(self):
         try:
             import json
             import urllib.request

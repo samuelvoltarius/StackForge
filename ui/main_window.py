@@ -15,10 +15,6 @@ import sys
 from i18n import tr, set_language, available_languages, current_language
 
 
-def _cache_path(prefix, src):
-    """Stabiler /tmp-Cache-Pfad (md5 statt hash() — nicht zufallssalted, kollisionssicher)."""
-    key = f"{src}:{os.path.getmtime(src)}".encode()
-    return os.path.join("/tmp", f"{prefix}{hashlib.md5(key).hexdigest()[:16]}.png")
 
 from PySide6.QtCore import Qt, QProcess, QSettings, QRect, QSize, QThread, Signal
 from PySide6.QtGui import (QPixmap, QFont, QIcon, QPainter, QColor, QPen, QCursor, QImage,
@@ -40,11 +36,14 @@ except Exception:
 FRAME_RE = re.compile(r"\b(\d+)\s*/\s*(\d+)\b")
 
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
-from ui.appinfo import HERE, SCRIPT, ICON, ICON_PNG, APP_NAME, IMG_EXTS  # noqa: E402,F401
+from ui.appinfo import HERE, SCRIPT, ICON, ICON_PNG, APP_NAME, IMG_EXTS, _cache_path  # noqa: E402,F401
 
 
 from ui.theme import THEME
 from ui.welcome import WelcomeMixin
+from ui.settings_io import SettingsMixin
+from ui.export import ExportMixin
+from ui.result_view import ResultMixin
 from ui.components import (CompareSlider, CurveWidget, AdjustDialog, RetouchDialog, _Canvas,
                            _bgr_to_pixmap, histogram_pixmap, adjust_image, HSL_BANDS,
                            help_btn, _row, reveal_in_files, open_path, notify)
@@ -53,7 +52,7 @@ from ui.components import (CompareSlider, CurveWidget, AdjustDialog, RetouchDial
 from ui.workers import _AnalyzeWorker, _UpdateChecker, _version_newer  # noqa: F401
 
 
-class MainWindow(WelcomeMixin, QMainWindow):
+class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ForgePix — Fokus-Stacking mit KI")
@@ -1390,231 +1389,6 @@ class MainWindow(WelcomeMixin, QMainWindow):
         notify(title, msg)
 
     # ---------- Ergebnis ----------
-    def _find_result(self):
-        """Neuestes Stack-Bild finden — auch im Batch (<work>/<sub>/stack)."""
-        wd = self._work_dir()
-        cands = []
-        for d in [os.path.join(wd, "stack")] + \
-                 [os.path.join(wd, s, "stack") for s in (os.listdir(wd) if os.path.isdir(wd) else [])
-                  if os.path.isdir(os.path.join(wd, s, "stack"))]:
-            if os.path.isdir(d):
-                cands += [os.path.join(d, f) for f in os.listdir(d)
-                          if os.path.splitext(f)[1].lower() in IMG_EXTS]
-        return max(cands, key=os.path.getmtime) if cands else None
-
-    def _preview_png(self, src):
-        """Beliebiges Bild (auch 16-bit TIFF) zu 8-bit-PNG für die Anzeige."""
-        if not src or not os.path.isfile(src):
-            return None
-        if cv2 is None:
-            return src  # Fallback: direkt versuchen
-        img = cv2.imread(src, cv2.IMREAD_UNCHANGED)
-        if img is None:
-            return src if QPixmap(src).isNull() is False else None
-        if img.dtype != "uint8":
-            img = (img / 256).astype("uint8") if img.max() > 255 else img.astype("uint8")
-        h, w = img.shape[:2]
-        if max(h, w) > 1400:
-            f = 1400 / max(h, w)
-            img = cv2.resize(img, (int(w * f), int(h * f)), interpolation=cv2.INTER_AREA)
-        out = _cache_path("sf_prev_", src)
-        cv2.imwrite(out, img)
-        return out
-
-    def _set_preview(self, src):
-        png = self._preview_png(src)
-        self._preview_src = png
-        if png:
-            pix = QPixmap(png)
-            if not pix.isNull():
-                self.preview.setPixmap(pix.scaled(self.preview.size(), Qt.KeepAspectRatio,
-                                                  Qt.SmoothTransformation))
-                self.preview.setToolTip(src)
-                return
-        self.preview.setText("(Vorschau nicht darstellbar)")
-
-    def _sharpest_kept(self, result_path):
-        """Schärfsten behaltenen Quell-Frame aus dem cull_report ziehen."""
-        report = os.path.join(os.path.dirname(os.path.dirname(result_path)), "cull_report.json")
-        if not os.path.isfile(report):
-            return None
-        try:
-            import json as _json
-            data = _json.load(open(report))
-            kept = [f for f in data["frames"] if f.get("keep")]
-            if kept:
-                return max(kept, key=lambda f: f.get("peak_sharp", 0)).get("path")
-        except Exception:
-            pass
-        return None
-
-    def _representative_input(self):
-        """Ein Original-Frame (mittlerer) als „Vorher“ für den Vergleich — modulübergreifend."""
-        folder = self.in_edit.text().strip()
-        if not folder or not os.path.isdir(folder):
-            return None
-        try:
-            import focus_cull_stack as F
-            paths = F.list_images(folder)
-            if not paths:  # Hybrid Fokus+Astro: Bilder liegen in Unterordnern
-                for s in sorted(os.listdir(folder)):
-                    sub = os.path.join(folder, s)
-                    if os.path.isdir(sub):
-                        paths = F.list_images(sub)
-                        if paths:
-                            break
-            return paths[len(paths) // 2] if paths else None
-        except Exception:
-            return None
-
-    def _show_result(self):
-        res = self._find_result()
-        if not res:
-            self.preview.setText("(kein Stack-Output — Selektionslauf?)")
-            return
-        self.result_path = res
-        self._focusmap_cache = None   # neue Reihe -> Fokus-Map neu berechnen
-        # „Vorher“: schärfster behaltener Frame (Makro) — sonst ein repräsentatives Original
-        self.before_path = self._sharpest_kept(res) or self._representative_input()
-        self.view_result.setChecked(True)
-        self._set_preview(res)
-        self.open_btn.setEnabled(True)
-        self.openfolder_btn.setEnabled(True); self.adjust_btn.setEnabled(True)
-        self.cmp_btn.setEnabled(bool(self.before_path))
-        self.ghost_btn.setEnabled(bool(self._ghostmap_path()))
-        # Ansicht-Umschalter: Ergebnis immer, Geister-Karte wenn da, Fokus-Map nur Makro
-        makro = not (getattr(self, "is_astro", False) or getattr(self, "is_hybrid", False)
-                     or getattr(self, "is_longexp", False))
-        self.view_result.setEnabled(True)
-        self.view_ghost.setEnabled(bool(self._ghostmap_path()))
-        self.view_focusmap.setEnabled(makro)
-        self.send_btn.setEnabled(True); self.reimport_btn.setEnabled(True)
-        self.export_btn.setEnabled(True); self.tools_btn.setEnabled(True)
-        for b in getattr(self, "export_chips", []):
-            b.setEnabled(True)
-        # GraXpert/StarNet nur bei Himmels-Modulen sinnvoll (Astro/Langzeit/Hybrid), nicht Makro
-        sky = (getattr(self, "is_astro", False) or getattr(self, "is_longexp", False)
-               or getattr(self, "is_hybrid", False))
-        for b in (self.graxpert_btn, self.starnet_btn):
-            b.setVisible(sky); b.setEnabled(sky)
-        # Retusche nur wo es Sinn macht (Fokus-Stacking): Makro + Hybrid Fokus+Astro
-        fa = getattr(self, "is_hybrid", False) and self.hybrid_kind.currentData() == "fa"
-        retouch_ok = (not getattr(self, "is_astro", False)
-                      and not getattr(self, "is_longexp", False)
-                      and (not getattr(self, "is_hybrid", False) or fa))
-        self.retouch_btn.setVisible(retouch_ok)
-        self.retouch_btn.setEnabled(retouch_ok)
-        self._build_filmstrip(res)
-        self._show_quality()
-
-    def _set_view(self, mode):
-        """Mittleres Bild umschalten: Ergebnis · Fokus-Map · Geister-Karte."""
-        for b, m in ((self.view_result, "result"), (self.view_focusmap, "focusmap"),
-                     (self.view_ghost, "ghost")):
-            b.setChecked(m == mode)
-        if mode == "result" and self.result_path:
-            self._set_preview(self.result_path)
-        elif mode == "focusmap":
-            p = self._focusmap_png()
-            if p:
-                self._set_preview(p)
-            else:
-                self._append("\n(Fokus-Map: zu wenige Bilder oder nicht berechenbar.)\n")
-        elif mode == "ghost":
-            g = self._ghostmap_path()
-            if g:
-                self._set_preview(g)
-
-    def _focusmap_png(self):
-        """Fokus-Herkunfts-Karte als PNG (berechnet bei Bedarf, gecacht)."""
-        if getattr(self, "_focusmap_cache", None):
-            return self._focusmap_cache
-        try:
-            import focus_analysis as fa
-            import focus_cull_stack as F
-            paths = getattr(self, "_analyze_paths", None) or F.list_images(self.in_edit.text().strip())
-            if not paths or len(paths) < 3:
-                return None
-            fm = fa.focus_map(paths)
-            p = os.path.join("/tmp", "fp_focusmap_view.png")
-            cv2.imwrite(p, fm)
-            self._focusmap_cache = p
-            return p
-        except Exception:
-            return None
-
-    def _finding_action(self, text):
-        """Passenden Klick-Link zu einem Befund liefern (springt zur richtigen Ansicht/Werkzeug)."""
-        low = (text or "").lower()
-        link = '  <a href="{href}" style="color:#7bd36a;text-decoration:none">→ {lbl}</a>'
-        if ("geist" in low or "ghost" in low) and self._ghostmap_path():
-            return link.format(href="view:ghost", lbl=tr("Geister-Karte"))
-        if "halo" in low and self.retouch_btn.isEnabled():
-            return link.format(href="tool:retouch", lbl=tr("Retusche"))
-        if ("fokus" in low or "schärf" in low or "unscharf" in low or "abdeckung" in low
-                or "lücke" in low) and self.view_focusmap.isEnabled():
-            return link.format(href="view:focusmap", lbl=tr("Fokus-Map"))
-        return ""
-
-    def _panel_link(self, href):
-        """Klick auf einen Link im Entscheidungs-Panel: zur passenden Ansicht/Werkzeug springen."""
-        if href == "view:ghost":
-            self._set_view("ghost")
-        elif href == "view:focusmap":
-            self._set_view("focusmap")
-        elif href == "view:result":
-            self._set_view("result")
-        elif href == "tool:retouch":
-            self.open_retouch()
-
-    def _show_quality(self):
-        """Stack-Qualität (aus quality.json) ins Log + ins rechte Entscheidungs-Panel schreiben."""
-        qf = os.path.join(self._work_dir(), "quality.json")
-        q = None
-        if os.path.isfile(qf):
-            try:
-                import json as _json
-                q = _json.load(open(qf))
-            except Exception:
-                q = None
-        # Cull-Report für „X von Y verwendet"
-        kept = total = None
-        try:
-            import json as _json
-            rep = os.path.join(os.path.dirname(os.path.dirname(self.result_path)), "cull_report.json")
-            if os.path.isfile(rep):
-                d = _json.load(open(rep)); kept = d.get("kept"); total = d.get("total")
-        except Exception:
-            pass
-        if q:
-            findings = " · ".join(q.get("findings", []))
-            self._append(f"\n🏅 Stack-Qualität: {q.get('score')}/100 — {findings}\n")
-        # Entscheidungs-Panel (rechts) aufbauen
-        score = q.get("score") if q else None
-        col = "#4caf50" if (score or 0) >= 85 else "#d4a72c" if (score or 0) >= 70 else "#e5534b"
-        html = []
-        if score is not None:
-            html.append(f"<div style='font-size:30px;font-weight:800;color:{col}'>{score}<span "
-                        f"style='font-size:14px;color:#9aa09a'>/100</span></div>"
-                        f"<div style='color:#9aa09a;font-size:11px;margin-bottom:8px'>"
-                        + tr("Stack-Konfidenz") + "</div>")
-        if kept is not None and total:
-            html.append(f"<b>{kept}</b> " + tr("von") + f" <b>{total}</b> " + tr("Fotos verwendet")
-                        + f" <span style='color:#9aa09a'>({total - kept} " + tr("aussortiert") + ")</span><br><br>")
-        if q and q.get("findings"):
-            html.append("<b>" + tr("Befunde") + ":</b><ul style='margin:4px 0 0 -18px'>")
-            for f in q["findings"]:
-                html.append(f"<li>{f}{self._finding_action(f)}</li>")
-            html.append("</ul>")
-        # „Warum diese Einstellungen?" — Begründung der Automatik/KI (aus dem Log)
-        rationale = getattr(self, "_last_rationale", "")
-        if rationale:
-            html.append("<br><b style='color:#7bd36a'>" + tr("Warum diese Einstellungen?") + "</b>"
-                        f"<div style='color:#b9bdb6;font-size:12px;margin-top:3px'>{rationale}</div>")
-        html.append("<br><span style='color:#7bd36a'>→ </span>" + tr("Bearbeiten (E) · Export (⌘E) · "
-                    "Werkzeuge für Geister-Karte/Retusche."))
-        self.decision.setText("".join(html) if html else tr("Ergebnis fertig."))
-
     def open_compare(self):
         if not (self.result_path and self.before_path):
             return
@@ -2108,122 +1882,6 @@ class MainWindow(WelcomeMixin, QMainWindow):
         self._strip_idx = (getattr(self, "_strip_idx", 0) + d) % len(paths)
         self._set_preview(paths[self._strip_idx])
 
-    def _quick_export(self, key):
-        """Ein-Klick-Export eines einzelnen Presets (ohne Dialog) direkt aus dem Panel."""
-        if not self.result_path or cv2 is None:
-            QMessageBox.information(self, tr("Exportieren"), tr("Erst ein Ergebnis erzeugen.")); return
-        try:
-            import focus_cull_stack as F
-            stack_dir = os.path.dirname(self.result_path)
-            export_dir = os.path.join(self._work_dir(), "export")
-            os.makedirs(export_dir, exist_ok=True)
-            F.export_targets(stack_dir, export_dir, [key],
-                             only=os.path.basename(self.result_path))
-        except Exception as e:
-            QMessageBox.warning(self, tr("Exportieren"), f"{e}"); return
-        self._append(f"\n📦 {key} → {export_dir}\n")
-        reveal_in_files(export_dir)
-
-    def export_result(self):
-        """Export-Dialog: auswählen WAS exportiert wird (Ziele, Schärfung, Photoshop-Ebenen,
-        16-bit-TIFF), dann schreiben + Ordner zeigen."""
-        if not self.result_path or cv2 is None:
-            QMessageBox.information(self, tr("Exportieren"), tr("Erst ein Ergebnis erzeugen.")); return
-        dlg = QDialog(self); dlg.setWindowTitle(tr("Exportieren")); dlg.resize(440, 480)
-        lay = QVBoxLayout(dlg)
-
-        g1 = QGroupBox(tr("Ziele")); g1l = QVBoxLayout(g1)
-        targets = {}
-        for key, lbl in [("webjpg", tr("Web-JPG (zum Teilen)")), ("instagram", "Instagram (1080 px)"),
-                         ("whatsapp", "WhatsApp (1600 px)"), ("web", "Web (2048 px)"),
-                         ("4k", "4K (3840 px)"), ("print", tr("Druck (16-bit-TIFF, volle Größe)"))]:
-            cb = QCheckBox(lbl); targets[key] = cb; g1l.addWidget(cb)
-        targets["webjpg"].setChecked(True)
-        lay.addWidget(g1)
-
-        g2 = QGroupBox(tr("Optionen")); g2l = QGridLayout(g2)
-        psd = QCheckBox(tr("Photoshop-Ebenen-Datei (.tif mit Ebenen)"))
-        tiff16 = QCheckBox(tr("16-bit-TIFF (verlustfrei)"))
-        g2l.addWidget(psd, 0, 0, 1, 2); g2l.addWidget(tiff16, 1, 0, 1, 2)
-        g2l.addWidget(QLabel(tr("Ausgabe-Schärfung")), 2, 0)
-        sharp = QSpinBox(); sharp.setRange(0, 50); sharp.setValue(0); sharp.setSuffix(" %")
-        sharp.setToolTip(tr("Leichtes Nachschärfen beim Export. 0 = aus."))
-        g2l.addWidget(sharp, 2, 1)
-        g2l.addWidget(QLabel(tr("JPG-Qualität")), 3, 0)
-        jq = QSpinBox(); jq.setRange(60, 100); jq.setValue(92); g2l.addWidget(jq, 3, 1)
-        lay.addWidget(g2)
-
-        info = QLabel(); info.setStyleSheet("color:#9aa09a;font-size:11px;"); lay.addWidget(info)
-        row = QHBoxLayout()
-        ok = QPushButton(tr("Exportieren")); ok.setObjectName("primary")
-        cancel = QPushButton(tr("Abbrechen"))
-        row.addStretch(1); row.addWidget(cancel); row.addWidget(ok); lay.addLayout(row)
-        cancel.clicked.connect(dlg.reject)
-
-        def do_export():
-            import numpy as np
-            chosen = [k for k in ("instagram", "whatsapp", "web", "4k", "print") if targets[k].isChecked()]
-            any_sel = (targets["webjpg"].isChecked() or tiff16.isChecked() or psd.isChecked() or chosen)
-            if not any_sel:
-                QMessageBox.information(dlg, tr("Exportieren"),
-                                       tr("Bitte mindestens ein Ziel auswählen.")); return
-            res = cv2.imread(self.result_path, cv2.IMREAD_UNCHANGED)
-            if res is None:
-                QMessageBox.warning(dlg, tr("Exportieren"),
-                                    tr("Ergebnis konnte nicht geladen werden.")); return
-            try:
-                import focus_cull_stack as F
-                import stacker
-                stack_dir = os.path.dirname(self.result_path)
-                export_dir = os.path.join(self._work_dir(), "export")
-                os.makedirs(export_dir, exist_ok=True)
-                base = os.path.splitext(os.path.basename(self.result_path))[0]
-                written = 0
-                if sharp.value() > 0:
-                    res = stacker.unsharp_mask(res, sharp.value(), 0.8)
-                if targets["webjpg"].isChecked():
-                    if res.dtype == np.uint16:
-                        img8 = (res / 256).astype(np.uint8)
-                    elif res.dtype == np.uint8:
-                        img8 = res
-                    else:  # float -> 0..255
-                        img8 = np.clip(res * (255.0 if res.max() <= 1.5 else 1.0), 0, 255).astype(np.uint8)
-                    cv2.imwrite(os.path.join(export_dir, f"{base}_web.jpg"), img8,
-                                [int(cv2.IMWRITE_JPEG_QUALITY), jq.value()]); written += 1
-                if tiff16.isChecked():
-                    if res.dtype == np.uint16:
-                        out = res
-                    elif res.dtype == np.uint8:
-                        out = (res.astype(np.float32) * 257).astype(np.uint16)
-                    else:  # float -> 16-bit
-                        out = np.clip(res * (65535.0 if res.max() <= 1.5 else 257.0), 0, 65535).astype(np.uint16)
-                    cv2.imwrite(os.path.join(export_dir, f"{base}_16bit.tif"), out,
-                                [int(cv2.IMWRITE_TIFF_COMPRESSION), 1]); written += 1
-                if chosen:
-                    # NUR die echte Ergebnisdatei exportieren (kein Verzeichnis-Scan -> kein Müll)
-                    F.export_targets(stack_dir, export_dir, chosen,
-                                     only=os.path.basename(self.result_path)); written += len(chosen)
-                if psd.isChecked():
-                    srcs, names = self._gather_sources()
-                    srcs = [s for s in srcs if s is not None] if srcs else []
-                    if srcs:
-                        srcs = [cv2.resize(s, (res.shape[1], res.shape[0])) if s.shape[:2] != res.shape[:2]
-                                else s for s in srcs]
-                        named = [("Stack (Ergebnis)", res)] + [(n, s) for n, s in zip(names, srcs)]
-                        stacker.write_layered_tiff(os.path.join(export_dir, f"{base}_ebenen.tif"),
-                                                   named, flat_bgr=res); written += 1
-                    else:
-                        QMessageBox.information(dlg, tr("Exportieren"),
-                                               tr("Ebenen-Datei: keine Quellfotos gefunden (nur Fokus-Stacking)."))
-            except Exception as e:
-                QMessageBox.warning(dlg, tr("Exportieren"), f"{e}"); return
-            self._append(f"\n📦 Exportiert ({written} Datei(en)) → {export_dir}\n")
-            reveal_in_files(export_dir)
-            dlg.accept()
-
-        ok.clicked.connect(do_export)
-        dlg.show(); self._export_dlg = dlg
-
     def resizeEvent(self, e):
         super().resizeEvent(e)
         src = getattr(self, "_preview_src", None)
@@ -2234,70 +1892,6 @@ class MainWindow(WelcomeMixin, QMainWindow):
                                                   Qt.SmoothTransformation))
 
     # ---------- Einstellungen merken ----------
-    def _settings_map(self):
-        return {
-            "in": (self.in_edit.setText, self.in_edit.text),
-            "work": (self.work_edit.setText, self.work_edit.text),
-            "vlm_ep": (self.vlm_ep.setText, self.vlm_ep.text),
-            "vlm_model": (self.vlm_model.setText, self.vlm_model.text),
-            "vlm_key": (self.vlm_key.setText, self.vlm_key.text),
-            "vlm_provider": (self.vlm_provider.setCurrentText, self.vlm_provider.currentText),
-            "mode_i": (lambda v: self.mode_box.setCurrentIndex(int(v)), self.mode_box.currentIndex),
-            "task_i": (lambda v: self.task_box.setCurrentIndex(int(v)), self.task_box.currentIndex),
-            "raw_dev": (self.raw_dev.setChecked, self.raw_dev.isChecked),
-            "raw_wb": (self.raw_wb.setCurrentText, self.raw_wb.currentText),
-            "raw_bps": (self.raw_bps.setCurrentText, self.raw_bps.currentText),
-            "raw_half": (self.raw_half.setChecked, self.raw_half.isChecked),
-            "vlm_on": (self.vlm_group.setChecked, self.vlm_group.isChecked),
-            "astro_fits": (self.astro_fits.setChecked, self.astro_fits.isChecked),
-            "astro_align": (lambda v: self.astro_align.setCurrentIndex(int(v)), self.astro_align.currentIndex),
-            "astro_cosmetic": (self.astro_cosmetic.setChecked, self.astro_cosmetic.isChecked),
-            "astro_qc": (self.astro_qc.setChecked, self.astro_qc.isChecked),
-            "reject_blurry": (self.reject_blurry.setChecked, self.reject_blurry.isChecked),
-            "blurry_rel": (lambda v: self.blurry_rel.setValue(float(v)), self.blurry_rel.value),
-            "astro_drizzle": (lambda v: self.astro_drizzle.setCurrentIndex(int(v)), self.astro_drizzle.currentIndex),
-            "hybrid_kind": (lambda v: self.hybrid_kind.setCurrentIndex(int(v)), self.hybrid_kind.currentIndex),
-            "hybrid_group": (lambda v: self.hybrid_group.setValue(int(v)), self.hybrid_group.value),
-            "longexp_mode": (lambda v: self.longexp_mode.setCurrentIndex(int(v)), self.longexp_mode.currentIndex),
-            "longexp_align": (lambda v: self.longexp_align.setCurrentIndex(int(v)), self.longexp_align.currentIndex),
-            "longexp_strength": (lambda v: self.longexp_strength.setValue(int(v)), self.longexp_strength.value),
-            "graxpert_path": (self.graxpert_path.setText, self.graxpert_path.text),
-            "starnet_path": (self.starnet_path.setText, self.starnet_path.text),
-            "siril_path": (self.siril_path.setText, self.siril_path.text),
-        }
-
-    def _save_settings(self):
-        st = QSettings("ServeOne", "ForgePix")
-        for k, (_set, get) in self._settings_map().items():
-            st.setValue(k, get())
-
-    def _restore_settings(self):
-        st = QSettings("ServeOne", "ForgePix")
-        # Einmalige Migration: Einstellungen vom alten Namen „StackForge" übernehmen
-        if not st.allKeys():
-            old = QSettings("ServeOne", "StackForge")
-            if old.allKeys():
-                for k in old.allKeys():
-                    st.setValue(k, old.value(k))
-        bool_keys = {"raw_dev", "raw_half", "vlm_on", "astro_fits", "astro_cosmetic", "astro_qc",
-                     "reject_blurry"}
-        for k, (setter, _g) in self._settings_map().items():
-            v = st.value(k)
-            if v is None or v == "":
-                continue
-            if k in bool_keys:
-                v = (v is True or str(v).lower() == "true")
-            try:
-                setter(v)
-            except Exception:
-                pass
-        geo = st.value("geometry")
-        if geo is not None:
-            try:
-                self.restoreGeometry(geo)
-            except Exception:
-                pass
-
     def closeEvent(self, e):
         # Laufende Subprozesse/Threads sauber beenden (sonst Orphan-Prozess / QThread-Warnung)
         if self.proc and self.proc.state() != QProcess.NotRunning:
@@ -2307,9 +1901,7 @@ class MainWindow(WelcomeMixin, QMainWindow):
         wk = getattr(self, "_analyze_worker", None)
         if wk and wk.isRunning():
             wk.wait(4000)
-        uc = getattr(self, "_updchk", None)
-        if uc and uc.isRunning():
-            uc.wait(4500)
+        # _updchk läuft als Daemon-Thread (kein QThread) -> stirbt mit dem Prozess, kein Wait nötig
         self._save_settings()
         QSettings("ServeOne", "ForgePix").setValue("geometry", self.saveGeometry())
         super().closeEvent(e)
