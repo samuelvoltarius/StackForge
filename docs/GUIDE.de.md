@@ -152,6 +152,11 @@ Nach jedem Lauf rechts in der Ergebnis-Leiste:
 - **Vorschau** + **Vorher/Nachher-Schieberegler** (alle Module).
 - **🎚️ Bearbeiten** — eingebauter Camera-Raw-Editor: Belichtung/Kontrast/Weißabgleich,
   Tonwertkurve, HSL pro Farbe, Klarheit, Zuschneiden/Drehen, Histogramm. (alle Module)
+  - **🎯 Auto-Maske:** ein Klick — die Anpassung wirkt nur aufs Motiv (mittlere Helligkeiten),
+    **Sterne und dunkler Hintergrund bleiben geschützt** (ideal für Astro & Makro).
+  - **🖌 Maske von Hand:** zusätzlich auf dem Bild malen — **+ Aufnehmen** (Anpassung dort wirken)
+    bzw. **− Schützen** (dort wegnehmen), weicher Rand. Tasten: **B** Pinsel ein/aus,
+    **A/S** Aufnehmen/Schützen, **[ ]** Pinselgröße, **Backspace** Maske löschen.
 - **✏️ Retusche** — Pinsel: scharfe Stellen aus Einzelfotos übers Ergebnis malen
   (nur Fokus-Stacking: Makro + Hybrid Fokus+Astro).
 - **👻 Geister-Karte** — zeigt Bewegungsartefakte beim Fokus-Stacking.

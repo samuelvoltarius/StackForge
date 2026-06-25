@@ -151,6 +151,11 @@ After each run, in the result bar on the right:
 - **Preview** + **before/after slider** (all modules).
 - **🎚️ Edit** — built-in Camera-Raw editor: exposure/contrast/white balance, tone curve,
   per-color HSL, clarity, crop/rotate, histogram. (all modules)
+  - **🎯 Auto-mask:** one click — adjustments affect only the subject (mid-tones); **stars and dark
+    background stay protected** (ideal for astro & macro).
+  - **🖌 Paint the mask by hand:** add/remove on the image — **+ pick up** (apply here) or
+    **− protect** (remove here), soft edge. Keys: **B** brush on/off, **A/S** pick up/protect,
+    **[ ]** brush size, **Backspace** clear mask.
 - **✏️ Retouch** — brush sharp areas from single frames onto the result
   (focus stacking only: Macro + Hybrid Focus+Astro).
 - **👻 Ghost map** — shows motion artefacts in focus stacking.

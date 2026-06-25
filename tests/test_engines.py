@@ -329,6 +329,33 @@ class TestEditorAutoMask(unittest.TestCase):
         self.assertLess(m[20:30].mean(), 0.4)   # helle Sterne geschützt
         dlg.close()
 
+    def test_brush_paints_local_mask(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        try:
+            from PySide6.QtWidgets import QApplication
+            from PySide6.QtCore import QPointF
+            import numpy as np
+            from ui.components import AdjustDialog
+        except Exception as e:  # pragma: no cover
+            self.skipTest(f"Qt nicht verfügbar: {e}")
+        QApplication.instance() or QApplication([])
+        dlg = AdjustDialog((np.zeros((120, 160, 3)) + 60).astype("uint8"), "/tmp/x.jpg")
+        dlg.resize(800, 600)
+        dlg._update()  # setzt Anzeige-Geometrie
+
+        class _Ev:
+            def position(self):
+                ox, oy, dw, dh, iw, ih = dlg._disp
+                return QPointF(ox + dw / 2, oy + dh / 2)
+        dlg.brush_on.setChecked(True)
+        dlg._set_brush(True)
+        dlg._mouse_paint(_Ev())
+        self.assertIsNotNone(dlg.mask)
+        cy, cx = dlg.mask.shape[0] // 2, dlg.mask.shape[1] // 2
+        self.assertGreater(dlg.mask[cy, cx], 0.5)   # Mitte aufgenommen
+        self.assertLess(dlg.mask[0, 0], 0.2)        # Ecke unberührt
+        dlg.close()
+
 
 class TestGuiShowResult(unittest.TestCase):
     """Regression: _show_result/_find_result darf nicht crashen (IMG_EXTS-Import-Bug v1.10.1–1.15.0)."""

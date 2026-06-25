@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.16.9] – 2026-06-26
+### Hinzugefügt
+- **Masken-Pinsel im Editor (Helligkeit/Klarheit lokal):** Zusätzlich zur Auto-Maske lässt sich
+  die Anpassung jetzt **von Hand malen** — **+ Aufnehmen** (wirkt dort) bzw. **− Schützen** (nimmt
+  es dort weg), weicher Rand, einstellbare Pinselgröße, „Maske löschen". Start ist die Auto-Maske
+  (falls aktiv), sonst leer. Funktioniert für **Astro & Makro**. **Tastensteuerung:** B Pinsel
+  ein/aus · A/S Aufnehmen/Schützen · [ ] Pinselgröße · Backspace Maske löschen. +1 Test (51).
+
 ## [1.16.8] – 2026-06-26
 ### Geändert (Aufräumen — Projektstruktur)
 - **Engine-Module nach `core/` verschoben:** Der Projekt-Root enthält jetzt nur noch die

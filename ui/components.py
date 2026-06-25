@@ -266,10 +266,20 @@ class AdjustDialog(QDialog):
         self.hsl = {}                     # Farbband -> [Farbton, Sättigung, Luminanz]
         self.angle = 0                    # Drehen (Grad)
         self.crop = {"top": 0, "bottom": 0, "left": 0, "right": 0}  # Beschnitt in %
+        # Masken-Pinsel: self.mask (HxW, [0..1]) wird lazy aus der Auto-Maske/Voll erzeugt, sobald
+        # man malt. brush_add=True -> Bereich AUFNEHMEN (Anpassung wirkt), False -> ENTFERNEN (schützen).
+        self.mask = None
+        self.brush_add = True
+        self.brush_r = 40
+        self._disp = None                 # (off_x, off_y, disp_w, disp_h, img_w, img_h) fürs Maus-Mapping
+        self._painting = False
 
         lay = QHBoxLayout(self)
         self.preview = QLabel(); self.preview.setAlignment(Qt.AlignCenter)
         self.preview.setMinimumSize(760, 540)          # mehr Bildfläche (~¾)
+        self.preview.setMouseTracking(True)
+        self.preview.mousePressEvent = self._mouse_paint
+        self.preview.mouseMoveEvent = self._mouse_paint
         lay.addWidget(self.preview, 1)
 
         # rechtes Panel mit (größerem) Histogramm + scrollbaren Reglern
@@ -341,6 +351,26 @@ class AdjustDialog(QDialog):
         self.auto_mask.toggled.connect(self._update)
         pv.addWidget(self.auto_mask)
 
+        # Masken-Pinsel: Auto-Maske als Start, dann von Hand aufnehmen/schützen
+        self.brush_on = QCheckBox("🖌 Maske von Hand malen (B)")
+        self.brush_on.setToolTip("An: auf dem Bild malen. Plus/Aufnehmen lässt die Anpassung dort "
+                                 "wirken, Minus/Schützen nimmt sie dort weg. Start ist die Auto-Maske "
+                                 "(falls aktiv), sonst leer. Tasten: B Pinsel, A/S +/-, [ ] Größe, "
+                                 "Backspace Maske löschen.")
+        self.brush_on.toggled.connect(self._update)
+        pv.addWidget(self.brush_on)
+        brow = QHBoxLayout()
+        self.btn_add = QPushButton("+ Aufnehmen"); self.btn_add.setCheckable(True); self.btn_add.setChecked(True)
+        self.btn_erase = QPushButton("− Schützen"); self.btn_erase.setCheckable(True)
+        self.btn_add.clicked.connect(lambda: self._set_brush(True))
+        self.btn_erase.clicked.connect(lambda: self._set_brush(False))
+        self.brush_size = QSlider(Qt.Horizontal); self.brush_size.setRange(8, 200); self.brush_size.setValue(40)
+        self.brush_size.valueChanged.connect(lambda v: setattr(self, "brush_r", v))
+        clr = QPushButton("Maske löschen"); clr.clicked.connect(self._clear_mask)
+        brow.addWidget(self.btn_add); brow.addWidget(self.btn_erase)
+        brow.addWidget(QLabel("Größe")); brow.addWidget(self.brush_size, 1); brow.addWidget(clr)
+        pv.addLayout(brow)
+
         btns = QHBoxLayout()
         auto = QPushButton("Auto"); auto.clicked.connect(self._auto)
         reset = QPushButton("Zurücksetzen"); reset.clicked.connect(self._reset)
@@ -411,21 +441,100 @@ class AdjustDialog(QDialog):
         m = cv2.GaussianBlur(lo * hi, (0, 0), 4)
         return m[..., None]
 
+    def _current_mask(self, shape_hw):
+        """Effektive Maske (HxW in [0..1], auf shape_hw skaliert) oder None (= global, keine Maske).
+        Vorrang: handgemalte Maske > Auto-Maske > keine."""
+        m = None
+        if self.mask is not None:
+            m = self.mask
+        elif getattr(self, "auto_mask", None) and self.auto_mask.isChecked():
+            return None  # Auto-Maske wird in _masked direkt aus dem Bild berechnet
+        if m is None:
+            return None
+        if m.shape != shape_hw:
+            m = cv2.resize(m, (shape_hw[1], shape_hw[0]))
+        return m
+
     def _masked(self, base, out):
-        """Wenn Auto-Maske aktiv: Anpassung nur dort wirken lassen, wo die Maske > 0 ist."""
-        if not getattr(self, "auto_mask", None) or not self.auto_mask.isChecked():
+        """Anpassung über eine Maske blenden: handgemalt (Vorrang) oder Auto-Maske; sonst global."""
+        m = self._current_mask(out.shape[:2])
+        if m is None and getattr(self, "auto_mask", None) and self.auto_mask.isChecked() \
+                and self.mask is None:
+            m = self._lum_mask(out)[..., 0]
+        if m is None:
             return out
-        m = self._lum_mask(base)
-        return np.clip(base.astype(np.float32) * (1 - m) + out.astype(np.float32) * m, 0,
+        m3 = m[..., None]
+        return np.clip(base.astype(np.float32) * (1 - m3) + out.astype(np.float32) * m3, 0,
                        65535 if base.dtype == np.uint16 else 255).astype(base.dtype)
+
+    # ---------- Masken-Pinsel ----------
+    def _set_brush(self, add):
+        self.brush_add = add
+        self.btn_add.setChecked(add); self.btn_erase.setChecked(not add)
+
+    def _clear_mask(self):
+        self.mask = None; self._update()
+
+    def _ensure_mask(self):
+        """Maske lazy anlegen: aus der Auto-Maske (falls aktiv), sonst leer (alles geschützt)."""
+        if self.mask is None:
+            base = self._geometry(self.base)
+            if getattr(self, "auto_mask", None) and self.auto_mask.isChecked():
+                self.mask = self._lum_mask(base)[..., 0].copy()
+            else:
+                self.mask = np.zeros(base.shape[:2], np.float32)
+
+    def _mouse_paint(self, e):
+        if not getattr(self, "brush_on", None) or not self.brush_on.isChecked() or not self._disp:
+            return
+        ox, oy, dw, dh, iw, ih = self._disp
+        x = e.position().x() - ox; y = e.position().y() - oy
+        if x < 0 or y < 0 or x > dw or y > dh:
+            return
+        ix = int(x / dw * iw); iy = int(y / dh * ih)
+        self._ensure_mask()
+        h, w = self.mask.shape
+        if not (0 <= ix < w and 0 <= iy < h):
+            return
+        r = max(2, int(self.brush_r * iw / max(dw, 1)))   # Pinselradius in Bildpixeln
+        disc = np.zeros((h, w), np.float32)
+        cv2.circle(disc, (ix, iy), r, 1.0, -1)
+        disc = cv2.GaussianBlur(disc, (0, 0), max(2, r / 2.5))  # weicher Rand
+        if self.brush_add:
+            self.mask = np.maximum(self.mask, disc)
+        else:
+            self.mask = np.clip(self.mask - disc, 0, 1)
+        self._update()
 
     def _update(self):
         g = self._geometry(self.base)
         out = self._masked(g, adjust_image(g, self._params()))
         pix, _ = _bgr_to_pixmap(out, max_w=900)
-        self.preview.setPixmap(pix.scaled(self.preview.size(), Qt.KeepAspectRatio,
-                                          Qt.SmoothTransformation))
+        disp = pix.scaled(self.preview.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        # Anzeige-Geometrie fürs Maus-Mapping merken (zentriert im Label)
+        ox = (self.preview.width() - disp.width()) / 2
+        oy = (self.preview.height() - disp.height()) / 2
+        self._disp = (ox, oy, disp.width(), disp.height(), out.shape[1], out.shape[0])
+        self.preview.setPixmap(disp)
         self.hist.setPixmap(histogram_pixmap(out, w=300, h=128))
+
+    def keyPressEvent(self, e):
+        from PySide6.QtCore import Qt as _Qt
+        k = e.key()
+        if k == _Qt.Key_B:
+            self.brush_on.setChecked(not self.brush_on.isChecked())
+        elif k == _Qt.Key_A:
+            self._set_brush(True)
+        elif k == _Qt.Key_S:
+            self._set_brush(False)
+        elif k == _Qt.Key_BracketRight:
+            self.brush_size.setValue(min(200, self.brush_size.value() + 8))
+        elif k == _Qt.Key_BracketLeft:
+            self.brush_size.setValue(max(8, self.brush_size.value() - 8))
+        elif k in (_Qt.Key_Backspace, _Qt.Key_Delete):
+            self._clear_mask()
+        else:
+            super().keyPressEvent(e)
 
     def _auto(self):
         """Sanfter Auto-Tonwert: Belichtung Richtung Mittelhelligkeit + leichter Kontrast."""
