@@ -4,6 +4,17 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.16.7] – 2026-06-26
+### Hinzugefügt
+- **Auto-Maske im Editor (lokale Helligkeit, ohne Malen):** Neue Option „🎯 Auto-Maske: nur Motiv
+  aufhellen" — Belichtung/Klarheit/Tonwerte wirken nur auf die **mittleren Helligkeiten** (Nebel/
+  Motiv), während **heller Kern/Sterne und dunkler Hintergrund geschützt** bleiben (weiche
+  Luminanz-Maske). Funktioniert für **Astro UND Makro**, ein Klick — ideal für Anfänger. +1 Test (50).
+- **Dual-Band-Filter wird auch automatisch erkannt:** Steht der Filtername im FITS-Header
+  (Dual/Duo/Extreme/Enhance/OIII/SHO/HOO …), wird die Grün-Entfernung automatisch ausgeschaltet
+  (OIII bleibt). Sonst greift der manuelle Schalter. Also: erkannt, WENN in den Metadaten — sonst
+  einstellbar.
+
 ## [1.16.6] – 2026-06-26
 ### Behoben/Hinzugefügt (Dual-Band-Korrektheit)
 - **Grün-Entfernung nicht mehr erzwungen — neue Option „Dual-Band/Schmalband-Filter (Ha+OIII)":**

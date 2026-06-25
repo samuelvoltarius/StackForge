@@ -1187,6 +1187,28 @@ def run_astro(input_dir, work_dir, args):
     return out
 
 
+def _detect_dualband(paths):
+    """Dual-Band/Schmalband-Filter aus dem FITS-Header (FILTER-Keyword) erkennen, falls vorhanden.
+    Greift nur, wenn der Aufnahme-Filter in den Metadaten steht (viele Setups schreiben ihn NICHT)."""
+    try:
+        from astropy.io import fits
+    except Exception:
+        return False
+    nb = ("dual", "duo", "extreme", "enhance", "oiii", "o3", "ha+", "ha/", "sho", "hoo",
+          "triband", "tri-band", "narrowband", "schmalband", "alp-t", "alpt", "multi-narrow")
+    for p in paths[:1]:
+        if os.path.splitext(p)[1].lower() not in (".fit", ".fits", ".fts"):
+            return False
+        try:
+            filt = str(fits.getheader(p).get("FILTER", "")).lower()
+        except Exception:
+            return False
+        if filt and any(k in filt for k in nb):
+            print(f"  Dual-Band/Schmalband-Filter erkannt (FILTER={filt}) — Grün-Entfernung aus")
+            return True
+    return False
+
+
 def _astro_write(result, work_dir, paths, args, astro):
     """Astro-Ergebnis schreiben: optional Hintergrund-Extraktion, dann 16-bit-Linear +
     32-bit-Linear (GraXpert/StarNet/PixInsight) + gestreckte Vorschau-JPG."""
@@ -1224,6 +1246,7 @@ def _astro_write(result, work_dir, paths, args, astro):
     # Aufbereitung NUR fürs Vorschau-Bild (lineare Exports oben bleiben faithful für PixInsight).
     # Drei Regler: Farbkalibrierung · Aufhellung · Sättigung. Reihenfolge: manuell (CLI/GUI) hat
     # Vorrang, sonst schlägt die KI vor (wenn Server da), sonst Standardwerte.
+    dualband = bool(getattr(args, "dualband", False)) or _detect_dualband(paths)
     man_color = float(getattr(args, "astro_color", -1.0))
     man_bright = float(getattr(args, "astro_bright", -1.0))
     man_sat = float(getattr(args, "astro_saturation", -1.0))
@@ -1252,11 +1275,11 @@ def _astro_write(result, work_dir, paths, args, astro):
         # Grünstich-Entfernung (SCNR): bei Breitband/OSC sinnvoll, ABER bei Dual-Band/Schmalband
         # (Ha+OIII) ist Grün echtes OIII-Signal -> dann NICHT entfernen, sonst bleibt nur Rot.
         cb = astro.color_balance(result, color_s)
-        base_view = cb if getattr(args, "dualband", False) else astro.remove_green_cast(cb)
+        base_view = cb if dualband else astro.remove_green_cast(cb)
         view = astro.autostretch(base_view, strength=strength, saturation=sat, protect_core=protect)
     else:
         cb = astro.color_balance(result, color_s)
-        view = cb if getattr(args, "dualband", False) else astro.remove_green_cast(cb)
+        view = cb if dualband else astro.remove_green_cast(cb)
     out_view = os.path.join(stack_dir, f"{args.prefix}{base}_astro.jpg")
     cv2.imwrite(out_view, np.clip(view * 255, 0, 255).astype(np.uint8),
                 [int(cv2.IMWRITE_JPEG_QUALITY), 95])

@@ -333,6 +333,14 @@ class AdjustDialog(QDialog):
         scroll.setWidget(inner)
         pv.addWidget(scroll, 1)
 
+        # Auto-Maske: Anpassungen nur aufs Motiv (mittlere Helligkeiten), schützt Sterne+Hintergrund
+        self.auto_mask = QCheckBox("🎯 Auto-Maske: nur Motiv aufhellen (Sterne/Hintergrund schützen)")
+        self.auto_mask.setToolTip("Legt Helligkeit/Klarheit nur auf die mittleren Helligkeiten "
+                                  "(Nebel/Motiv) — heller Kern/Sterne und dunkler Hintergrund "
+                                  "bleiben geschützt. Ideal für Astro & Makro, ganz ohne Malen.")
+        self.auto_mask.toggled.connect(self._update)
+        pv.addWidget(self.auto_mask)
+
         btns = QHBoxLayout()
         auto = QPushButton("Auto"); auto.clicked.connect(self._auto)
         reset = QPushButton("Zurücksetzen"); reset.clicked.connect(self._reset)
@@ -392,8 +400,28 @@ class AdjustDialog(QDialog):
     def _params(self):
         return {**self.vals, "curve": self.curve, "hsl": self.hsl}
 
+    def _lum_mask(self, base):
+        """Auto-Maske: betont die mittleren Helligkeiten (das Motiv/der Nebel) und schützt
+        dunklen Hintergrund (Rauschen) sowie helle Sterne/Kern (Ausbleichen). Weicher Rand."""
+        g = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY).astype(np.float32)
+        mx = 65535.0 if base.dtype == np.uint16 else 255.0
+        L = g / mx
+        lo = np.clip((L - 0.04) / 0.12, 0, 1)        # Hintergrund unten ausblenden
+        hi = 1.0 - np.clip((L - 0.78) / 0.18, 0, 1)  # helle Sterne/Kern oben schützen
+        m = cv2.GaussianBlur(lo * hi, (0, 0), 4)
+        return m[..., None]
+
+    def _masked(self, base, out):
+        """Wenn Auto-Maske aktiv: Anpassung nur dort wirken lassen, wo die Maske > 0 ist."""
+        if not getattr(self, "auto_mask", None) or not self.auto_mask.isChecked():
+            return out
+        m = self._lum_mask(base)
+        return np.clip(base.astype(np.float32) * (1 - m) + out.astype(np.float32) * m, 0,
+                       65535 if base.dtype == np.uint16 else 255).astype(base.dtype)
+
     def _update(self):
-        out = adjust_image(self._geometry(self.base), self._params())
+        g = self._geometry(self.base)
+        out = self._masked(g, adjust_image(g, self._params()))
         pix, _ = _bgr_to_pixmap(out, max_w=900)
         self.preview.setPixmap(pix.scaled(self.preview.size(), Qt.KeepAspectRatio,
                                           Qt.SmoothTransformation))
@@ -436,7 +464,8 @@ class AdjustDialog(QDialog):
         self._update()
 
     def _save(self):
-        out = adjust_image(self._geometry(self.full), self._params())
+        g = self._geometry(self.full)
+        out = self._masked(g, adjust_image(g, self._params()))
         ext = os.path.splitext(self.save_path)[1].lower()
         if ext in (".jpg", ".jpeg"):
             cv2.imwrite(self.save_path, out, [int(cv2.IMWRITE_JPEG_QUALITY), 95])

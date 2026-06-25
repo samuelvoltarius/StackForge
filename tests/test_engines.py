@@ -305,6 +305,29 @@ class TestI18n(unittest.TestCase):
         self.assertEqual(missing, [], f"Ohne EN-Übersetzung: {missing[:5]}")
 
 
+class TestEditorAutoMask(unittest.TestCase):
+    """Auto-Maske im Editor: schützt dunklen Hintergrund + helle Sterne, betont Mitteltöne."""
+    def test_lum_mask_protects_darks_and_brights(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        try:
+            from PySide6.QtWidgets import QApplication
+            import numpy as np
+            from ui.components import AdjustDialog
+        except Exception as e:  # pragma: no cover
+            self.skipTest(f"Qt nicht verfügbar: {e}")
+        QApplication.instance() or QApplication([])
+        img = np.zeros((30, 30, 3), "uint8")
+        img[0:10] = 5      # dunkler Hintergrund
+        img[10:20] = 120   # Mitteltöne (Motiv)
+        img[20:30] = 250   # helle Sterne/Kern
+        dlg = AdjustDialog(img, "/tmp/x.jpg")
+        m = dlg._lum_mask(img)[..., 0]
+        self.assertLess(m[0:10].mean(), 0.2)    # Hintergrund geschützt
+        self.assertGreater(m[10:20].mean(), 0.5)  # Motiv betont
+        self.assertLess(m[20:30].mean(), 0.4)   # helle Sterne geschützt
+        dlg.close()
+
+
 class TestGuiShowResult(unittest.TestCase):
     """Regression: _show_result/_find_result darf nicht crashen (IMG_EXTS-Import-Bug v1.10.1–1.15.0)."""
     def test_show_result_loads_without_crash(self):
