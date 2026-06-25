@@ -580,10 +580,11 @@ class TestLayeredTiffSurvivesExif(TmpCase):
         try:
             import numpy as np
             import tifffile
+            import psdtags  # noqa: F401 — Ebenen-TIFF braucht psdtags
             import stacker
             import focus_cull_stack as F
         except Exception:
-            self.skipTest("Abhängigkeit fehlt")
+            self.skipTest("Abhängigkeit fehlt (psdtags/tifffile)")
         import shutil
         res = (np.zeros((30, 40, 3)) + 100).astype("uint8")
         ltif = os.path.join(self.d, "ebenen.tif")

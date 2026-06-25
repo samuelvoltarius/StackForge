@@ -18,7 +18,7 @@ jobs:
       - name: Python-Abhängigkeiten
         run: |
           python -m pip install --upgrade pip
-          pip install numpy "opencv-python-headless>=4.8" "PySide6>=6.5" rawpy tifffile imagecodecs "ExifRead>=3.0" piexif "astropy>=5.3"
+          pip install numpy "opencv-python-headless>=4.8" "PySide6>=6.5" rawpy tifffile imagecodecs psdtags "ExifRead>=3.0" piexif "astropy>=5.3"
       - name: Tests
         env:
           QT_QPA_PLATFORM: offscreen

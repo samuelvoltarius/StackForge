@@ -4,6 +4,12 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.16.3] – 2026-06-26
+### Behoben (CI)
+- **tests.yml:** `psdtags` fehlte unter den CI-Abhängigkeiten → der neue Ebenen-TIFF-Regressionstest
+  brach in GitHub Actions (lokal grün). psdtags ergänzt; Test überspringt zusätzlich sauber, falls
+  psdtags fehlt. CI wieder grün.
+
 ## [1.16.2] – 2026-06-26 — Beta-Stabilisierung
 ### Behoben (beim Verifikations-Lauf gefunden)
 - **Photoshop-Ebenen blieben bei EXIF-Übernahme erhalten:** Die eingebaute EXIF-Übernahme schrieb
