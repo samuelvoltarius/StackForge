@@ -137,13 +137,19 @@ def cosmetic_correct(f, strength=3.0):
     return out
 
 
-def _star_centroids(g, max_stars=150):
-    """Sternzentren (sub-pixel) als Punktwolke: Hintergrund abziehen, Otsu-Schwelle, kleine helle
-    Blobs als Sterne, nach Helligkeit sortiert. Robuster fürs Ausrichten als allgemeine Features."""
+def _star_centroids(g, max_stars=200):
+    """Sternzentren (sub-pixel) als Punktwolke: Hintergrund abziehen, **rauschadaptive Schwelle
+    (Median + 5·MAD)**, kleine helle Blobs als Sterne, nach Fläche sortiert.
+
+    Wichtig: Otsu lieferte auf dünnen Astro-Frames nur eine Handvoll Sterne (zu strenge Schwelle),
+    wodurch das Ausrichten zu wenig Stützpunkte hatte und Sterne im Stack verschmierten. Die
+    MAD-Schwelle findet zuverlässig 100–200 Sterne — genug für robustes Offset-Voting + RANSAC."""
     a = (np.clip(g, 0, 1) * 255).astype(np.uint8)
     bg = cv2.medianBlur(a, 31)
-    sub = cv2.subtract(a, bg)
-    _, th = cv2.threshold(sub, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    sub = cv2.subtract(a, bg).astype(np.float32)
+    med = float(np.median(sub))
+    mad = float(np.median(np.abs(sub - med))) * 1.4826 + 1e-6
+    th = (sub > max(med + 5.0 * mad, 3.0)).astype(np.uint8) * 255
     n, _lbl, stats, cent = cv2.connectedComponentsWithStats(th, connectivity=8)
     stars = [(cent[i][0], cent[i][1], int(stats[i, cv2.CC_STAT_AREA]))
              for i in range(1, n) if 2 <= stats[i, cv2.CC_STAT_AREA] <= 600]
@@ -151,21 +157,45 @@ def _star_centroids(g, max_stars=150):
     return np.array([[s[0], s[1]] for s in stars[:max_stars]], np.float32)
 
 
+def _coarse_offset_vote(ref_pts, img_pts, nbright=80, tol=2.5, min_votes=8):
+    """Dominanten Versatz (ref − img) aus den hellsten Sternpaaren per Voting bestimmen.
+
+    Robust gegen feste Hotpixel/Amp-Glow (die würden für Versatz (0,0) stimmen) und gegen
+    fehlende/zusätzliche Sterne: der echte Sternversatz bekommt die meisten übereinstimmenden
+    Stimmen. Ersetzt die Phasenkorrelation, die bei Astro-Frames auf dem festen Fixed-Pattern
+    statt auf den (gewanderten) Sternen einrastet. Gibt (ox, oy) oder None."""
+    if len(ref_pts) < min_votes or len(img_pts) < min_votes:
+        return None
+    R, I = ref_pts[:nbright], img_pts[:nbright]
+    offs = (R[:, None, :] - I[None, :, :]).reshape(-1, 2)        # alle Paar-Versätze
+    best, bestc = None, 0
+    for o in offs:
+        c = int((np.abs(offs - o).max(1) < tol).sum())          # Übereinstimmungen
+        if c > bestc:
+            bestc, best = c, o
+    if bestc < min_votes:
+        return None
+    # Mittel der zustimmenden Versätze (sub-pixel-genauer als ein einzelner Paar-Versatz)
+    near = offs[np.abs(offs - best).max(1) < tol]
+    return near.mean(0)
+
+
 def _estimate_star_transform(refg, img_g):
     """Translation + Feldrotation aus tatsächlichen STERNPOSITIONEN schätzen (genauer = rundere
-    Sterne). Grobe Verschiebung per Phasenkorrelation, dann Nearest-Neighbor-Match + RANSAC-Affine.
-    Gibt 2x3-Matrix oder None (dann Fallback ORB/Phasenkorrelation)."""
+    Sterne). Grober Versatz per Offset-Voting (robust gegen Hotpixel), dann Nearest-Neighbor-Match
+    + RANSAC-Affine. Gibt 2x3-Matrix oder None (dann Fallback ORB)."""
     ref_pts, img_pts = _star_centroids(refg), _star_centroids(img_g)
     if len(ref_pts) < 8 or len(img_pts) < 8:
         return None
-    win = cv2.createHanningWindow((refg.shape[1], refg.shape[0]), cv2.CV_32F)
-    (dx, dy), _r = cv2.phaseCorrelate(refg * win, img_g * win)   # f um (dx,dy) -> ref
-    shifted = img_pts + np.float32([dx, dy])
+    off = _coarse_offset_vote(ref_pts, img_pts)
+    if off is None:
+        return None
+    shifted = img_pts + off                                     # img ≈ in ref-Raster gebracht
     src, dst = [], []
     for rp in ref_pts:                                          # ref-Stern -> nächster img-Stern
         d = np.linalg.norm(shifted - rp, axis=1)
         j = int(np.argmin(d))
-        if d[j] < 6.0:                                          # Toleranz in px
+        if d[j] < 4.0:                                          # Toleranz in px (nach Grobversatz)
             src.append(img_pts[j]); dst.append(rp)
     if len(src) < 6:
         return None
@@ -176,23 +206,27 @@ def _estimate_star_transform(refg, img_g):
     return M
 
 
-def _estimate_rotation(refg, img_g, detector="ORB"):
-    """Partielle Affine (Translation + Rotation, kein Scherung) per Stern-Merkmalen schätzen.
-    Für Alt-Az-Montierungen mit Feldrotation. Gibt 2x3-Matrix oder None (Fallback Translation)."""
+def _estimate_rotation(refg, img_g, detector="ORB", min_inliers=25):
+    """Partielle Affine (Translation + Rotation, kein Scherung) per ORB-Merkmalen schätzen —
+    Fallback, wenn das stern-basierte Voting den Versatz nicht findet (z. B. großer Dither-Sprung
+    in einen wenig überlappenden Bereich). Gibt 2x3-Matrix nur bei genügend Inliern zurück, sonst
+    None — damit unsicher ausgerichtete Frames lieber verworfen als verschmiert gestackt werden."""
     a = (np.clip(refg, 0, 1) * 255).astype(np.uint8)
     b = (np.clip(img_g, 0, 1) * 255).astype(np.uint8)
-    det = cv2.ORB_create(4000)
+    det = cv2.ORB_create(5000)
     ka, da = det.detectAndCompute(a, None)
     kb, db = det.detectAndCompute(b, None)
     if da is None or db is None or len(ka) < 8 or len(kb) < 8:
         return None
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-    m = sorted(bf.match(da, db), key=lambda x: x.distance)[:200]
-    if len(m) < 8:
+    m = sorted(bf.match(da, db), key=lambda x: x.distance)[:300]
+    if len(m) < min_inliers:
         return None
     src = np.float32([kb[x.trainIdx].pt for x in m]).reshape(-1, 1, 2)
     dst = np.float32([ka[x.queryIdx].pt for x in m]).reshape(-1, 1, 2)
-    M, _ = cv2.estimateAffinePartial2D(src, dst, method=cv2.RANSAC, ransacReprojThreshold=3)
+    M, inl = cv2.estimateAffinePartial2D(src, dst, method=cv2.RANSAC, ransacReprojThreshold=3)
+    if M is None or inl is None or int(inl.sum()) < min_inliers:
+        return None
     return M
 
 
@@ -213,7 +247,6 @@ def register_and_cache(paths, out_dir, dark=None, flat=None, do_register=True,
     if cosmetic:
         ref = cosmetic_correct(ref)
     refg = _gray(ref)
-    win = cv2.createHanningWindow((refg.shape[1], refg.shape[0]), cv2.CV_32F)
     out_size = (ref.shape[1] * drizzle, ref.shape[0] * drizzle)
     aligned = []
     for i, p in enumerate(paths):
@@ -223,19 +256,20 @@ def register_and_cache(paths, out_dir, dark=None, flat=None, do_register=True,
         if cosmetic:
             f = cosmetic_correct(f)
         if do_register:
-            M = None
-            if align_mode == "rotate":
-                fg = _gray(f)
-                M = _estimate_star_transform(refg, fg)   # stern-basiert (genau) zuerst
-                if M is None:
-                    M = _estimate_rotation(refg, fg, detector)   # Fallback: ORB-Merkmale
-                if M is not None and drizzle > 1:
-                    M = M.copy(); M[:, 2] *= drizzle  # Translation auf Zielraster skalieren
-            if M is None:  # Fallback / 'shift': Phasenkorrelation (Translation)
-                (dx, dy), _resp = cv2.phaseCorrelate(refg * win, _gray(f) * win)
-                M = np.float32([[1, 0, dx * drizzle], [0, 1, dy * drizzle]])
-            elif align_mode != "rotate":
-                M[:, 2] *= drizzle
+            # Stern-basiert ist PRIMÄR: cv2.phaseCorrelate rastet bei Astro-Frames auf dem festen
+            # Fixed-Pattern (Hotpixel/Amp-Glow) ein und verfehlt die gewanderten Sterne komplett
+            # (→ verschmierte, „tropfenförmige" Sterne). Offset-Voting aus Sternpositionen löst das.
+            fg = _gray(f)
+            M = _estimate_star_transform(refg, fg)           # Translation+Rotation aus Sternen
+            if M is None:
+                M = _estimate_rotation(refg, fg, detector)   # Fallback: ORB (großer Dither-Sprung)
+            if M is None:
+                # Nicht sicher ausrichtbar (z. B. weit weggedithert, kaum Überlappung) → ÜBERSPRINGEN.
+                # Lieber wenige saubere Frames als ein verschmierter Stack.
+                log(f"    Frame {i + 1}/{len(paths)} übersprungen (nicht sicher ausrichtbar)")
+                continue
+            if drizzle > 1:
+                M = M.copy(); M[:, 2] *= drizzle             # Translation auf Zielraster skalieren
             f = cv2.warpAffine(f, M, out_size,
                                flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_REFLECT)
         elif drizzle > 1:
@@ -244,7 +278,7 @@ def register_and_cache(paths, out_dir, dark=None, flat=None, do_register=True,
         cv2.imwrite(op, np.clip(f * 65535, 0, 65535).astype(np.uint16),
                     [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
         aligned.append(op)
-        log(f"    registriert {i + 1}/{len(paths)}")
+        log(f"    registriert {len(aligned)}/{len(paths)}")
     return aligned
 
 
@@ -448,26 +482,45 @@ def remove_green_cast(f, amount=1.0):
     return out
 
 
-def autostretch(f, black_clip=0.0008, strength=14.0, protect_core=True, saturation=1.25):
+def autostretch(f, black_clip=None, strength=6.0, protect_core=True, saturation=1.1,
+                denoise_chroma=True):
     """asinh-Auto-Stretch fürs Anzeigen des (linearen, dunklen) Astro-Ergebnisses.
+
+    Zurückhaltend gehalten — Ziel ist eine *echte* Bearbeitung, kein Neon-Comic:
+    schwaches Signal wird sichtbar, aber der Hintergrund bleibt dunkel und das Rauschen unten.
 
     strength  : wie stark schwaches Signal angehoben wird (höher = heller/aggressiver).
     protect_core: helle Bereiche (Nebel-Kern, helle Sterne) werden sanfter gestreckt, damit der
                   Kern nicht zu einem flachen weißen Klecks ausbleicht — Detail/Farbe bleibt.
-    saturation: leichter Farb-Boost (Astro-Farben sind nach dem Strecken oft blass)."""
+    saturation: leichter Farb-Boost (Astro-Farben sind nach dem Strecken oft blass).
+    denoise_chroma: Farb-Rauschen glätten (Luminanz bleibt scharf) — killt den bunten Grieß im
+                    Hintergrund, ohne Schärfe zu kosten.
+    black_clip: optionaler fester Schwarzpunkt als Quantil. Standard (None) = **robuster
+                Himmelshintergrund** (Median + 0.5·MAD), damit der Hintergrund wirklich nach
+                Schwarz geht und das Rauschen nicht hochgezogen wird."""
     g = _gray(f)
-    bg = np.quantile(g, black_clip)
+    if black_clip is not None:
+        bg = np.quantile(g, black_clip)
+    else:
+        med = float(np.median(g))
+        mad = float(np.median(np.abs(g - med))) * 1.4826      # robustes Sigma
+        bg = med + 0.5 * mad                                   # Schwarzpunkt knapp über dem Himmel
     x = np.clip(f - bg, 0, None)
-    norm = np.quantile(_gray(x), 0.9995) + 1e-6
+    norm = np.quantile(_gray(x), 0.9997) + 1e-6
     x = x / norm
     out = np.clip(np.arcsinh(x * strength) / np.arcsinh(strength), 0, 1)
     if protect_core:
         # In den hellsten ~15 % nur sanft strecken (Kern-Schutz) und mit der starken Kurve mischen.
-        gentle = np.clip(np.arcsinh(x * (strength * 0.2)) / np.arcsinh(strength * 0.2), 0, 1)
+        gentle = np.clip(np.arcsinh(x * (strength * 0.25)) / np.arcsinh(strength * 0.25), 0, 1)
         lum = _gray(out)
         hi = np.clip((lum - 0.85) / 0.15, 0, 1)
         hi = cv2.GaussianBlur(hi, (0, 0), 2)[..., None] if hi.ndim == 2 else hi[..., None]
         out = out * (1 - hi) + gentle * hi
+    if denoise_chroma and out.ndim == 3:
+        # Farb-Rauschen ist niederfrequent tolerierbar: Chroma weichzeichnen, Luminanz scharf lassen.
+        lum = _gray(out)[..., None]
+        chroma = cv2.GaussianBlur(out - lum, (0, 0), 3.0)
+        out = np.clip(lum + chroma, 0, 1)
     if saturation != 1.0 and out.ndim == 3:
         lum = _gray(out)[..., None]
         out = np.clip(lum + (out - lum) * saturation, 0, 1)

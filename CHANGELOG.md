@@ -4,6 +4,28 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.16.18] – 2026-06-28
+### Behoben (Astro: echte Bearbeitung statt „Comic" — Sterne rund, Rauschen runter)
+Gründliche Diagnose an echten IC-5146-Daten (Dual-Band, ASI294MC Pro) hat zwei ernste Fehler
+aufgedeckt und behoben:
+
+- **Sterne waren tropfenförmig (mit Geist) — Registrierungs-Bug.** `cv2.phaseCorrelate` rastete
+  bei Astro-Frames auf dem **festen Fixed-Pattern** (Hotpixel/Amp-Glow) ein und verfehlte die über
+  die Nacht **gewanderten Sterne** komplett (Residuum bis ~27 px → verschmierte Sterne). Ersetzt
+  durch **stern-basiertes Offset-Voting** (robust gegen Hotpixel) + RANSAC-Feinausrichtung; ORB als
+  Fallback für große Dither-Sprünge. Sterndetektion von Otsu (fand nur ~5 Sterne) auf eine
+  **rauschadaptive MAD-Schwelle** (100–200 Sterne) umgestellt. Residuum jetzt **<1 px = runde
+  Sterne**. Frames, die sich nicht sicher ausrichten lassen (z. B. weit weggedithert, kaum
+  Überlappung), werden **übersprungen statt verschmiert reingemittelt**.
+- **Ergebnis viel zu knallig/verrauscht — Stretch-Defaults entschärft.** Schwarzpunkt liegt jetzt
+  am **robusten Himmelshintergrund** (Median + 0.5·MAD) statt bei festen 0,08 % → Hintergrund wird
+  dunkel, Rauschen wird nicht hochgezogen. **Chroma-Entrauschung** (Farbe glätten, Luminanz scharf)
+  killt den bunten Grieß. Default-Stretch von 14 → **6**, Sättigung 1.3 → **1.1**; KI-Vorschlag
+  ebenso gedeckelt (Strength ≤12, Sättigung ≤1.25). GUI-Regler-Defaults angepasst.
+
+### Tests
+- +2 Registrierungs-Regressionstests (Drift trotz fester Hotpixel finden; MAD-Sterndetektion). 57 grün.
+
 ## [1.16.17] – 2026-06-27
 ### Tests & Doku (Dual-Band-Paletten nachgezogen)
 - **Tests für alle Paletten:** Bisher war nur HOO testabgedeckt. Jetzt auch **SHO** (Hα→gold),

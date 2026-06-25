@@ -627,6 +627,43 @@ class TestAstroColorAndStretch(unittest.TestCase):
         self.assertLess(out[:, 0:10, 1].mean(), 0.1)            # Grün runter (auf (R+B)/2=0)
         self.assertAlmostEqual(float(out[:, 10:20, 2].mean()), 1.0)  # Rot unangetastet
 
+    def _make_starfield(self, shift=(0, 0), hot=True, seed=0):
+        import numpy as np
+        rng = np.random.RandomState(seed)
+        H, W = 300, 400
+        g = np.zeros((H, W), np.float32)
+        # 60 feste Sterne (gleiche Welt-Position), um (shift) verschoben gerendert
+        self._star_xy = getattr(self, "_star_xy", rng.uniform([40, 40], [W - 40, H - 40], (60, 2)))
+        for x, y in self._star_xy:
+            xi, yi = int(round(x + shift[0])), int(round(y + shift[1]))
+            if 1 <= xi < W - 1 and 1 <= yi < H - 1:
+                g[yi - 1:yi + 2, xi - 1:xi + 2] += 0.6
+                g[yi, xi] += 0.4
+        if hot:  # feste Hotpixel an Sensor-Positionen (bewegen sich NICHT mit) → Falle für phaseCorrelate
+            for hx, hy in [(50, 50), (120, 200), (300, 100), (380, 280), (200, 30)]:
+                g[hy, hx] = 1.0
+        return np.clip(g, 0, 1)
+
+    def test_star_centroids_findet_viele_sterne(self):
+        # Regression: MAD-Schwelle muss zuverlässig viele Sterne finden (Otsu fand nur eine Handvoll).
+        import astro
+        g = self._make_starfield()
+        pts = astro._star_centroids(g)
+        self.assertGreater(len(pts), 30)
+
+    def test_registrierung_findet_drift_trotz_hotpixel(self):
+        # Kernregression: Frame um (12, -18) gedriftet, mit FESTEN Hotpixel. Die stern-basierte
+        # Registrierung muss die echte Drift finden — nicht wie phaseCorrelate auf (0,0) einrasten.
+        import numpy as np
+        import astro
+        ref = self._make_starfield(shift=(0, 0))
+        img = self._make_starfield(shift=(12, -18))
+        M = astro._estimate_star_transform(ref, img)
+        self.assertIsNotNone(M, "stern-basierte Registrierung sollte die Drift finden")
+        # M bildet img→ref ab: die Translation muss ~(-12, +18) zurückschieben
+        self.assertAlmostEqual(M[0, 2], -12, delta=1.5)
+        self.assertAlmostEqual(M[1, 2], 18, delta=1.5)
+
     def test_dualband_hoo_ha_red_oiii_teal(self):
         import numpy as np
         import astro
