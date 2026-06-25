@@ -62,6 +62,39 @@ jobs:
             --hidden-import ui.main_window --hidden-import ui.components \
             focus_stack_gui.py
 
+      # macOS: mit Developer-ID signieren + notarisieren, FALLS Secrets gesetzt sind;
+      # sonst Ad-hoc-Signatur (App startet dann nach Rechtsklick→Öffnen ohne „beschädigt").
+      - name: macOS signieren / notarisieren
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MAC_CERT: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          MAC_CERT_PW: ${{ secrets.APPLE_CERT_PASSWORD }}
+          MAC_ID: ${{ secrets.APPLE_DEVELOPER_ID }}          # z.B. "Developer ID Application: Name (TEAMID)"
+          AC_APPLE_ID: ${{ secrets.APPLE_ID }}
+          AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          AC_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}      # App-spezifisches Passwort
+        run: |
+          set -e
+          APP="dist/ForgePix.app"
+          if [ -n "$MAC_CERT" ] && [ -n "$MAC_ID" ]; then
+            echo "Echte Signierung + Notarisierung"
+            echo "$MAC_CERT" | base64 --decode > /tmp/cert.p12
+            security create-keychain -p ci build.keychain
+            security default-keychain -s build.keychain
+            security unlock-keychain -p ci build.keychain
+            security import /tmp/cert.p12 -k build.keychain -P "$MAC_CERT_PW" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ci build.keychain
+            codesign --force --deep --options runtime --timestamp -s "$MAC_ID" "$APP"
+            ditto -c -k --keepParent "$APP" /tmp/ForgePix.zip
+            xcrun notarytool submit /tmp/ForgePix.zip --apple-id "$AC_APPLE_ID" \
+              --team-id "$AC_TEAM_ID" --password "$AC_PASSWORD" --wait
+            xcrun stapler staple "$APP"
+          else
+            echo "Keine Apple-Secrets → Ad-hoc-Signatur"
+            codesign --force --deep -s - "$APP" || true
+          fi
+
       - name: Paketieren
         shell: bash
         run: |

@@ -4,6 +4,16 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.9.0] – 2026-06-25
+### Hinzugefügt
+- **3-Spalten-Layout (Lightroom-Stil):** links Einstellungen · Mitte großes Bild mit
+  **Ansicht-Umschalter** (Ergebnis / Fokus-Map / Geister-Karte) + Aktionen + Filmstreifen ·
+  rechts **Entscheidungs-Panel** (Stack-Konfidenz-Score, „X von Y verwendet", Befunde,
+  nächste Schritte) und Log.
+- **Code-Signing-Gerüst:** macOS-Build signiert ad-hoc; echte Developer-ID-Signierung +
+  Notarisierung schalten sich automatisch ein, sobald die Apple-Secrets gesetzt sind
+  (Anleitung: docs/SIGNING.md).
+
 ## [1.8.1] – 2026-06-25
 ### Behoben (aus Audit)
 - **KI-Vorschlag-Knopf** startete im gebündelten Binary eine zweite GUI statt der Pipeline —
