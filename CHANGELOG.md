@@ -4,6 +4,20 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.16.10] – 2026-06-26
+### Hinzugefügt (Dual-Band-Farbe — HOO)
+- **Dual-Band wird jetzt als HOO verarbeitet:** Bei Dual-Band/Schmalband (Ha+OIII) werden die
+  Linien **getrennt** — Hα (rot, Rot-Kanal) und OIII (teal, Grün+Blau) — **einzeln normalisiert**
+  (damit das oft schwächere OIII sichtbar wird) und neu kombiniert (Rot=Hα, Grün+Blau=OIII). Ergebnis:
+  rote Hα-Nebel **und** tealfarbene OIII-Bereiche statt rot-dominiert; Sterne bekommen natürliche
+  (teal/weiß) Farben, Hintergrund neutral. Greift automatisch im Dual-Band-Modus (Schalter oder
+  Header-Erkennung). +1 Test (52).
+### Hinweis
+- Hα-dominierte Ziele (z. B. IC 5146 Kokon) bleiben überwiegend rot — das ist astrophysikalisch
+  korrekt (wenig OIII). Teal wird bei OIII-reichen Zielen (Cirrus, planetarische Nebel) deutlich.
+- Sternform: rotate-Ausrichtung macht Sterne rund; ein Restversatz bleibt registrierungsbedingt
+  (eine stern-basierte Registrierung als künftiger Schritt würde sie weiter schärfen).
+
 ## [1.16.9] – 2026-06-26
 ### Hinzugefügt
 - **Masken-Pinsel im Editor (Helligkeit/Klarheit lokal):** Zusätzlich zur Auto-Maske lässt sich

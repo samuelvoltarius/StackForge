@@ -278,6 +278,31 @@ def background_extract(f, strength=0.12):
     return np.clip(out, 0, 1)
 
 
+def dualband_hoo(bgr):
+    """Dual-Band-OSC (Hα+OIII) sauber trennen und als HOO-Palette neu kombinieren.
+    Hα (rot, ~656 nm) liegt im Rot-Kanal, OIII (teal, ~500 nm) in Grün/Blau. Beide werden
+    extrahiert und GETRENNT normalisiert (damit das oft schwächere OIII sichtbar wird), dann:
+    Rot = Hα, Grün+Blau = OIII → rote Hα-Nebel UND tealfarbene OIII-Bereiche statt alles rot.
+    Treu: nur Kanal-Trennung/-Skalierung, nichts erfunden."""
+    if bgr is None or bgr.ndim != 3 or bgr.shape[2] != 3:
+        return bgr
+    f = bgr.astype(np.float32)
+    b, g, r = f[..., 0], f[..., 1], f[..., 2]
+    ha = r
+    oiii = np.maximum(g, b)                    # OIII verteilt sich auf Grün und Blau
+
+    def _norm(x):
+        lo = float(np.quantile(x, 0.30)); hi = float(np.quantile(x, 0.999))
+        return np.clip((x - lo) / max(hi - lo, 1e-6), 0, 1)
+
+    ha_n, oiii_n = _norm(ha), _norm(oiii)
+    out = np.zeros_like(f)
+    out[..., 2] = ha_n                          # R = Hα (rot)
+    out[..., 1] = oiii_n                        # G = OIII
+    out[..., 0] = oiii_n                        # B = OIII  → G+B = teal
+    return out
+
+
 def color_balance(f, strength=1.0):
     """Farbkalibrierung fürs Anzeigen (gegen Rotstich von OSC + LP-Filter):
       1. Himmelshintergrund PRO KANAL neutralisieren (Sky -> neutrales Grau),

@@ -64,6 +64,10 @@ Mehrere Nahaufnahmen, bei denen der Fokus **von vorne nach hinten** wandert, wer
 - **Stack-Konfidenz** — nach jedem Stack ein Score (0–100) mit **echten Metriken**:
   Fokusbereich vollständig?, Halos, Ghosting, Schärfe — kein KI-Marketing, sondern Messwerte.
 
+> **Dual-Band/Schmalband-Filter (Hα+OIII):** Häkchen setzen (oder wird aus dem FITS-Header erkannt).
+> Dann werden Hα (rot) und OIII (teal) **getrennt** und als **HOO** neu kombiniert — rote Hα-Nebel
+> *und* tealfarbene OIII-Bereiche statt rot-dominiert. Ohne Filter/Breitband: aus lassen.
+
 ### 🌌 Astro
 Viele Aufnahmen desselben Himmelsausschnitts werden ausgerichtet und **gemittelt**, um
 **Rauschen zu senken**. Schlechte Aufnahmen werden automatisch aussortiert (mit Begründung).

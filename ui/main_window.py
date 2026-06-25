@@ -406,8 +406,9 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         ar.addWidget(self.astro_cosmetic, 12, 0, 1, 2)
         ar.addWidget(self.astro_dualband, 17, 0, 1, 3)
         ar.addWidget(help_btn("Anhaken, wenn mit Dual-Band-/Schmalband-Filter (Ha+OIII) aufgenommen: "
-                              "dann wird KEINE Grün-Entfernung gemacht, damit das OIII-Signal (Teal/"
-                              "Blaugrün) erhalten bleibt. Ohne Filter / Breitband: aus lassen."), 17, 3)
+                              "dann werden Hα (rot) und OIII (teal) GETRENNT und als HOO neu kombiniert "
+                              "(rote Hα-Nebel + tealfarbene OIII-Bereiche statt rot-dominiert). "
+                              "Ohne Filter / Breitband: aus lassen (dann Farbkalibrierung + Grün-Entfernung)."), 17, 3)
         ar.addWidget(QLabel(tr("Drizzle")), 12, 2); ar.addWidget(self.astro_drizzle, 12, 3)
         ar.addWidget(help_btn("Hot-/Cold-Pixel = entfernt helle/dunkle Einzelpixel (Sensor-Defekte) "
                               "vor dem Stacken. Drizzle 2× = doppelt hochskaliert integrieren "

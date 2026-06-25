@@ -627,6 +627,19 @@ class TestAstroColorAndStretch(unittest.TestCase):
         self.assertLess(out[:, 0:10, 1].mean(), 0.1)            # Grün runter (auf (R+B)/2=0)
         self.assertAlmostEqual(float(out[:, 10:20, 2].mean()), 1.0)  # Rot unangetastet
 
+    def test_dualband_hoo_ha_red_oiii_teal(self):
+        import numpy as np
+        import astro
+        img = np.zeros((4, 6, 3), "float32")
+        img[:, 0:3] = (0, 0, 1.0)   # BGR: nur Rot = Hα
+        img[:, 3:6] = (1.0, 1.0, 0)  # Blau+Grün = OIII
+        out = astro.dualband_hoo(img)
+        self.assertGreater(out[0, 0, 2], 0.5)   # Hα → Rot hoch
+        self.assertLess(out[0, 0, 1], 0.5)      # Hα → Grün niedrig
+        self.assertGreater(out[0, 4, 1], 0.5)   # OIII → Grün hoch (teal)
+        self.assertGreater(out[0, 4, 0], 0.5)   # OIII → Blau hoch (teal)
+        self.assertLess(out[0, 4, 2], 0.5)      # OIII → Rot niedrig
+
     def test_color_balance_strength_blend(self):
         import numpy as np
         import astro

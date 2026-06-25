@@ -1272,14 +1272,18 @@ def _astro_write(result, work_dir, paths, args, astro):
                       f"{p.get('rationale', '')}")
             except Exception as e:
                 print(f"  (KI-Aufbereitung übersprungen: {e})", file=sys.stderr)
-        # Grünstich-Entfernung (SCNR): bei Breitband/OSC sinnvoll, ABER bei Dual-Band/Schmalband
-        # (Ha+OIII) ist Grün echtes OIII-Signal -> dann NICHT entfernen, sonst bleibt nur Rot.
-        cb = astro.color_balance(result, color_s)
-        base_view = cb if dualband else astro.remove_green_cast(cb)
+        # Dual-Band: Hα/OIII trennen und als HOO neu kombinieren (rot + teal statt rot-dominiert).
+        # Breitband: Farbkalibrierung + Grünstich-Entfernung (SCNR).
+        if dualband:
+            base_view = astro.dualband_hoo(result)
+        else:
+            base_view = astro.remove_green_cast(astro.color_balance(result, color_s))
         view = astro.autostretch(base_view, strength=strength, saturation=sat, protect_core=protect)
     else:
-        cb = astro.color_balance(result, color_s)
-        view = cb if dualband else astro.remove_green_cast(cb)
+        if dualband:
+            view = astro.dualband_hoo(result)
+        else:
+            view = astro.remove_green_cast(astro.color_balance(result, color_s))
     out_view = os.path.join(stack_dir, f"{args.prefix}{base}_astro.jpg")
     cv2.imwrite(out_view, np.clip(view * 255, 0, 255).astype(np.uint8),
                 [int(cv2.IMWRITE_JPEG_QUALITY), 95])
