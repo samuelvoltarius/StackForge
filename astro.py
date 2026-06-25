@@ -278,21 +278,23 @@ def background_extract(f, strength=0.12):
     return np.clip(out, 0, 1)
 
 
-def color_balance(f):
+def color_balance(f, strength=1.0):
     """Farbkalibrierung fürs Anzeigen (gegen Rotstich von OSC + LP-Filter):
       1. Himmelshintergrund PRO KANAL neutralisieren (Sky -> neutrales Grau),
       2. Kanäle so abgleichen, dass helle, unklippte Referenzen (Sterne) ~neutral werden.
     So treten die echten Nebelfarben hervor (rotes Ha, blaue Reflexion, teal O-III) statt alles rot.
+    strength 0..1 blendet zwischen Original (0) und voller Kalibrierung (1) — einstellbar / KI-gesteuert.
     Wirkt nur aufs Vorschau-/JPG-Bild; die linearen Exports bleiben unangetastet."""
-    if f is None or f.ndim != 3 or f.shape[2] != 3:
+    if f is None or f.ndim != 3 or f.shape[2] != 3 or strength <= 0:
         return f
-    out = f.astype(np.float32).copy()
-    bg = np.array([np.quantile(out[..., c], 0.30) for c in range(3)], np.float32)
-    out = np.clip(out - bg.reshape(1, 1, 3), 0, None)          # Hintergrund neutral
+    src = f.astype(np.float32)
+    bg = np.array([np.quantile(src[..., c], 0.30) for c in range(3)], np.float32)
+    out = np.clip(src - bg.reshape(1, 1, 3), 0, None)          # Hintergrund neutral
     hi = np.array([np.quantile(out[..., c], 0.995) for c in range(3)], np.float32)
     scale = np.clip(hi.mean() / np.clip(hi, 1e-6, None), 0.4, 2.5).astype(np.float32)
-    out = out * scale.reshape(1, 1, 3)                          # Sterne ~neutral -> echte Farben
-    return np.clip(out, 0, None)
+    out = np.clip(out * scale.reshape(1, 1, 3), 0, None)        # Sterne ~neutral -> echte Farben
+    s = float(min(1.0, max(0.0, strength)))
+    return out if s >= 1.0 else np.clip(src * (1 - s) + out * s, 0, None)
 
 
 def autostretch(f, black_clip=0.0008, strength=14.0, protect_core=True, saturation=1.25):

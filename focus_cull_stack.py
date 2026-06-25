@@ -690,18 +690,21 @@ def ai_astro_stretch_params(view_bgr, endpoint, model, api_key=None):
         img = cv2.resize(img, (int(w * f), int(h * f)), interpolation=cv2.INTER_AREA)
     ok, buf = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
     b64 = base64.b64encode(buf.tobytes()).decode()
-    prompt = ("Du beurteilst ein gestapeltes Astrofoto (Deep-Sky). Ist das schwache Signal "
-              "(Nebel/Hintergrund) zu dunkel oder schon gut sichtbar? Schlage eine TREUE Aufhellung "
-              "vor. WICHTIG: der helle Kern und helle Sterne duerfen NICHT weiter aufgehellt werden "
-              "(kein Ausbleichen) — nur das schwache Signal anheben. "
-              "strength 5-30 (hoeher=heller, hebt Schwaches), saturation 1.0-1.6 (Farbe), "
+    prompt = ("Du beurteilst ein gestapeltes Astrofoto (Deep-Sky, Farbkamera). Beurteile Aufhellung "
+              "UND Farbe. WICHTIG: der helle Kern und helle Sterne duerfen NICHT weiter aufgehellt "
+              "werden (kein Ausbleichen) — nur das schwache Signal anheben. "
+              "Hat das Bild einen Farbstich (z. B. rot/gruen durch Lichtverschmutzung/OSC) oder ist "
+              "der Hintergrund schon neutral? color 0.0-1.0 = wie stark farb-kalibriert werden soll "
+              "(0=Farben sind ok, 1=starker Stich, voll neutralisieren). "
+              "strength 5-30 (hoeher=heller, hebt Schwaches), saturation 1.0-1.6 (Farb-Saettigung), "
               "protect_core true/false (Kern-Schutz, meist true). "
-              'Antworte NUR als JSON: {"strength":14,"saturation":1.25,"protect_core":true,'
-              '"rationale":"kurz"}')
+              'Antworte NUR als JSON: {"strength":14,"saturation":1.3,"color":1.0,'
+              '"protect_core":true,"rationale":"kurz"}')
     messages = [{"role": "user", "content": [
         {"type": "text", "text": prompt},
         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}]}]
-    out = {"strength": 14.0, "saturation": 1.25, "protect_core": True, "rationale": "(Standard)"}
+    out = {"strength": 14.0, "saturation": 1.3, "color": 1.0, "protect_core": True,
+           "rationale": "(Standard)"}
     txt = _vlm_chat(endpoint, model, messages, max_tokens=250, api_key=api_key)
     s, e = txt.find("{"), txt.rfind("}")
     if s >= 0 and e > s:
@@ -710,7 +713,8 @@ def ai_astro_stretch_params(view_bgr, endpoint, model, api_key=None):
         except Exception:
             pass
     out["strength"] = float(max(3.0, min(30.0, out.get("strength", 14.0))))
-    out["saturation"] = float(max(1.0, min(1.6, out.get("saturation", 1.25))))
+    out["saturation"] = float(max(1.0, min(1.6, out.get("saturation", 1.3))))
+    out["color"] = float(max(0.0, min(1.0, out.get("color", 1.0))))
     out["protect_core"] = bool(out.get("protect_core", True))
     return out
 
@@ -952,6 +956,12 @@ def main():
                     help="Astro: 2 = doppelt hochskaliert integrieren (feineres Sampling, „Drizzle-lite“)")
     ap.add_argument("--astro-stretch", action="store_true",
                     help="Astro: Vorschau-JPG asinh-gestreckt (Ergebnis-TIFF bleibt linear)")
+    ap.add_argument("--astro-bright", type=float, default=-1.0,
+                    help="Astro-Aufhellung 5–30 (-1 = Auto/KI). Höher = schwaches Signal stärker anheben")
+    ap.add_argument("--astro-saturation", type=float, default=-1.0,
+                    help="Astro-Farbsättigung 1.0–1.6 (-1 = Auto/KI)")
+    ap.add_argument("--astro-color", type=float, default=-1.0,
+                    help="Astro-Farbkalibrierung 0.0–1.0 (-1 = Auto/KI). 0 = aus, 1 = voll neutralisieren")
     ap.add_argument("--bg-extract", action="store_true",
                     help="Astro: Hintergrund/Gradient entfernen (Lichtverschmutzung)")
     ap.add_argument("--fits-out", action="store_true",
@@ -1202,24 +1212,38 @@ def _astro_write(result, work_dir, paths, args, astro):
             print(f"  FITS (32-bit linear): {outf}")
         except Exception as e:
             print(f"  FITS-Export übersprungen ({e})", file=sys.stderr)
-    # Farbkalibrierung (Hintergrund neutralisieren + Sterne neutral) nur fürs Vorschau-Bild —
-    # die linearen Exports oben bleiben faithful für GraXpert/StarNet/PixInsight.
-    view_src = astro.color_balance(result)
+    # Aufbereitung NUR fürs Vorschau-Bild (lineare Exports oben bleiben faithful für PixInsight).
+    # Drei Regler: Farbkalibrierung · Aufhellung · Sättigung. Reihenfolge: manuell (CLI/GUI) hat
+    # Vorrang, sonst schlägt die KI vor (wenn Server da), sonst Standardwerte.
+    man_color = float(getattr(args, "astro_color", -1.0))
+    man_bright = float(getattr(args, "astro_bright", -1.0))
+    man_sat = float(getattr(args, "astro_saturation", -1.0))
+    color_s = man_color if man_color >= 0 else 1.0
+    strength = man_bright if man_bright > 0 else 14.0
+    sat = man_sat if man_sat > 0 else 1.3
+    protect = True
     if args.astro_stretch:
-        view = astro.autostretch(view_src)
-        # KI schlägt Aufhellung fürs fertige Bild vor (Kern bleibt geschützt) — nur wenn Server da
         if getattr(args, "vlm_endpoint", None):
             try:
-                p = ai_astro_stretch_params(view, args.vlm_endpoint, args.vlm_model,
+                preview = astro.autostretch(astro.color_balance(result, color_s))
+                p = ai_astro_stretch_params(preview, args.vlm_endpoint, args.vlm_model,
                                             getattr(args, "vlm_key", None))
-                view = astro.autostretch(view_src, strength=p["strength"],
-                                         saturation=p["saturation"], protect_core=p["protect_core"])
-                print(f"  KI-Aufhellung: Stärke {p['strength']:.0f}, Sättigung {p['saturation']:.2f}"
-                      f", Kern-Schutz {'an' if p['protect_core'] else 'aus'} — {p.get('rationale', '')}")
+                if man_color < 0:
+                    color_s = p["color"]
+                if man_bright <= 0:
+                    strength = p["strength"]
+                if man_sat <= 0:
+                    sat = p["saturation"]
+                protect = p["protect_core"]
+                print(f"  KI-Aufbereitung: Farbkalibrierung {color_s:.2f}, Aufhellung {strength:.0f}, "
+                      f"Sättigung {sat:.2f}, Kern-Schutz {'an' if protect else 'aus'} — "
+                      f"{p.get('rationale', '')}")
             except Exception as e:
-                print(f"  (KI-Aufhellung übersprungen: {e})", file=sys.stderr)
+                print(f"  (KI-Aufbereitung übersprungen: {e})", file=sys.stderr)
+        view = astro.autostretch(astro.color_balance(result, color_s), strength=strength,
+                                 saturation=sat, protect_core=protect)
     else:
-        view = view_src
+        view = astro.color_balance(result, color_s)
     out_view = os.path.join(stack_dir, f"{args.prefix}{base}_astro.jpg")
     cv2.imwrite(out_view, np.clip(view * 255, 0, 255).astype(np.uint8),
                 [int(cv2.IMWRITE_JPEG_QUALITY), 95])

@@ -556,13 +556,22 @@ class TestAstroColorAndStretch(unittest.TestCase):
         import numpy as np
         import focus_cull_stack as F
         orig = F._vlm_chat
-        F._vlm_chat = lambda e, m, msg, **k: '{"strength":99,"saturation":3.0,"protect_core":false}'
+        F._vlm_chat = lambda e, m, msg, **k: '{"strength":99,"saturation":3.0,"color":5,"protect_core":false}'
         try:
             p = F.ai_astro_stretch_params((np.zeros((20, 20, 3)) + 0.2).astype("float32"), "x", "m")
         finally:
             F._vlm_chat = orig
         self.assertLessEqual(p["strength"], 30.0)
         self.assertLessEqual(p["saturation"], 1.6)
+        self.assertLessEqual(p["color"], 1.0)   # Farbkalibrierung 0..1 geklemmt
+
+    def test_color_balance_strength_blend(self):
+        import numpy as np
+        import astro
+        f = (np.random.rand(40, 50, 3)).astype("float32")
+        self.assertTrue(np.array_equal(astro.color_balance(f, 0.0), f))   # 0 = aus
+        out = astro.color_balance(f, 1.0)
+        self.assertEqual(out.shape, f.shape)
 
 
 class TestStreamedGhost(unittest.TestCase):

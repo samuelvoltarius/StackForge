@@ -28,6 +28,10 @@ class SettingsMixin:
             "reject_blurry": (self.reject_blurry.setChecked, self.reject_blurry.isChecked),
             "blurry_rel": (lambda v: self.blurry_rel.setValue(float(v)), self.blurry_rel.value),
             "astro_drizzle": (lambda v: self.astro_drizzle.setCurrentIndex(int(v)), self.astro_drizzle.currentIndex),
+            "astro_auto": (self.astro_auto.setChecked, self.astro_auto.isChecked),
+            "astro_bright": (lambda v: self.astro_bright.setValue(float(v)), self.astro_bright.value),
+            "astro_sat": (lambda v: self.astro_sat.setValue(float(v)), self.astro_sat.value),
+            "astro_color": (lambda v: self.astro_color.setValue(float(v)), self.astro_color.value),
             "hybrid_kind": (lambda v: self.hybrid_kind.setCurrentIndex(int(v)), self.hybrid_kind.currentIndex),
             "hybrid_group": (lambda v: self.hybrid_group.setValue(int(v)), self.hybrid_group.value),
             "longexp_mode": (lambda v: self.longexp_mode.setCurrentIndex(int(v)), self.longexp_mode.currentIndex),
@@ -52,6 +56,7 @@ class SettingsMixin:
                 for k in old.allKeys():
                     st.setValue(k, old.value(k))
         bool_keys = {"raw_dev", "raw_half", "vlm_on", "astro_fits", "astro_cosmetic", "astro_qc",
+                     "astro_auto",
                      "reject_blurry"}
         for k, (setter, _g) in self._settings_map().items():
             v = st.value(k)

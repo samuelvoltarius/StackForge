@@ -345,6 +345,19 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.astro_drizzle = QComboBox()
         self.astro_drizzle.addItem(tr("Aus"), 1)
         self.astro_drizzle.addItem(tr("2× (feineres Sampling)"), 2)
+        # Bild-Aufbereitung (Vorschau): Auto (KI/Standard) ODER manuelle Regler
+        self.astro_auto = QCheckBox(tr("Aufbereitung automatisch (KI / Standard)"))
+        self.astro_auto.setChecked(True)
+        self.astro_bright = QDoubleSpinBox(); self.astro_bright.setRange(5, 30)
+        self.astro_bright.setSingleStep(1); self.astro_bright.setValue(14)
+        self.astro_sat = QDoubleSpinBox(); self.astro_sat.setRange(1.0, 1.6)
+        self.astro_sat.setSingleStep(0.05); self.astro_sat.setValue(1.3)
+        self.astro_color = QDoubleSpinBox(); self.astro_color.setRange(0.0, 1.0)
+        self.astro_color.setSingleStep(0.1); self.astro_color.setValue(1.0)
+        self.astro_auto.toggled.connect(lambda on: [w.setEnabled(not on) for w in
+                                                    (self.astro_bright, self.astro_sat, self.astro_color)])
+        for w in (self.astro_bright, self.astro_sat, self.astro_color):
+            w.setEnabled(False)
         self.astro_dark = QLineEdit(); self.astro_dark.setPlaceholderText("optional: Dark-Ordner/-Datei")
         self.astro_flat = QLineEdit(); self.astro_flat.setPlaceholderText("optional: Flat-Ordner/-Datei")
         self.astro_bias = QLineEdit(); self.astro_bias.setPlaceholderText("optional: Bias-Ordner/-Datei")
@@ -392,6 +405,18 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "vor dem Stacken. Drizzle 2× = doppelt hochskaliert integrieren "
                               "(feineres Sampling bei unterabgetasteten Daten; „Drizzle-lite“, keine "
                               "echte Pixel-Fraktion wie PixInsight)."), 13, 3)
+        # Vorschau-Aufbereitung: Auto (KI/Standard) oder manuelle Regler
+        ar.addWidget(self.astro_auto, 14, 0, 1, 3)
+        ar.addWidget(help_btn("Steuert NUR das angezeigte/exportierte Vorschau-JPG (die linearen "
+                              "TIFF/FITS bleiben unangetastet). Auto = die KI (falls Server) bzw. "
+                              "sinnvolle Standardwerte bestimmen Aufhellung/Sättigung/Farbe. "
+                              "Zum Selbst-Einstellen den Haken entfernen."), 14, 3)
+        ar.addWidget(QLabel(tr("Aufhellung")), 15, 0); ar.addWidget(self.astro_bright, 15, 1)
+        ar.addWidget(QLabel(tr("Sättigung")), 15, 2); ar.addWidget(self.astro_sat, 15, 3)
+        ar.addWidget(QLabel(tr("Farbkalibrierung")), 16, 0); ar.addWidget(self.astro_color, 16, 1)
+        ar.addWidget(help_btn("Aufhellung 5–30 (höher = schwaches Signal stärker anheben, Kern "
+                              "bleibt geschützt). Sättigung 1.0–1.6. Farbkalibrierung 0–1 "
+                              "(0 = aus, 1 = Hintergrund voll neutralisieren gegen Farbstich)."), 16, 3)
         as_info = QLabel(tr("Astro: viele Aufnahmen desselben Himmelsausschnitts → Rauschen mitteln. "
                             "Empfohlen: 20–100+ Lights (mehr = weniger Rauschen) · Darks 15–30 · "
                             "Flats 15–30 · Bias 30+. Optional als Ordner/Datei angeben."))
@@ -1144,6 +1169,10 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                 args += ["--no-astro-qc"]
             if self.astro_stretch.isChecked():
                 args += ["--astro-stretch"]
+            if not self.astro_auto.isChecked():   # manuelle Aufbereitung statt Auto/KI
+                args += ["--astro-bright", str(self.astro_bright.value()),
+                         "--astro-saturation", str(self.astro_sat.value()),
+                         "--astro-color", str(self.astro_color.value())]
             if self.astro_bg.isChecked():
                 args += ["--bg-extract"]
             if self.astro_fits.isChecked():
