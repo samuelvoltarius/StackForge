@@ -320,48 +320,67 @@ def background_extract(f, strength=0.12):
     return np.clip(out, 0, 1)
 
 
-def dualband_hoo(bgr, unmix=0.20):
-    """Dual-Band-OSC (Hα+OIII) SAUBER in zwei Signale trennen und als HOO neu kombinieren.
-
-    Übersprechen beim OSC-Sensor: Hα (656 nm) trifft v. a. Rot, leckt etwas in Grün; OIII (500 nm)
-    trifft Grün+Blau, leckt etwas in Rot. Darum:
-      - Hα  = Rot-Kanal (sieht fast nur Hα),
-      - OIII = Blau-Kanal (sauberstes OIII; Grün ist am stärksten Hα-kontaminiert → nicht nehmen),
-      - Hintergrund pro Kanal abziehen (sauberes Signal über 0),
-      - leichte lineare ENTMISCHUNG (Hα := Hα − k·OIII, OIII := OIII − k·Hα) gegen Restkreuztalk,
-      - beide einzeln normalisieren, dann Rot=Hα, Grün+Blau=OIII → klar zwei Töne (rot + teal).
-    Treu: nur Kanal-Trennung/-Skalierung, nichts erfunden."""
-    if bgr is None or bgr.ndim != 3 or bgr.shape[2] != 3:
-        return bgr
+def _extract_ha_oiii(bgr, unmix=0.20):
+    """Hα und OIII aus Dual-Band-OSC SAUBER trennen (normalisiert, [0..1]).
+    Übersprechen beim OSC-Sensor: Hα (656 nm) → v. a. Rot (leckt etwas in Grün), OIII (500 nm) →
+    Grün+Blau (leckt etwas in Rot). Darum Hα=Rot, OIII=Blau (Grün am stärksten Hα-kontaminiert),
+    Hintergrund pro Kanal abziehen, leichte lineare Entmischung, einzeln normalisieren."""
     f = bgr.astype(np.float32)
     b, _, r = f[..., 0], f[..., 1], f[..., 2]
 
     def _sub_bg(x):
-        return np.clip(x - float(np.quantile(x, 0.30)), 0, None)   # Himmelshintergrund weg
+        return np.clip(x - float(np.quantile(x, 0.30)), 0, None)
 
     ha, oiii = _sub_bg(r), _sub_bg(b)
-    ha2 = np.clip(ha - unmix * oiii, 0, None)     # Restkreuztalk rausrechnen
+    ha2 = np.clip(ha - unmix * oiii, 0, None)
     oiii2 = np.clip(oiii - unmix * ha, 0, None)
 
     def _norm(x):
-        hi = float(np.quantile(x, 0.999))
-        return np.clip(x / max(hi, 1e-6), 0, 1)
+        return np.clip(x / max(float(np.quantile(x, 0.999)), 1e-6), 0, 1)
 
-    ha_n, oiii_n = _norm(ha2), _norm(oiii2)
-    out = np.zeros_like(f)
-    out[..., 2] = ha_n                          # R = Hα (rot)
-    out[..., 1] = oiii_n                        # G = OIII
-    out[..., 0] = oiii_n                        # B = OIII  → G+B = teal
-    # Stern-Entsättigung: NUR kleine, kontrastreiche Punkte (Sterne = Kontinuum) auf neutral ziehen
-    # → kein rot/teal-Saum (Bayer-R/B-Versatz + chromat. Aberration). Ausgedehnte Nebel bleiben farbig.
+    return _norm(ha2), _norm(oiii2)
+
+
+def _star_desat(out, ha_n, oiii_n):
+    """Kleine, kontrastreiche Punkte (Sterne = Kontinuum) neutral ziehen → kein Farbsaum
+    (Bayer-R/B-Versatz + chromat. Aberration). Ausgedehnte Nebel behalten ihre Farbe."""
     lum = np.maximum(ha_n, oiii_n).astype(np.float32)
     smooth = cv2.medianBlur((lum * 255).astype(np.uint8), 9).astype(np.float32) / 255.0
-    detail = np.clip(lum - smooth, 0, 1)                 # hoch an Sternen, ~0 im glatten Nebel
+    detail = np.clip(lum - smooth, 0, 1)
     star = np.clip(detail * 6.0, 0, 1) * np.clip((lum - 0.4) / 0.3, 0, 1)
     star = cv2.GaussianBlur(star, (0, 0), 1)[..., None]
     gray = out.mean(axis=2, keepdims=True)
-    out = out * (1 - 0.85 * star) + gray * (0.85 * star)
-    return np.clip(out, 0, 1)
+    return np.clip(out * (1 - 0.85 * star) + gray * (0.85 * star), 0, 1)
+
+
+def dualband_hoo(bgr, unmix=0.20):
+    """HOO-Palette: Rot=Hα, Grün+Blau=OIII → rote Hα-Nebel + tealfarbene OIII-Bereiche (zwei echte
+    Signale, datentreu). Sterne werden neutralisiert."""
+    if bgr is None or bgr.ndim != 3 or bgr.shape[2] != 3:
+        return bgr
+    ha_n, oiii_n = _extract_ha_oiii(bgr, unmix)
+    out = np.zeros((*ha_n.shape, 3), np.float32)
+    out[..., 2] = ha_n                          # R = Hα
+    out[..., 1] = oiii_n                        # G = OIII
+    out[..., 0] = oiii_n                        # B = OIII → teal
+    return _star_desat(out, ha_n, oiii_n)
+
+
+def dualband_sho(bgr, unmix=0.20):
+    """SYNTHETISCHE SHO-/Hubble-Palette aus Dual-Band (Ha+OIII) — gold + blau.
+    ⚠️ Es gibt KEIN echtes SII in Dual-Band-Daten; das SII wird aus Hα **synthetisiert** (gängige
+    Narrowband-Praxis). Mapping wie in den Anleitungen: Rot = SII(≈Hα), Grün = 0.8·Hα + 0.2·OIII,
+    Blau = OIII → Hα-Bereiche werden gold/gelb, OIII-Bereiche blau (Hubble-Look). Nicht
+    wissenschaftlich (SII gefaked), nur fürs Aussehen."""
+    if bgr is None or bgr.ndim != 3 or bgr.shape[2] != 3:
+        return bgr
+    ha_n, oiii_n = _extract_ha_oiii(bgr, unmix)
+    sii = ha_n                                  # synthetisches SII = Hα (kein echtes SII vorhanden)
+    out = np.zeros((*ha_n.shape, 3), np.float32)
+    out[..., 2] = sii                           # R = SII(synthetisch)
+    out[..., 1] = np.clip(0.8 * ha_n + 0.2 * oiii_n, 0, 1)  # G = Hα-dominiert → R+G = gold
+    out[..., 0] = oiii_n                         # B = OIII → blau
+    return _star_desat(out, ha_n, oiii_n)
 
 
 def color_balance(f, strength=1.0):

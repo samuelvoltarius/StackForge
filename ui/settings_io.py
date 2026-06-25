@@ -30,6 +30,7 @@ class SettingsMixin:
             "astro_drizzle": (lambda v: self.astro_drizzle.setCurrentIndex(int(v)), self.astro_drizzle.currentIndex),
             "astro_auto": (self.astro_auto.setChecked, self.astro_auto.isChecked),
             "astro_filter": (lambda v: self.astro_filter.setCurrentIndex(int(v)), self.astro_filter.currentIndex),
+            "astro_palette": (lambda v: self.astro_palette.setCurrentIndex(int(v)), self.astro_palette.currentIndex),
             "astro_bright": (lambda v: self.astro_bright.setValue(float(v)), self.astro_bright.value),
             "astro_sat": (lambda v: self.astro_sat.setValue(float(v)), self.astro_sat.value),
             "astro_color": (lambda v: self.astro_color.setValue(float(v)), self.astro_color.value),

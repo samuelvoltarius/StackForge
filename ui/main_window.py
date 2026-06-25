@@ -348,6 +348,9 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.astro_filter = QComboBox()
         self.astro_filter.addItem(tr("Kein Filter / Breitband"), "broadband")
         self.astro_filter.addItem(tr("Dual-Band Ha+OIII (z. B. SVBony SV220, L-eXtreme)"), "dual")
+        self.astro_palette = QComboBox()
+        self.astro_palette.addItem(tr("HOO (rot + teal, datentreu)"), "hoo")
+        self.astro_palette.addItem(tr("SHO synthetisch (Hubble gold + blau, SII gefaked)"), "sho")
         self.astro_drizzle = QComboBox()
         self.astro_drizzle.addItem(tr("Aus"), 1)
         self.astro_drizzle.addItem(tr("2× (feineres Sampling)"), 2)
@@ -412,6 +415,11 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "(rot) und OIII (teal) werden GETRENNT und als HOO neu kombiniert (rote "
                               "Hα-Nebel + tealfarbene OIII-Bereiche). Kein Filter/Breitband: "
                               "Farbkalibrierung + Grün-Entfernung."), 17, 3)
+        ar.addWidget(QLabel(tr("Palette")), 18, 0); ar.addWidget(self.astro_palette, 18, 1, 1, 2)
+        ar.addWidget(help_btn("Nur bei Dual-Band. HOO = datentreu (Hα rot, OIII teal). "
+                              "SHO synthetisch = Hubble-Look (gold + blau) — das SII wird aus Hα "
+                              "SYNTHETISIERT (Dual-Band enthält KEIN echtes SII), also nur fürs "
+                              "Aussehen, nicht wissenschaftlich."), 18, 3)
         ar.addWidget(QLabel(tr("Drizzle")), 12, 2); ar.addWidget(self.astro_drizzle, 12, 3)
         ar.addWidget(help_btn("Hot-/Cold-Pixel = entfernt helle/dunkle Einzelpixel (Sensor-Defekte) "
                               "vor dem Stacken. Drizzle 2× = doppelt hochskaliert integrieren "
@@ -1182,7 +1190,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
             if self.astro_stretch.isChecked():
                 args += ["--astro-stretch"]
             if self.astro_filter.currentData() == "dual":
-                args += ["--dualband"]
+                args += ["--dualband", "--palette", self.astro_palette.currentData()]
             if not self.astro_auto.isChecked():   # manuelle Aufbereitung statt Auto/KI
                 args += ["--astro-bright", str(self.astro_bright.value()),
                          "--astro-saturation", str(self.astro_sat.value()),

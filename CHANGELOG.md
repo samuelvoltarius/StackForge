@@ -4,6 +4,15 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.16.14] – 2026-06-26
+### Hinzugefügt (Dual-Band-Palette: synthetisches SHO)
+- **SHO/Hubble-Palette aus Dual-Band (gefaktes SII):** Neue Palette-Auswahl bei Dual-Band —
+  **HOO** (rot+teal, datentreu) oder **SHO synthetisch** (Hubble gold+blau). Da Dual-Band **kein
+  echtes SII** enthält, wird SII aus Hα **synthetisiert** (gängige Narrowband-Praxis): Rot=SII(≈Hα),
+  Grün=0.8·Hα+0.2·OIII, Blau=OIII → Hα-Bereiche werden gold, OIII blau. Klar als „synthetisch,
+  nicht wissenschaftlich" gekennzeichnet. GUI-Palette-Dropdown + CLI `--palette hoo|sho`. Sterne
+  bleiben entsättigt, Nebel farbig.
+
 ## [1.16.13] – 2026-06-26
 ### Geändert (Astro: Filter einstellbar)
 - **Filter-Auswahl im Astro-Modul** statt einfachem Häkchen: Dropdown **„Kein Filter / Breitband"**

@@ -971,6 +971,9 @@ def main():
                     help="Astro-Farbkalibrierung 0.0–1.0 (-1 = Auto/KI). 0 = aus, 1 = voll neutralisieren")
     ap.add_argument("--dualband", action="store_true",
                     help="Dual-Band/Schmalband-Filter (Ha+OIII): KEINE Grün-Entfernung — OIII (teal) bleibt erhalten")
+    ap.add_argument("--palette", choices=["hoo", "sho"], default="hoo",
+                    help="Dual-Band-Palette: hoo (rot+teal, datentreu) oder sho (Hubble gold+blau, "
+                         "SII aus Ha SYNTHETISIERT — kein echtes SII)")
     ap.add_argument("--bg-extract", action="store_true",
                     help="Astro: Hintergrund/Gradient entfernen (Lichtverschmutzung)")
     ap.add_argument("--fits-out", action="store_true",
@@ -1272,16 +1275,18 @@ def _astro_write(result, work_dir, paths, args, astro):
                       f"{p.get('rationale', '')}")
             except Exception as e:
                 print(f"  (KI-Aufbereitung übersprungen: {e})", file=sys.stderr)
-        # Dual-Band: Hα/OIII trennen und als HOO neu kombinieren (rot + teal statt rot-dominiert).
+        # Dual-Band: Hα/OIII trennen → HOO (rot+teal) oder synthetisches SHO (gold+blau, SII gefaked).
         # Breitband: Farbkalibrierung + Grünstich-Entfernung (SCNR).
         if dualband:
-            base_view = astro.dualband_hoo(result)
+            base_view = (astro.dualband_sho(result) if getattr(args, "palette", "hoo") == "sho"
+                         else astro.dualband_hoo(result))
         else:
             base_view = astro.remove_green_cast(astro.color_balance(result, color_s))
         view = astro.autostretch(base_view, strength=strength, saturation=sat, protect_core=protect)
     else:
         if dualband:
-            view = astro.dualband_hoo(result)
+            view = (astro.dualband_sho(result) if getattr(args, "palette", "hoo") == "sho"
+                    else astro.dualband_hoo(result))
         else:
             view = astro.remove_green_cast(astro.color_balance(result, color_s))
     out_view = os.path.join(stack_dir, f"{args.prefix}{base}_astro.jpg")
