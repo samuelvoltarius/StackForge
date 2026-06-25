@@ -46,6 +46,11 @@ Aus einer unscharfen Fokusreihe wird ein durchgehend scharfes Bild — und du si
 - **Fokus‑Intelligenz** (Makro): verwackelte Fotos automatisch aussortieren, **Reihen‑Analyse**
   (Aufnahmeanalyse + Stack‑Optimizer + **Fokus‑Map**), **DOF‑/Focus‑Bracketing‑Assistent** mit
   **EXIF‑Auslesen**, **Stack‑Konfidenz‑Score** mit echten Metriken.
+- **Entscheidungs‑Panel** neben dem Ergebnis: Konfidenz‑Score, „X von Y verwendet", **klickbare
+  Befunde** (ein Befund springt direkt zur passenden Ansicht — Ghosting → Geister‑Karte, Halos →
+  Retusche, Fokus‑Lücken → Fokus‑Map) und eine **„Warum diese Einstellungen?"**‑Begründung der Automatik.
+- **Schnell‑Export‑Chips** (📷 Instagram · 🌐 Web · 🖨 Druck) für Ein‑Klick‑Export direkt neben dem
+  Ergebnis; **„Weiter wo du warst"** auf dem Startbildschirm öffnet den letzten Ordner + Modul.
 - **Komplett per Tastatur bedienbar** (⌘O Ordner, ⌘↩ Automatik, ⌘1–4 Module, F1 = Kürzel‑Übersicht …).
 - **Vier Module, eine App:** 🔬 **Makro** (Fokus‑Stacking, mit Presets Produkte/Münzen/Food),
   🌌 **Astro** (Stern‑Stacking), 🌗 **Hybrid** (Mond‑/Sonnen‑**Mosaik** + **Fokus+Astro**:
@@ -137,8 +142,8 @@ automatisch in der Sprachauswahl.
 ./run_tests.sh        # oder: python3 -m unittest discover -s tests
 ```
 
-25 Engine‑Tests (Standardbibliothek, kein pytest nötig) decken Fokus‑Analyse, Langzeit, Astro,
-Stacker, Mosaik, i18n‑Vollständigkeit und einen GUI‑Smoke‑Test ab.
+26 Engine‑Tests (Standardbibliothek, kein pytest nötig) decken Fokus‑Analyse, Langzeit, Astro,
+Stacker, Mosaik, Export, i18n‑Vollständigkeit und einen GUI‑Smoke‑Test ab.
 
 ## Lizenz
 

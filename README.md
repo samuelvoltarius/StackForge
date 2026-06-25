@@ -46,6 +46,11 @@ A soft focus series becomes one fully sharp image — and you see *what* happens
 - **Focus intelligence** (macro): auto-drop shaky photos, **series analysis** (shot analysis +
   stack optimizer + **focus map**), **DOF / focus-bracketing assistant** with **EXIF read-out**,
   **stack confidence score** with real metrics.
+- **Decision panel** next to the result: confidence score, “X of Y frames used”, **clickable
+  findings** (a finding jumps straight to the matching view — ghosting → ghost map, halos →
+  retouch, focus gaps → focus map) and a **“Why these settings?”** rationale from the automatic.
+- **Quick-export chips** (📷 Instagram · 🌐 Web · 🖨 Print) for one-click export right next to the
+  result; **“Resume”** on the start screen reopens your last folder + module.
 - **Fully keyboard-operable** (⌘O folder, ⌘↩ automatic, ⌘1–4 modules, F1 = shortcut overview …).
 - **Four modules, one app:** 🔬 **Macro** (focus stacking, with Product/Coin/Food presets),
   🌌 **Astro** (star stacking), 🌗 **Hybrid** (Moon/Sun **mosaic** + **Focus+Astro**:
@@ -135,7 +140,7 @@ language menu automatically.
 ./run_tests.sh        # or: python3 -m unittest discover -s tests
 ```
 
-25 engine tests (standard library, no pytest needed) cover focus analysis, long exposure, astro,
+26 engine tests (standard library, no pytest needed) cover focus analysis, long exposure, astro,
 stacker, mosaic, export, i18n completeness and a GUI smoke test.
 
 ## License
