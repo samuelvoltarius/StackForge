@@ -162,10 +162,10 @@ After each run, in the result bar on the right:
 - **Batch:** one stack per subfolder. **Watch folder:** stack automatically once new photos
   finish copying. (Macro, Astro, Long exposure)
 
-EXIF **reading** (DOF assistant, AI context, module guessing) is **built‑in** (via `ExifRead`, no
-exiftool needed). **Copying** the full EXIF/metadata onto the output files, however, needs
-**`exiftool`** (`brew install exiftool`); without it only that copy step is skipped, everything
-else works normally.
+EXIF is **built‑in** and ships with the app — **no exiftool needed**: **reading** (DOF assistant,
+AI context, module guessing) via `ExifRead`, **copying onto JPEG outputs** via `piexif`
+(camera/lens/focal/aperture/ISO/exposure). Only for the **full** metadata on **16‑bit TIFF** is
+**`exiftool`** an optional bonus (`brew install exiftool`); it is preferred automatically when present.
 
 ---
 

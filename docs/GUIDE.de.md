@@ -164,10 +164,11 @@ Nach jedem Lauf rechts in der Ergebnis-Leiste:
 - **Batch:** je Unterordner ein eigener Stack. **Watch-Ordner:** automatisch stacken, sobald
   neue Fotos fertig kopiert sind. (Makro, Astro, Langzeit)
 
-EXIF **lesen** (für DOF-Rechner, KI-Kontext, Modul-Erkennung) ist **eingebaut** (via `ExifRead`,
-kein exiftool nötig). Das **Übertragen** der vollständigen EXIF/Metadaten auf die Ausgabedateien
-braucht hingegen **`exiftool`** (`brew install exiftool`); ohne wird nur dieser Kopierschritt
-übersprungen, alles andere läuft normal.
+EXIF ist **eingebaut** und wird mitgeliefert — **kein exiftool nötig**: **Lesen** (DOF-Rechner,
+KI-Kontext, Modul-Erkennung) via `ExifRead`, **Übernahme auf JPEG-Ausgaben** via `piexif`
+(Kamera/Objektiv/Brennweite/Blende/ISO/Belichtung). Nur für die **vollständigen** Metadaten auf
+**16-bit-TIFF** ist optional **`exiftool`** die Kür (`brew install exiftool`); wird automatisch
+bevorzugt, wenn vorhanden.
 
 ---
 

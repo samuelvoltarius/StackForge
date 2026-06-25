@@ -4,6 +4,15 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.14.3] – 2026-06-26
+### Hinzugefügt (selbst-enthaltend)
+- **EXIF-Übernahme ohne exiftool — mitgeliefert:** Kamera/Objektiv/Brennweite/Blende/ISO/Belichtung
+  werden jetzt **eingebaut** auf die **JPEG-Ausgaben** übertragen (via `piexif`; Quelle JPEG/TIFF
+  direkt oder RAW über die Kernfelder). Damit braucht der Installer **keine** Zusatz-Installation
+  mehr für die EXIF-Übernahme. exiftool wird weiter automatisch **bevorzugt**, wenn vorhanden, und
+  bleibt die Kür für vollständige Metadaten auf 16-bit-TIFF.
+- `piexif` als Abhängigkeit (requirements + CI + Installer-Bundle). +1 Test (40 gesamt).
+
 ## [1.14.2] – 2026-06-26
 ### Hinzugefügt / Geändert
 - **EXIF-Lesen ohne exiftool:** Brennweite/Blende/ISO/Belichtung (für DOF-Rechner, KI-Kontext,

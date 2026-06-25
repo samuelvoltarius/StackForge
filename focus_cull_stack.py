@@ -446,19 +446,94 @@ def apply_suggestion_to_args(args, sug):
 
 def copy_exif(src, targets):
     """EXIF/Metadaten (Kamera/Objektiv/Datum) vom Original auf die Ergebnisse übertragen.
-    Best effort via exiftool; ohne exiftool wird übersprungen."""
-    if not src or not os.path.isfile(src) or not shutil.which("exiftool"):
+    Bevorzugt exiftool (volle Abdeckung, alle Formate). Ohne exiftool: eingebauter
+    pure-Python-Fallback via piexif (JPEG-Ausgaben; Quelle JPEG/TIFF direkt oder RAW via ExifRead).
+    So ist die EXIF-Übernahme im Installer enthalten — keine Zusatz-Installation nötig."""
+    if not src or not os.path.isfile(src):
         return
     tg = [t for t in targets if t and os.path.isfile(t)]
     if not tg:
         return
+    if shutil.which("exiftool"):
+        try:
+            subprocess.run(["exiftool", "-overwrite_original", "-TagsFromFile", src, "-all:all",
+                            "-CommonIFD0", "-ICC_Profile", *tg],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+            print(f"  EXIF übernommen von {os.path.basename(src)} -> {len(tg)} Datei(en)")
+            return
+        except Exception as e:
+            print(f"  exiftool-Übernahme fehlgeschlagen ({e}) — versuche eingebauten Weg", file=sys.stderr)
+    _copy_exif_piexif(src, tg)
+
+
+def _copy_exif_piexif(src, targets):
+    """Eingebaute EXIF-Übernahme ohne exiftool (piexif). Schreibt in JPEG-Ausgaben; Quelle JPEG/TIFF
+    direkt, RAW über die Kernfelder aus ExifRead. Nicht-JPEG-Ziele werden (mangels robuster
+    Schreibunterstützung) übersprungen."""
     try:
-        subprocess.run(["exiftool", "-overwrite_original", "-TagsFromFile", src, "-all:all",
-                        "-CommonIFD0", "-ICC_Profile", *tg],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
-        print(f"  EXIF übernommen von {os.path.basename(src)} -> {len(tg)} Datei(en)")
+        import piexif
+    except Exception:
+        print("  EXIF-Übernahme übersprungen (weder exiftool noch piexif verfügbar)", file=sys.stderr)
+        return
+    try:
+        exif_bytes = _piexif_bytes_from(src, piexif)
     except Exception as e:
-        print(f"  EXIF-Übernahme übersprungen ({e})", file=sys.stderr)
+        print(f"  EXIF-Übernahme übersprungen (Quelle nicht lesbar: {e})", file=sys.stderr)
+        return
+    if not exif_bytes:
+        return
+    jpgs = [t for t in targets if os.path.splitext(t)[1].lower() in (".jpg", ".jpeg")]
+    skipped = len(targets) - len(jpgs)
+    done = 0
+    for t in jpgs:
+        try:
+            piexif.insert(exif_bytes, t)
+            done += 1
+        except Exception:
+            pass
+    msg = f"  EXIF (eingebaut) übernommen -> {done} JPEG"
+    if skipped:
+        msg += f"; {skipped} Nicht-JPEG übersprungen (für volle TIFF-Metadaten exiftool installieren)"
+    print(msg)
+
+
+def _piexif_bytes_from(src, piexif):
+    """piexif-EXIF-Bytes aus der Quelle bauen: JPEG/TIFF direkt laden, RAW aus ExifRead-Kernfeldern."""
+    ext = os.path.splitext(src)[1].lower()
+    if ext in (".jpg", ".jpeg", ".tif", ".tiff"):
+        try:
+            return piexif.dump(piexif.load(src))
+        except Exception:
+            pass
+    # RAW (oder Fallback): Kernfelder via ExifRead -> minimaler EXIF-Block
+    from fractions import Fraction
+    import focus_analysis as fa
+    opt = fa.read_exif_optics(src) or {}
+    expo, iso = fa._exif_expo_iso([src])
+
+    def ratio(x):
+        if x is None:
+            return None
+        fr = Fraction(float(x)).limit_denominator(10000)
+        return (fr.numerator, fr.denominator)
+
+    zeroth, exif = {}, {}
+    if opt.get("model"):
+        zeroth[piexif.ImageIFD.Model] = str(opt["model"]).encode("utf-8", "ignore")
+    zeroth[piexif.ImageIFD.Software] = b"ForgePix"
+    if opt.get("focal_mm"):
+        exif[piexif.ExifIFD.FocalLength] = ratio(opt["focal_mm"])
+    if opt.get("f_number"):
+        exif[piexif.ExifIFD.FNumber] = ratio(opt["f_number"])
+    if iso:
+        exif[piexif.ExifIFD.ISOSpeedRatings] = int(iso)
+    if expo:
+        exif[piexif.ExifIFD.ExposureTime] = ratio(expo)
+    if opt.get("lens"):
+        exif[piexif.ExifIFD.LensModel] = str(opt["lens"]).encode("utf-8", "ignore")
+    if not zeroth and not exif:
+        return None
+    return piexif.dump({"0th": zeroth, "Exif": exif, "1st": {}, "thumbnail": None, "GPS": {}})
 
 
 def copy_exif_to_dirs(src, *dirs):

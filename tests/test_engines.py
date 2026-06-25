@@ -437,6 +437,34 @@ class TestExifReadFallback(unittest.TestCase):
         self.assertTrue(r is None or isinstance(r, dict))
 
 
+class TestExifCopyPiexif(TmpCase):
+    def test_copy_exif_to_jpeg_without_exiftool(self):
+        try:
+            import piexif
+            import numpy as np
+            import cv2
+        except Exception:
+            self.skipTest("piexif/cv2 fehlt")
+        import shutil
+        import focus_cull_stack as F
+        src = os.path.join(self.d, "src.jpg")
+        dst = os.path.join(self.d, "out.jpg")
+        cv2.imwrite(src, (np.zeros((40, 40, 3)) + 100).astype("uint8"))
+        cv2.imwrite(dst, (np.zeros((20, 20, 3)) + 50).astype("uint8"))
+        exif = {"0th": {piexif.ImageIFD.Model: b"ILCE-7M5"},
+                "Exif": {piexif.ExifIFD.FNumber: (28, 10)}}
+        piexif.insert(piexif.dump(exif), src)
+        orig = shutil.which
+        F.shutil.which = lambda n: None if n == "exiftool" else orig(n)
+        try:
+            F.copy_exif(src, [dst])
+        finally:
+            F.shutil.which = orig
+        d = piexif.load(dst)
+        self.assertEqual(d["0th"].get(piexif.ImageIFD.Model), b"ILCE-7M5")
+        self.assertEqual(d["Exif"].get(piexif.ExifIFD.FNumber), (28, 10))
+
+
 class TestParallel(unittest.TestCase):
     def test_pmap_preserves_order(self):
         from parallel import pmap
