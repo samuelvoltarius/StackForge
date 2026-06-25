@@ -4,6 +4,13 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.9.3] – 2026-06-25
+### Hinzugefügt
+- **Klickbare Befunde** im Entscheidungs-Panel: Ein Befund springt per Klick zur passenden
+  Ansicht/Werkzeug — „Ghosting" → Geister-Karte, „Halos" → Retusche, „Fokus/Abdeckung" →
+  Fokus-Map. Der Link erscheint nur, wenn das Ziel verfügbar ist. Aus Diagnose wird ein Klick
+  zur Lösung.
+
 ## [1.9.2] – 2026-06-25
 ### Hinzugefügt
 - **Schnell-Export-Chips** im Entscheidungs-Panel: 📷 Instagram · 🌐 Web · 🖨 Druck als

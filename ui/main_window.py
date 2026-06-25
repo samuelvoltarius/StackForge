@@ -772,6 +772,7 @@ class MainWindow(QMainWindow):
         self.decision.setAlignment(Qt.AlignTop)
         self.decision.setStyleSheet("background:#1c1b22;border:1px solid #2a2836;border-radius:10px;"
                                     "padding:12px;color:#cfd2cd;")
+        self.decision.linkActivated.connect(self._panel_link)
         dsc = QScrollArea(); dsc.setWidgetResizable(True); dsc.setWidget(self.decision)
         dsc.setFrameShape(QFrame.NoFrame)
         rc.addWidget(dsc, 3)
@@ -1652,6 +1653,30 @@ class MainWindow(QMainWindow):
         except Exception:
             return None
 
+    def _finding_action(self, text):
+        """Passenden Klick-Link zu einem Befund liefern (springt zur richtigen Ansicht/Werkzeug)."""
+        low = (text or "").lower()
+        link = '  <a href="{href}" style="color:#7bd36a;text-decoration:none">→ {lbl}</a>'
+        if ("geist" in low or "ghost" in low) and self._ghostmap_path():
+            return link.format(href="view:ghost", lbl=tr("Geister-Karte"))
+        if "halo" in low and self.retouch_btn.isEnabled():
+            return link.format(href="tool:retouch", lbl=tr("Retusche"))
+        if ("fokus" in low or "schärf" in low or "unscharf" in low or "abdeckung" in low
+                or "lücke" in low) and self.view_focusmap.isEnabled():
+            return link.format(href="view:focusmap", lbl=tr("Fokus-Map"))
+        return ""
+
+    def _panel_link(self, href):
+        """Klick auf einen Link im Entscheidungs-Panel: zur passenden Ansicht/Werkzeug springen."""
+        if href == "view:ghost":
+            self._set_view("ghost")
+        elif href == "view:focusmap":
+            self._set_view("focusmap")
+        elif href == "view:result":
+            self._set_view("result")
+        elif href == "tool:retouch":
+            self.open_retouch()
+
     def _show_quality(self):
         """Stack-Qualität (aus quality.json) ins Log + ins rechte Entscheidungs-Panel schreiben."""
         qf = os.path.join(self._work_dir(), "quality.json")
@@ -1689,7 +1714,7 @@ class MainWindow(QMainWindow):
         if q and q.get("findings"):
             html.append("<b>" + tr("Befunde") + ":</b><ul style='margin:4px 0 0 -18px'>")
             for f in q["findings"]:
-                html.append(f"<li>{f}</li>")
+                html.append(f"<li>{f}{self._finding_action(f)}</li>")
             html.append("</ul>")
         # „Warum diese Einstellungen?" — Begründung der Automatik/KI (aus dem Log)
         rationale = getattr(self, "_last_rationale", "")
