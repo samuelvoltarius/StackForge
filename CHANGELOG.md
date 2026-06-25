@@ -4,6 +4,12 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.9.1] – 2026-06-25
+### Hinzugefügt
+- **„Warum diese Einstellungen?"** im Entscheidungs-Panel: Die Begründung der Automatik/KI
+  (Motiv, Vorschlag, Begründung) wird live aus dem Lauf-Log mitgeschnitten und rechts neben dem
+  Ergebnis angezeigt — die Software erklärt sichtbar, *warum* sie so entschieden hat.
+
 ## [1.9.0] – 2026-06-25
 ### Hinzugefügt
 - **3-Spalten-Layout (Lightroom-Stil):** links Einstellungen · Mitte großes Bild mit

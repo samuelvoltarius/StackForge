@@ -1316,7 +1316,7 @@ class MainWindow(QMainWindow):
         self.open_btn.setEnabled(False); self.retouch_btn.setEnabled(False)
         self.cmp_btn.setEnabled(False); self.openfolder_btn.setEnabled(False)
         self.export_btn.setEnabled(False); self.tools_btn.setEnabled(False)
-        self.result_path = None; self.before_path = None
+        self.result_path = None; self.before_path = None; self._last_rationale = ""
         self.progress.setRange(0, 0); self.progress.show()  # erst „beschäftigt“
         if auto:
             self._append("⚡ AUTOMATIK — die KI bestimmt alle Einstellungen, max. Qualität.\n")
@@ -1461,6 +1461,12 @@ class MainWindow(QMainWindow):
         for key, label in self._STATUS_PHASES:
             if key in clean:
                 self._set_status(tr(label), color="#d4a72c", bg="#2a2510")
+        # „Warum?"-Begründung aus dem Log mitschneiden (Motiv/Begründung/Vorschlag) fürs Panel
+        for line in clean.splitlines():
+            s = line.strip()
+            for key in ("Begründung:", "Vorschlag:", "Motiv:"):
+                if key in s:
+                    self._last_rationale = s.split(key, 1)[1].strip() or self._last_rationale
         if "Fertig. Ergebnis in:" in clean:  # auch im Watch-/Batch-Modus laufend aktualisieren
             self._show_result()
 
@@ -1669,6 +1675,11 @@ class MainWindow(QMainWindow):
             for f in q["findings"]:
                 html.append(f"<li>{f}</li>")
             html.append("</ul>")
+        # „Warum diese Einstellungen?" — Begründung der Automatik/KI (aus dem Log)
+        rationale = getattr(self, "_last_rationale", "")
+        if rationale:
+            html.append("<br><b style='color:#7bd36a'>" + tr("Warum diese Einstellungen?") + "</b>"
+                        f"<div style='color:#b9bdb6;font-size:12px;margin-top:3px'>{rationale}</div>")
         html.append("<br><span style='color:#7bd36a'>→ </span>" + tr("Bearbeiten (E) · Export (⌘E) · "
                     "Werkzeuge für Geister-Karte/Retusche."))
         self.decision.setText("".join(html) if html else tr("Ergebnis fertig."))
