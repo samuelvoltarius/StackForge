@@ -289,15 +289,29 @@ def frames_for_depth(total_depth_mm, step_mm):
 
 
 def read_exif_optics(path):
-    """Brennweite / Blende / Sensor / Fokusdistanz aus den EXIF-Daten lesen (via exiftool).
-    Gibt ein Dict zurück (Werte ggf. None) oder None, wenn exiftool fehlt/nichts lesbar ist.
-    Sensor wird aus dem 35-mm-Äquivalent (Crop-Faktor) abgeleitet."""
+    """Brennweite / Blende / Sensor / Fokusdistanz aus den EXIF-Daten lesen.
+    Bevorzugt exiftool (am vollständigsten), fällt sonst auf pure-Python `exifread` zurück —
+    EXIF-Lesen funktioniert also auch OHNE exiftool. None nur, wenn beides nichts liefert."""
     import shutil as _sh
+    if _sh.which("exiftool"):
+        d = _optics_via_exiftool(path)
+        if d is not None:
+            return d
+    return _optics_via_exifread(path)
+
+
+def _sensor_from(focal, f35):
+    if focal and f35 and focal > 0:
+        crop = f35 / focal
+        return ("fullframe" if crop < 1.2 else "apsc" if crop < 1.8
+                else "mft" if crop < 2.3 else "fullframe")
+    return "fullframe"
+
+
+def _optics_via_exiftool(path):
     import subprocess
     import json as _json
     import re
-    if not _sh.which("exiftool"):
-        return None
     tags = ["-FocalLength", "-FNumber", "-Aperture", "-Model", "-Make",
             "-FocalLengthIn35mmFormat", "-FocusDistance", "-SubjectDistance",
             "-FocusDistance2", "-LensModel"]
@@ -319,13 +333,47 @@ def read_exif_optics(path):
     f35 = num(d.get("FocalLengthIn35mmFormat"))
     dist = (num(d.get("FocusDistance")) or num(d.get("SubjectDistance"))
             or num(d.get("FocusDistance2")))
-    sensor = "fullframe"
-    if focal and f35 and focal > 0:
-        crop = f35 / focal
-        sensor = ("fullframe" if crop < 1.2 else "apsc" if crop < 1.8
-                  else "mft" if crop < 2.3 else "fullframe")
-    return {"focal_mm": focal, "f_number": fn, "distance_m": dist, "sensor": sensor,
+    return {"focal_mm": focal, "f_number": fn, "distance_m": dist,
+            "sensor": _sensor_from(focal, f35),
             "model": d.get("Model"), "lens": d.get("LensModel")}
+
+
+def _exr_float(tag):
+    """exifread-Tag -> float (behandelt Ratio wie 28/10=2.8, 1/200=0.005)."""
+    if tag is None:
+        return None
+    try:
+        v = tag.values[0]
+        if hasattr(v, "num"):                       # Ratio
+            return float(v.num) / float(v.den or 1)
+        return float(v)
+    except Exception:
+        import re
+        m = re.search(r"[\d.]+", str(tag))
+        return float(m.group()) if m else None
+
+
+def _optics_via_exifread(path):
+    """Pure-Python-EXIF (kein exiftool nötig). Liest JPEG + TIFF-basierte RAWs (ARW/NEF/CR2/DNG …)."""
+    try:
+        import exifread
+    except Exception:
+        return None
+    try:
+        with open(path, "rb") as f:
+            t = exifread.process_file(f, details=False)
+    except Exception:
+        return None
+    if not t:
+        return None
+    focal = _exr_float(t.get("EXIF FocalLength"))
+    fn = _exr_float(t.get("EXIF FNumber"))
+    f35 = _exr_float(t.get("EXIF FocalLengthIn35mmFilm"))
+    dist = _exr_float(t.get("EXIF SubjectDistance"))
+    model = str(t.get("Image Model")) if t.get("Image Model") else None
+    lens = str(t.get("EXIF LensModel")) if t.get("EXIF LensModel") else None
+    return {"focal_mm": focal, "f_number": fn, "distance_m": dist,
+            "sensor": _sensor_from(focal, f35), "model": model, "lens": lens}
 
 
 def guess_module(folder):
@@ -358,34 +406,47 @@ def guess_module(folder):
 
 
 def _exif_expo_iso(paths):
-    """Median-Belichtungszeit (s) und -ISO einer kleinen Frame-Stichprobe via EINEM exiftool-Aufruf.
-    (None, None) wenn exiftool fehlt oder nichts lesbar ist."""
+    """Median-Belichtungszeit (s) und -ISO einer kleinen Frame-Stichprobe.
+    Bevorzugt exiftool (ein Aufruf), fällt sonst auf pure-Python `exifread` zurück."""
     import shutil as _sh
-    import subprocess
-    import json as _json
-    import re
     import statistics
-    if not paths or not _sh.which("exiftool"):
-        return None, None
-    try:
-        out = subprocess.run(["exiftool", "-json", "-n", "-ExposureTime", "-ISO", *paths],
-                             capture_output=True, text=True, timeout=10)
-        data = _json.loads(out.stdout)
-    except Exception:
+    if not paths:
         return None, None
     exps, isos = [], []
-    for d in data:
-        e = d.get("ExposureTime")
-        s = d.get("ISO")
+    if _sh.which("exiftool"):
+        import subprocess
+        import json as _json
+        import re
         try:
-            if e is not None:
-                exps.append(float(e))
-        except (TypeError, ValueError):
+            out = subprocess.run(["exiftool", "-json", "-n", "-ExposureTime", "-ISO", *paths],
+                                 capture_output=True, text=True, timeout=10)
+            for d in _json.loads(out.stdout):
+                e, s = d.get("ExposureTime"), d.get("ISO")
+                try:
+                    if e is not None:
+                        exps.append(float(e))
+                except (TypeError, ValueError):
+                    pass
+                try:
+                    if s is not None:
+                        isos.append(float(re.search(r"[\d.]+", str(s)).group()))
+                except (TypeError, ValueError, AttributeError):
+                    pass
+        except Exception:
             pass
+    if not exps and not isos:                       # Fallback ohne exiftool
         try:
-            if s is not None:
-                isos.append(float(re.search(r"[\d.]+", str(s)).group()))
-        except (TypeError, ValueError, AttributeError):
+            import exifread
+            for p in paths:
+                with open(p, "rb") as f:
+                    t = exifread.process_file(f, details=False)
+                e = _exr_float(t.get("EXIF ExposureTime"))
+                s = _exr_float(t.get("EXIF ISOSpeedRatings"))
+                if e is not None:
+                    exps.append(e)
+                if s is not None:
+                    isos.append(s)
+        except Exception:
             pass
     return (statistics.median(exps) if exps else None,
             statistics.median(isos) if isos else None)

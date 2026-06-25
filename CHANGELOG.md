@@ -4,6 +4,18 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.14.2] – 2026-06-26
+### Hinzugefügt / Geändert
+- **EXIF-Lesen ohne exiftool:** Brennweite/Blende/ISO/Belichtung (für DOF-Rechner, KI-Kontext,
+  Modul-Erkennung) werden jetzt **eingebaut** via `ExifRead` (pure-Python, JPEG **und** RAW)
+  gelesen — exiftool wird dafür **nicht mehr** gebraucht. exiftool bleibt nur noch für das
+  **Übertragen** der vollständigen Metadaten auf die Ausgabedateien nötig (klar so dokumentiert).
+  exiftool wird weiter bevorzugt, wenn vorhanden; sonst greift automatisch der Fallback.
+- `ExifRead` als Abhängigkeit (requirements + CI + Installer-Bundle). +2 Tests (39 gesamt).
+### Repo
+- GitHub-Themen (Topics) gesetzt: focus-stacking, astrophotography, computational-photography u. a.
+  (Repo-Beschreibung steht bereits korrekt auf „ForgePix (Beta) …").
+
 ## [1.14.1] – 2026-06-26
 ### Geändert (Ehrlichkeit/Claim-Check + Beta)
 - **Claim-Check der Doku:** Abhängigkeiten klar markiert — **EXIF-Übernahme/„Aus Foto lesen"

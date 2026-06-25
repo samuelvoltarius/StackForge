@@ -57,9 +57,9 @@ Great for products, coins, insects, food.
   sharpest details come from (blue = early, red = late) — shows gaps at a glance.
 - **📐 DOF calculator / focus-bracketing assistant** — enter sensor, focal length, aperture and
   magnification (e.g. 1:1) or distance → depth of field per frame, recommended **step size** and
-  **number of frames**. **📷 Read from photo (EXIF)** *(needs `exiftool`)*: pick a photo → focal
-  length, aperture, sensor and (if present) focus distance are filled in automatically. Perfect for
-  A7V + 105mm macro.
+  **number of frames**. **📷 Read from photo (EXIF)** *(built‑in — no exiftool needed)*: pick a
+  photo → focal length, aperture, sensor and (if present) focus distance are filled in automatically
+  (reads JPEG **and** RAW via `ExifRead`). Perfect for A7V + 105mm macro.
 - **Stack confidence** — after each stack a score (0–100) with **real metrics**: focus range
   complete?, halos, ghosting, sharpness — not AI marketing, but measurements.
 
@@ -162,9 +162,10 @@ After each run, in the result bar on the right:
 - **Batch:** one stack per subfolder. **Watch folder:** stack automatically once new photos
   finish copying. (Macro, Astro, Long exposure)
 
-EXIF (camera/lens/date) is carried over to all outputs — **if `exiftool` is installed**
-(`brew install exiftool`). Without exiftool, EXIF copy (and “📷 Read from photo”) is simply
-skipped; everything else works normally.
+EXIF **reading** (DOF assistant, AI context, module guessing) is **built‑in** (via `ExifRead`, no
+exiftool needed). **Copying** the full EXIF/metadata onto the output files, however, needs
+**`exiftool`** (`brew install exiftool`); without it only that copy step is skipped, everything
+else works normally.
 
 ---
 

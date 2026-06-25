@@ -58,9 +58,9 @@ Mehrere Nahaufnahmen, bei denen der Fokus **von vorne nach hinten** wandert, wer
   schärfsten Details stammen (blau = frühe, rot = späte Aufnahmen) — zeigt Lücken auf einen Blick.
 - **📐 DOF-Rechner / Focus-Bracketing-Assistent** — Sensor, Brennweite, Blende und Abbildung
   (z. B. 1:1) oder Distanz → Schärfentiefe je Bild, empfohlene **Schrittweite** und **benötigte
-  Bildanzahl**. **📷 Aus Foto lesen (EXIF)** *(braucht `exiftool`)*: ein Foto wählen → Brennweite,
-  Blende, Sensor und (falls vorhanden) Fokusdistanz werden automatisch übernommen. Perfekt für
-  A7V + 105 mm Makro.
+  Bildanzahl**. **📷 Aus Foto lesen (EXIF)** *(eingebaut — kein exiftool nötig)*: ein Foto wählen →
+  Brennweite, Blende, Sensor und (falls vorhanden) Fokusdistanz werden automatisch übernommen
+  (liest JPEG **und** RAW via `ExifRead`). Perfekt für A7V + 105 mm Makro.
 - **Stack-Konfidenz** — nach jedem Stack ein Score (0–100) mit **echten Metriken**:
   Fokusbereich vollständig?, Halos, Ghosting, Schärfe — kein KI-Marketing, sondern Messwerte.
 
@@ -164,9 +164,10 @@ Nach jedem Lauf rechts in der Ergebnis-Leiste:
 - **Batch:** je Unterordner ein eigener Stack. **Watch-Ordner:** automatisch stacken, sobald
   neue Fotos fertig kopiert sind. (Makro, Astro, Langzeit)
 
-EXIF (Kamera/Objektiv/Datum) wird auf alle Ausgaben übernommen — **sofern `exiftool` installiert
-ist** (`brew install exiftool`). Ohne exiftool wird die EXIF-Übernahme (und „📷 Aus Foto lesen")
-einfach übersprungen, alles andere läuft normal.
+EXIF **lesen** (für DOF-Rechner, KI-Kontext, Modul-Erkennung) ist **eingebaut** (via `ExifRead`,
+kein exiftool nötig). Das **Übertragen** der vollständigen EXIF/Metadaten auf die Ausgabedateien
+braucht hingegen **`exiftool`** (`brew install exiftool`); ohne wird nur dieser Kopierschritt
+übersprungen, alles andere läuft normal.
 
 ---
 

@@ -414,6 +414,29 @@ class TestGhostAndSubsAI(unittest.TestCase):
         return tempfile.mkdtemp()
 
 
+class TestExifReadFallback(unittest.TestCase):
+    def test_ratio_parsing(self):
+        from focus_analysis import _exr_float
+
+        class _Ratio:
+            def __init__(self, n, d):
+                self.num, self.den = n, d
+
+        class _Tag:
+            def __init__(self, v):
+                self.values = [v]
+        self.assertAlmostEqual(_exr_float(_Tag(_Ratio(28, 10))), 2.8)   # FNumber 2.8
+        self.assertAlmostEqual(_exr_float(_Tag(_Ratio(1, 200))), 0.005)  # 1/200 s
+        self.assertAlmostEqual(_exr_float(_Tag(105)), 105.0)             # plain int
+        self.assertIsNone(_exr_float(None))
+
+    def test_read_exif_optics_never_crashes(self):
+        import focus_analysis as fa
+        # Auf einer Nicht-Bild-Datei: darf nicht crashen, gibt Dict oder None
+        r = fa.read_exif_optics(__file__)
+        self.assertTrue(r is None or isinstance(r, dict))
+
+
 class TestParallel(unittest.TestCase):
     def test_pmap_preserves_order(self):
         from parallel import pmap
