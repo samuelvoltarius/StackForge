@@ -4,6 +4,13 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.16.13] – 2026-06-26
+### Geändert (Astro: Filter einstellbar)
+- **Filter-Auswahl im Astro-Modul** statt einfachem Häkchen: Dropdown **„Kein Filter / Breitband"**
+  vs. **„Dual-Band Ha+OIII (z. B. SVBony SV220, L-eXtreme)"**. Wird zusätzlich automatisch aus dem
+  FITS-Header erkannt. Dual-Band → HOO-Verarbeitung (rot+teal), Breitband → Farbkalibrierung+SCNR.
+  Einstellung wird gemerkt.
+
 ## [1.16.12] – 2026-06-26
 ### Hinzugefügt / Geändert (Astro-Qualität)
 - **Stern-basierte Registrierung:** Bei „Translation + Feldrotation" werden jetzt echte

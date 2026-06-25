@@ -345,7 +345,9 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         # (verschmierte/längliche Sterne); funktioniert auch bei reiner Nachführung. Sicherer Default.
         self.astro_cosmetic = QCheckBox(tr("Hot-/Cold-Pixel entfernen"))
         self.astro_cosmetic.setChecked(True)  # Standard an: entfernt farbige Hot-Pixel-Punkte
-        self.astro_dualband = QCheckBox(tr("Dual-Band/Schmalband-Filter (Ha+OIII)"))
+        self.astro_filter = QComboBox()
+        self.astro_filter.addItem(tr("Kein Filter / Breitband"), "broadband")
+        self.astro_filter.addItem(tr("Dual-Band Ha+OIII (z. B. SVBony SV220, L-eXtreme)"), "dual")
         self.astro_drizzle = QComboBox()
         self.astro_drizzle.addItem(tr("Aus"), 1)
         self.astro_drizzle.addItem(tr("2× (feineres Sampling)"), 2)
@@ -404,11 +406,12 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "Translation + Feldrotation = richtet auch gedrehte Felder aus "
                               "(Alt-Az-Montierung ohne Rotator, lange Sessions) — per Stern-Merkmalen."), 11, 3)
         ar.addWidget(self.astro_cosmetic, 12, 0, 1, 2)
-        ar.addWidget(self.astro_dualband, 17, 0, 1, 3)
-        ar.addWidget(help_btn("Anhaken, wenn mit Dual-Band-/Schmalband-Filter (Ha+OIII) aufgenommen: "
-                              "dann werden Hα (rot) und OIII (teal) GETRENNT und als HOO neu kombiniert "
-                              "(rote Hα-Nebel + tealfarbene OIII-Bereiche statt rot-dominiert). "
-                              "Ohne Filter / Breitband: aus lassen (dann Farbkalibrierung + Grün-Entfernung)."), 17, 3)
+        ar.addWidget(QLabel(tr("Filter")), 17, 0); ar.addWidget(self.astro_filter, 17, 1, 1, 2)
+        ar.addWidget(help_btn("Aufnahme-Filter wählen (oder wird aus dem FITS-Header erkannt). "
+                              "Dual-Band/Schmalband (Ha+OIII), z. B. SVBony SV220 oder L-eXtreme: Hα "
+                              "(rot) und OIII (teal) werden GETRENNT und als HOO neu kombiniert (rote "
+                              "Hα-Nebel + tealfarbene OIII-Bereiche). Kein Filter/Breitband: "
+                              "Farbkalibrierung + Grün-Entfernung."), 17, 3)
         ar.addWidget(QLabel(tr("Drizzle")), 12, 2); ar.addWidget(self.astro_drizzle, 12, 3)
         ar.addWidget(help_btn("Hot-/Cold-Pixel = entfernt helle/dunkle Einzelpixel (Sensor-Defekte) "
                               "vor dem Stacken. Drizzle 2× = doppelt hochskaliert integrieren "
@@ -1178,7 +1181,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                 args += ["--no-astro-qc"]
             if self.astro_stretch.isChecked():
                 args += ["--astro-stretch"]
-            if self.astro_dualband.isChecked():
+            if self.astro_filter.currentData() == "dual":
                 args += ["--dualband"]
             if not self.astro_auto.isChecked():   # manuelle Aufbereitung statt Auto/KI
                 args += ["--astro-bright", str(self.astro_bright.value()),
