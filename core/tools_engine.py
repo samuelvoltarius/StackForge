@@ -106,6 +106,33 @@ def run_starnet(infile, outfile=None, path=None, log=print):
     raise RuntimeError("StarNet++ lieferte kein Ergebnis. Log-Ende:\n" + tail)
 
 
+def run_graxpert_enhance(infile, outfile=None, path=None, denoise=True, log=print):
+    """One-Click-„Veredeln" mit GraXpert: erst Hintergrund-/Gradienten-Extraktion, dann
+    (optional) KI-Entrauschung — der übliche Schritt nach dem Stacken. Gibt den End-Pfad zurück.
+    Wirft RuntimeError, wenn GraXpert nicht gefunden wird (GUI zeigt dann einen Hinweis)."""
+    if not find_graxpert(path):
+        raise RuntimeError("GraXpert nicht gefunden")
+    b, e = os.path.splitext(infile)
+    e = e or ".tif"
+    bg = run_graxpert(infile, f"{b}_graxpert{e}", op="background-extraction", path=path, log=log)
+    if not denoise:
+        return bg
+    try:
+        return run_graxpert(bg, f"{b}_veredelt{e}", op="denoising", path=path, log=log)
+    except Exception as ex:                      # Entrauschen optional — Gradient-Ergebnis behalten
+        log(f"  Entrauschen übersprungen ({ex}) — Hintergrund-Ergebnis bleibt.")
+        return bg
+
+
+# Kurz-Infos für den „nicht installiert"-Hinweis in der GUI (frei + offizielle Quelle).
+TOOL_INFO = {
+    "graxpert": ("GraXpert", "https://www.graxpert.com",
+                 "kostenlos & quelloffen — Hintergrund-/Gradienten-Entfernung und KI-Entrauschung"),
+    "starnet":  ("StarNet++", "https://www.starnetastro.com",
+                 "kostenlos — entfernt Sterne (starless) für getrennte Nebel-/Stern-Bearbeitung"),
+}
+
+
 def _newest_sibling(expected, infile):
     """Falls das Tool einen leicht abweichenden Dateinamen schreibt: jüngste passende
     Bilddatei im selben Ordner finden, die neuer ist als die Eingabe."""

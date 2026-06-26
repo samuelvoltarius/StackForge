@@ -74,6 +74,10 @@ are dropped automatically (with reasons).
 - **Extras:** hot/cold-pixel correction, drizzle 2× (finer sampling), background/gradient
   removal, sub-grading (FWHM/star count/guiding/clouds/trails).
 - **Output:** linear 16-bit TIFF + 32-bit linear + optional FITS — ready for GraXpert/StarNet/PixInsight.
+- **✨ Enhance (one click):** sends the finished linear image through **GraXpert** (gradient removal
+  + AI denoising) and reimports it automatically — the usual post-stack step, without switching tools.
+  GraXpert is free (graxpert.com); if it isn't installed, ForgePix tells you where to get it and shows
+  the finished linear file to open by hand. Paths under **Setup → External tools** (or auto-detected).
 
 > **Dual-band / narrowband filter (Hα+OIII):** Set **Filter** to *Dual-band* (e.g. SVBony SV220,
 > Optolong L-eXtreme) — or it's auto-detected from the FITS `FILTER` header. Hα and OIII are then

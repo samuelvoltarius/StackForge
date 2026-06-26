@@ -784,5 +784,25 @@ class TestParallel(unittest.TestCase):
         self.assertLessEqual(cpu_workers(memory_heavy=True), cpu_workers())
 
 
+class TestToolsEngine(unittest.TestCase):
+    def test_tool_info_vorhanden(self):
+        import tools_engine
+        self.assertIn("graxpert", tools_engine.TOOL_INFO)
+        self.assertIn("starnet", tools_engine.TOOL_INFO)
+        name, url, desc = tools_engine.TOOL_INFO["graxpert"]
+        self.assertTrue(url.startswith("http"))
+
+    def test_enhance_raises_ohne_graxpert(self):
+        # Ohne installiertes GraXpert muss die Veredeln-Funktion sauber abbrechen (GUI zeigt Hinweis).
+        import tools_engine
+        orig = tools_engine.find_graxpert
+        tools_engine.find_graxpert = lambda *a, **k: None
+        try:
+            with self.assertRaises(RuntimeError):
+                tools_engine.run_graxpert_enhance("/tmp/does_not_exist.tif")
+        finally:
+            tools_engine.find_graxpert = orig
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

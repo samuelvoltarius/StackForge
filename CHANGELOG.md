@@ -4,6 +4,23 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.17.0] – 2026-06-30
+### Neu — One-Click „✨ Veredeln" (GraXpert-Anbindung)
+- **Veredeln-Button in der Ergebnis-Leiste (Astro/Langzeit/Hybrid):** schickt das fertige
+  32-bit-Linearbild mit EINEM Klick durch **GraXpert** — erst Gradienten-/Hintergrund-Extraktion,
+  dann KI-Entrauschung — und reimportiert das Ergebnis automatisch. Der übliche Schritt nach dem
+  Stacken, ohne Tool-Wechsel. (`tools_engine.run_graxpert_enhance`.)
+- **Freundlicher Hinweis statt Fehler, wenn ein Tool fehlt:** ist GraXpert (oder StarNet) nicht
+  installiert, erklärt ForgePix in einem Dialog, was das Tool macht und wo es das **kostenlos** gibt
+  (graxpert.com / starnetastro.com), und bietet an, das fertige Linearbild im Dateimanager zu zeigen.
+  Pfade unter **Setup → Externe Tools** (oder Auto-Erkennung). Gilt auch für die Einzel-Aufrufe
+  GraXpert/StarNet im Werkzeuge-Menü.
+- Hinweis: RC-Astro (BlurXTerminator/StarX/NoiseX) sind proprietäre KI-Modelle und lassen sich nicht
+  nachbauen — ForgePix bindet die freien Tools GraXpert/StarNet ein.
+
+### Tests
+- +2 Tests für die Tool-Anbindung (Hinweis-Infos, sauberer Abbruch ohne GraXpert). 59 grün.
+
 ## [1.16.19] – 2026-06-29
 ### Behoben (Astro: türkise Sterne neutralisiert, Farben ruhiger)
 - **Sterne leuchteten knallig cyan/türkis.** In Schmalband ist Sternfarbe ein Artefakt (durchs

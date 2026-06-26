@@ -127,6 +127,7 @@ class ResultMixin:
                or getattr(self, "is_hybrid", False))
         for b in (self.graxpert_btn, self.starnet_btn):
             b.setVisible(sky); b.setEnabled(sky)
+        self.enhance_btn.setVisible(sky); self.enhance_btn.setEnabled(sky)   # One-Click „Veredeln"
         # Retusche nur wo es Sinn macht (Fokus-Stacking): Makro + Hybrid Fokus+Astro
         fa = getattr(self, "is_hybrid", False) and self.hybrid_kind.currentData() == "fa"
         retouch_ok = (not getattr(self, "is_astro", False)

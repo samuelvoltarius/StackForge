@@ -771,6 +771,14 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.export_btn.setToolTip(tr("Exportieren: Ziele, Schärfung, Photoshop-Ebenen, 16-bit (⌘E)."))
         self.export_btn.setEnabled(False); self.export_btn.clicked.connect(self.export_result)
 
+        # One-Click „Veredeln": GraXpert (Gradient + Entrauschen) auf das lineare Ergebnis —
+        # der übliche Schritt nach dem Stacken. Nur bei Himmels-Modulen sinnvoll.
+        self.enhance_btn = QPushButton(tr("✨  Veredeln"))
+        self.enhance_btn.setToolTip(tr("Ein Klick: GraXpert entfernt Gradienten und entrauscht das "
+                                       "Bild (kostenloses Tool). Nicht installiert? ForgePix sagt dir, "
+                                       "wo es das gibt."))
+        self.enhance_btn.setEnabled(False); self.enhance_btn.clicked.connect(self.enhance_result)
+
         self.tools_btn = QToolButton()
         self.tools_btn.setText(tr("🛠  Werkzeuge  ▾")); self.tools_btn.setPopupMode(QToolButton.InstantPopup)
         self.tools_btn.setEnabled(False)
@@ -790,7 +798,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.send_btn = _act(tr("📤  Im Dateimanager zeigen"), self.send_to_tool)
         self.tools_btn.setMenu(menu)
 
-        for b in (self.cmp_btn, self.adjust_btn, self.export_btn, self.tools_btn):
+        for b in (self.cmp_btn, self.adjust_btn, self.enhance_btn, self.export_btn, self.tools_btn):
             res_btns.addWidget(b)
         res_btns.addStretch(1)
         rv.addLayout(res_btns)
@@ -1590,6 +1598,60 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self._append(f"\n📤 Im Dateimanager: {os.path.basename(f)}\n   → in GraXpert / StarNet++ / "
                      "PixInsight öffnen, dann „📥 Bearbeitetes reimportieren“.\n")
 
+    def _tool_missing_hint(self, which, linear_file):
+        """Freundlicher Hinweis, wenn ein externes Tool nicht installiert ist: was es ist, wo es
+        das gratis gibt, und dass das fertige Linearbild schon im Ordner liegt. Bietet an, die
+        Datei im Dateimanager zu zeigen. Kein hartes Scheitern."""
+        try:
+            import tools_engine
+            name, url, desc = tools_engine.TOOL_INFO.get(which, (which, "", ""))
+        except Exception:
+            name, url, desc = which, "", ""
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Information)
+        box.setWindowTitle(tr("{tool} nicht gefunden").format(tool=name))
+        box.setText(tr("{tool} ist nicht installiert.").format(tool=name))
+        box.setInformativeText(
+            tr("{tool} ist {desc}.\nGratis: {url}\n\nLade es, trage den Pfad unter Setup → "
+               "Externe Tools ein (oder ForgePix findet es danach selbst). Dein fertiges "
+               "32-bit-Linearbild liegt schon bereit — du kannst es auch von Hand öffnen.")
+            .format(tool=name, desc=desc, url=url or "—"))
+        show = box.addButton(tr("📂  Bild im Dateimanager zeigen"), QMessageBox.AcceptRole)
+        box.addButton(QMessageBox.Close)
+        box.exec()
+        if box.clickedButton() is show and linear_file and os.path.isfile(linear_file):
+            reveal_in_files(linear_file)
+            self._append(f"\n📤 {name} fehlt — Linearbild im Dateimanager: {os.path.basename(linear_file)}\n"
+                         "   → Pfad im Setup eintragen, dann erneut Veredeln.\n")
+
+    def enhance_result(self):
+        """One-Click „Veredeln": GraXpert (Gradient + Entrauschen) auf das lineare Astro-Ergebnis,
+        dann automatisch reimportieren. Ohne GraXpert: freundlicher Hinweis (kein Fehler)."""
+        try:
+            import tools_engine
+        except Exception as e:
+            QMessageBox.warning(self, tr("Veredeln"), f"{e}"); return
+        f = self._best_export_file(bits=32)
+        if not f or not os.path.isfile(f):
+            QMessageBox.information(self, tr("Veredeln"), tr("Erst ein Astro-Ergebnis erzeugen."))
+            return
+        cfg = self.graxpert_path.text().strip() or None
+        if not tools_engine.find_graxpert(cfg):
+            self._tool_missing_hint("graxpert", f)
+            return
+        self._append("\n⏳ Veredeln mit GraXpert (Gradient + Entrauschen) … (kann 1–2 min dauern)\n")
+        QApplication.processEvents()
+        try:
+            out = tools_engine.run_graxpert_enhance(f, path=cfg, denoise=True, log=self._append)
+        except Exception as e:
+            QMessageBox.warning(self, tr("Veredeln"), f"GraXpert: {e}")
+            self._append(f"\n⚠️ Veredeln fehlgeschlagen: {e}\n"); return
+        self.result_path = out; self.before_path = f
+        self._set_preview(out)
+        self.cmp_btn.setEnabled(True); self.adjust_btn.setEnabled(True)
+        self.open_btn.setEnabled(True); self.openfolder_btn.setEnabled(True)
+        self._append(f"\n✅ Veredelt & reimportiert: {os.path.basename(out)}\n")
+
     def _run_external_tool(self, which):
         """GraXpert/StarNet++ headless auf das lineare Ergebnis anwenden und automatisch
         reimportieren. Ohne gefundenes Tool: im Dateimanager zeigen (manueller Weg).
@@ -1609,10 +1671,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         finder = tools_engine.find_graxpert if which == "graxpert" else tools_engine.find_starnet
         exe = finder(cfg_path)
         if not exe:
-            reveal_in_files(f)
-            self._append(f"\n📤 {name} nicht gefunden — Datei im Dateimanager: "
-                         f"{os.path.basename(f)}\n   → Pfad im Setup-Menü setzen oder dort öffnen, "
-                         "dann „📥 Bearbeitetes reimportieren“.\n")
+            self._tool_missing_hint(which, f)
             return
         runner = tools_engine.run_graxpert if which == "graxpert" else tools_engine.run_starnet
         self._append(f"\n⏳ {name} läuft … (kann dauern)\n")
