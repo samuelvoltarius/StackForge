@@ -482,26 +482,27 @@ var I18N = {
       }).catch(function(){});
   }catch(e){}
 
-  /* ---- Total downloads across all releases (GitHub) ---- */
+  /* ---- Visitor + download counter (self-hosted, cookieless) ---- */
   try{
-    fetch("https://api.github.com/repos/samuelvoltarius/ForgePix/releases?per_page=100", {headers:{"Accept":"application/vnd.github+json"}})
-      .then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(rs){
-        if(!Array.isArray(rs)) return;
-        var total=0;
-        rs.forEach(function(r){ (r.assets||[]).forEach(function(a){ total += (a.download_count||0); }); });
-        document.querySelectorAll("[data-downloads]").forEach(function(el){ el.textContent = total.toLocaleString(); });
-      }).catch(function(){});
-  }catch(e){}
-
-  /* ---- Page-view counter (self-hosted on our server, cookieless) ---- */
-  try{
+    var setStat = function(sel, n){ document.querySelectorAll(sel).forEach(function(el){ el.textContent = Number(n).toLocaleString(); }); };
     fetch("/api/count", {cache:"no-store"})
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(d){
-        if(d && typeof d.views === "number")
-          document.querySelectorAll("[data-views]").forEach(function(el){ el.textContent = d.views.toLocaleString(); });
+        if(!d) return;
+        if(typeof d.views === "number") setStat("[data-views]", d.views);
+        if(typeof d.downloads === "number") setStat("[data-downloads]", d.downloads);
       }).catch(function(){});
+    /* Count a click on any download button immediately (keepalive survives navigation). */
+    document.querySelectorAll('[data-os]').forEach(function(btn){
+      btn.addEventListener("click", function(){
+        try{
+          fetch("/api/count?dl=1", {cache:"no-store", keepalive:true})
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .then(function(d){ if(d && typeof d.downloads === "number") setStat("[data-downloads]", d.downloads); })
+            .catch(function(){});
+        }catch(e){}
+      });
+    });
   }catch(e){}
 })();
 </script>
