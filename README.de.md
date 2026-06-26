@@ -44,46 +44,30 @@ Aus einer unscharfen Fokusreihe wird ein durchgehend scharfes Bild — und du si
 
 ## Highlights
 
-- **Ein‑Klick‑Automatik** — wählt brauchbare Fotos aus, richtet sie aus, verschmilzt sie zu
-  einem durchgehend scharfen Bild und schärft schonend nach. **Anfänger‑** und **Profi‑Modus**.
-- **Null‑Klick im Anfänger‑Modus:** einfach einen **Ordner aufs Fenster ziehen** — ForgePix errät
-  das passende Modul (aus Dateitypen / Namen / einer kurzen EXIF‑Stichprobe) und startet die
-  Automatik. Rein → fertig.
-- **Start‑Auswahl:** beim Öffnen wählst du das **Modul** (jederzeit über „◀ Module“ wechselbar).
-- **Fokus‑Intelligenz** (Makro): verwackelte Fotos automatisch aussortieren, **Reihen‑Analyse**
-  (Aufnahmeanalyse + Stack‑Optimizer + **Fokus‑Map**), **DOF‑/Focus‑Bracketing‑Assistent** mit
-  **EXIF‑Auslesen**, **Stack‑Konfidenz‑Score** mit echten Metriken.
-- **Entscheidungs‑Panel** neben dem Ergebnis: Konfidenz‑Score, „X von Y verwendet", **klickbare
-  Befunde** (ein Befund springt direkt zur passenden Ansicht — Ghosting → Geister‑Karte, Halos →
-  Retusche, Fokus‑Lücken → Fokus‑Map) und eine **„Warum diese Einstellungen?"**‑Begründung der Automatik.
-- **Schnell‑Export‑Chips** (📷 Instagram · 🌐 Web · 🖨 Druck) für Ein‑Klick‑Export direkt neben dem
-  Ergebnis; **„Weiter wo du warst"** auf dem Startbildschirm öffnet den letzten Ordner + Modul.
-- **Update‑Hinweis:** beim Start wird leise die GitHub‑Release‑Version geprüft und ein dezenter
-  Hinweis „neue Version verfügbar" gezeigt, wenn es eine gibt — komplett optional (Setup), keine Daten gesendet.
-- **Komplett per Tastatur bedienbar** (⌘O Ordner, ⌘↩ Automatik, ⌘1–4 Module, F1 = Kürzel‑Übersicht …).
-- **Vier Module, eine App:** 🔬 **Makro** (Fokus‑Stacking, mit Presets Produkte/Münzen/Food),
-  🌌 **Astro** (Stern‑Stacking), 🌗 **Hybrid** (Mond‑/Sonnen‑**Mosaik** + **Fokus+Astro**:
-  je Position erst entrauschen, dann fokus‑stacken) und 📷 **Langzeitbelichtung** (aus einer Serie
-  **ohne ND‑Filter**: seidiges Wasser/Wolken, Lichtspuren, Störer entfernen — mit KI‑Effektvorschlag
-  und **virtueller Belichtungszeit** (stufenloses Teil‑Mitteln)).
-- **Eigene Engine** (OpenCV/NumPy) — keine externe Stacking‑Software nötig.
-- **RAW** (ARW/NEF/CR2/DNG …) treu in 16‑bit entwickelt; **EXIF/Provenienz wird eingebaut
-  übernommen**: JPEG mit EXIF, TIFF mit Kern‑Provenienz, vollständige TIFF‑Metadaten optional via exiftool.
-- **Eingebauter Camera‑Raw‑Editor:** Belichtung/Kontrast/Weißabgleich, **Tonwertkurve**,
-  **HSL pro Farbe**, Klarheit, **Zuschneiden/Drehen**, Histogramm.
-- **Retusche‑Editor:** scharfe Stellen aus Einzelfotos über Halos/**Ghosting** pinseln, mit Radierer.
-- **Geister‑Karte + Deghost**, **Vorher/Nachher‑Schieberegler**, **Filmstreifen**,
-  **Export‑Voreinstellungen** (Instagram/WhatsApp/Web/4K/Druck), **Batch** & **Watch‑Ordner**.
-- **Astro:** Kalibrierung (Darks/Flats/Bias), Stern‑Ausrichtung (**Translation oder Feldrotation**
-  für Alt‑Az), **Hot‑/Cold‑Pixel‑Korrektur**, **Drizzle‑lite** (2× feineres Sampling),
-  **Sigma/Winsor‑Rejection** (entfernt Satelliten/Hot‑Pixel), Hintergrund‑Extraktion,
-  **erklärbare Sub‑Bewertung** (FWHM, Sternzahl, Elongation/Guiding, Wolken, Spuren — schlechte Subs
-  fliegen raus *mit Begründung*), 32‑bit‑Linear‑Export + **FITS**. **GraXpert & StarNet++ per Ein‑Klick**
-  (falls installiert: automatisch ausführen + reimportieren; sonst Datei‑Übergabe).
-- **Große Stacks** werden gebündelt gestreamt (speicherschonend).
-- **Schnell:** RAW‑Entwicklung und Schärfe‑Analyse laufen über **alle CPU‑Kerne**; Schärfe‑Werte
-  werden pro Datei **gecacht** (Re‑Runs sind sofort) und fürs Culling das eingebettete Kamera‑JPEG
-  genutzt — große RAW‑Serien werden deutlich schneller analysiert.
+*(Kurzfassung — die [vollständige Anleitung](docs/GUIDE.de.md) hat jede Option.)*
+
+- **Ein‑Klick‑Automatik** (Anfänger & Profi) — wählt brauchbare Fotos, richtet aus, verschmilzt zu
+  einem durchgehend scharfen Bild, schärft schonend. Im Anfänger‑Modus einfach **Ordner aufs Fenster
+  ziehen**: ForgePix errät das Modul (Dateitypen / Namen / EXIF‑Stichprobe) und startet. Rein → fertig.
+- **Vier Module, eine App:** 🔬 **Makro** (Fokus‑Stacking, Presets Produkte/Münzen/Food),
+  🌌 **Astro** (Stern‑Stacking), 🌗 **Hybrid** (Mond‑/Sonnen‑**Mosaik** + **Fokus+Astro**) und
+  📷 **Langzeitbelichtung** (ohne ND‑Filter — seidiges Wasser/Wolken, Lichtspuren, **virtuelle Belichtungszeit**).
+- **Eigene Engine** (OpenCV/NumPy) — keine externe Stacking‑Software. Große Stacks werden gebündelt
+  gestreamt (speicherschonend); RAW‑Entwicklung & Schärfe‑Analyse laufen über **alle CPU‑Kerne** (gecacht).
+- **Fokus‑Werkzeuge** (Makro): Reihen‑ & **Fokus‑Map**‑Analyse, **DOF‑/Bracketing‑Assistent** mit
+  EXIF‑Auslesen, **Stack‑Konfidenz‑Score** und ein **Entscheidungs‑Panel** mit klickbaren Befunden
+  und einer **„Warum diese Einstellungen?"**‑Begründung.
+- **Astro:** automatisch erkannte **Kalibrierung** (Darks/Flats/Bias), Stern‑Ausrichtung (Translation
+  oder Feldrotation), Hot‑/Cold‑Pixel‑Korrektur, **Sigma/Winsor‑Rejection**, Drizzle‑lite, **Binning**,
+  **Multi‑Session**‑Stacking, erklärbare Sub‑Bewertung, **32‑bit‑Linear + FITS**‑Export, **Live‑Vorschau**
+  beim Stacken und **GraXpert/StarNet++ per Ein‑Klick**. Dual‑Band (Hα/OIII) mit
+  **HOO / synthetischem SHO / Foraxx / Bicolor**.
+- **Eingebaute Editoren:** Camera‑Raw (Belichtung, **Tonwertkurve**, **HSL pro Farbe**,
+  Zuschneiden/Drehen, Histogramm, Masken‑Pinsel) und ein **Retusche**‑Pinsel über Halos/**Ghosting**.
+- **RAW** treu in 16‑bit entwickelt; EXIF/Provenienz wird soweit möglich übernommen.
+- **Export & Workflow:** Vorher/Nachher‑Regler, Filmstreifen, **Geister‑Karte/Deghost**, Export‑Presets
+  (Instagram/WhatsApp/Web/4K/Druck), **Batch** & **Watch‑Ordner**, Schnell‑Export‑Chips, letzter Ordner.
+- **Komplett per Tastatur bedienbar**, **Deutsch & Englisch**, **KI strikt optional** (lokal oder API).
 
 ## Läuft überall — KI ist optional
 
@@ -165,8 +149,9 @@ automatisch in der Sprachauswahl.
 ./run_tests.sh        # oder: python3 -m unittest discover -s tests
 ```
 
-50 Engine‑Tests (Standardbibliothek, kein pytest nötig) decken Fokus‑Analyse, Langzeit, Astro,
-Stacker, Mosaik, Export, Parallel‑Helfer, Modul‑Erkennung, KI‑Kontext, i18n‑Vollständigkeit und
+Engine‑Tests (Standardbibliothek, kein pytest nötig) decken Fokus‑Analyse, Langzeit, Astro
+(Registrierung, Paletten, Binning, Kalibrierung), Stacker, Mosaik, Export, Parallel‑Helfer,
+Modul‑Erkennung, KI‑Kontext, i18n‑Vollständigkeit (inkl. Wächter gegen unverpackte Strings) und
 einen GUI‑Smoke‑Test ab.
 
 ## Lizenz

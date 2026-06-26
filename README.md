@@ -44,45 +44,30 @@ A soft focus series becomes one fully sharp image — and you see *what* happens
 
 ## Highlights
 
-- **One‑click Automatic** — picks the usable frames, aligns them, merges them into a
-  fully‑sharp image and sharpens gently. **Beginner** and **Pro** mode.
-- **Zero‑click in Beginner mode:** just **drop a folder** on the window — ForgePix guesses the
-  right module (from file types / names / a quick EXIF sample) and starts the automatic. In → done.
-- **Startup picker:** choose the **module** when you open the app (switch any time via “◀ Modules”).
-- **Focus intelligence** (macro): auto-drop shaky photos, **series analysis** (shot analysis +
-  stack optimizer + **focus map**), **DOF / focus-bracketing assistant** with **EXIF read-out**,
-  **stack confidence score** with real metrics.
-- **Decision panel** next to the result: confidence score, “X of Y frames used”, **clickable
-  findings** (a finding jumps straight to the matching view — ghosting → ghost map, halos →
-  retouch, focus gaps → focus map) and a **“Why these settings?”** rationale from the automatic.
-- **Quick-export chips** (📷 Instagram · 🌐 Web · 🖨 Print) for one-click export right next to the
-  result; **“Resume”** on the start screen reopens your last folder + module.
-- **Update hint:** on start it quietly checks the GitHub releases and shows a discreet “new version
-  available” note if there is one — fully optional (Setup), no data sent.
-- **Fully keyboard-operable** (⌘O folder, ⌘↩ automatic, ⌘1–4 modules, F1 = shortcut overview …).
-- **Four modules, one app:** 🔬 **Macro** (focus stacking, with Product/Coin/Food presets),
-  🌌 **Astro** (star stacking), 🌗 **Hybrid** (Moon/Sun **mosaic** + **Focus+Astro**:
-  denoise each position, then focus‑stack) and 📷 **Long exposure** (from a burst, **no ND filter**:
-  silky water/clouds, light trails, remove movers — with AI effect suggestion and a
-  **virtual exposure time** slider (continuous partial averaging)).
-- **Own engine** (OpenCV/NumPy) — no external stacking software required.
-- **RAW** (ARW/NEF/CR2/DNG …) faithfully developed to 16‑bit; **EXIF/provenance is preserved where
-  possible**: JPEG with EXIF, TIFF with core provenance, full TIFF metadata optionally via exiftool.
-- **Built‑in Camera‑Raw editor:** exposure/contrast/white balance, **tone curve**,
-  **per‑color HSL**, clarity, **crop/rotate**, histogram.
-- **Retouch editor:** brush sharp areas from single frames over halos/**ghosting**, with eraser.
-- **Ghost map + deghost**, **before/after slider**, **film strip**, **export presets**
-  (Instagram/WhatsApp/Web/4K/Print), **batch** & **watch folder**.
-- **Astro:** calibration (darks/flats/bias), star alignment (**translation or field rotation**
-  for Alt‑Az), **hot/cold‑pixel correction**, **drizzle‑lite** (2× finer sampling),
-  **Sigma/Winsorized rejection** (removes satellites/hot pixels), background extraction,
-  **explainable sub‑grading** (FWHM, star count, elongation/guiding, clouds, trails — bad subs dropped
-  *with reasons*), 32‑bit linear export + **FITS**. **GraXpert & StarNet++ one‑click** (if installed:
-  run + re‑import automatically; otherwise file hand‑off).
-- **Large stacks** are streamed in bundles (memory‑friendly).
-- **Fast:** RAW development and sharpness analysis run across **all CPU cores**; sharpness results
-  are **cached** per file (re‑runs are instant) and the embedded camera JPEG is used for the culling
-  pass — big RAW series analyse much faster.
+*(Short version — the [full guide](docs/GUIDE.en.md) has every option.)*
+
+- **One‑click Automatic** (Beginner & Pro) — picks the usable frames, aligns, merges to a
+  fully‑sharp image, sharpens gently. In Beginner mode just **drop a folder**: ForgePix guesses the
+  module (file types / names / EXIF sample) and runs. In → done.
+- **Four modules, one app:** 🔬 **Macro** (focus stacking, Product/Coin/Food presets),
+  🌌 **Astro** (star stacking), 🌗 **Hybrid** (Moon/Sun **mosaic** + **Focus+Astro**) and
+  📷 **Long exposure** (no ND filter — silky water/clouds, trails, **virtual exposure‑time** slider).
+- **Own engine** (OpenCV/NumPy) — no external stacking software. Large stacks are streamed
+  (memory‑friendly); RAW development & sharpness analysis run across **all CPU cores** (cached).
+- **Focus tools** (macro): series & **focus‑map** analysis, **DOF/bracketing assistant** with EXIF
+  read‑out, **stack‑confidence score**, and a **decision panel** with clickable findings and a
+  **“why these settings?”** rationale.
+- **Astro:** auto‑detected **calibration** (darks/flats/bias), star alignment (translation or field
+  rotation), hot/cold‑pixel fix, **sigma/winsor rejection**, drizzle‑lite, **binning**,
+  **multi‑session** stacking, explainable sub‑grading, **32‑bit linear + FITS** export, **live
+  preview** while stacking, and **one‑click GraXpert/StarNet++**. Dual‑band (Hα/OIII) with
+  **HOO / synthetic SHO / Foraxx / Bicolor** palettes.
+- **Built‑in editors:** Camera‑Raw (exposure, **tone curve**, per‑color **HSL**, crop/rotate,
+  histogram, mask brush) and a **retouch** brush over halos/**ghosting**.
+- **RAW** faithfully developed to 16‑bit; EXIF/provenance preserved where possible.
+- **Export & workflow:** before/after slider, film strip, **ghost map/deghost**, export presets
+  (Instagram/WhatsApp/Web/4K/Print), **batch** & **watch folder**, quick‑export chips, resume last folder.
+- **Fully keyboard‑operable**, **German & English** UI, **AI strictly optional** (local or API).
 
 ## Runs everywhere — AI is optional
 
@@ -161,9 +146,9 @@ language menu automatically.
 ./run_tests.sh        # or: python3 -m unittest discover -s tests
 ```
 
-50 engine tests (standard library, no pytest needed) cover focus analysis, long exposure, astro,
-stacker, mosaic, export, parallel helper, module guessing, AI context, i18n completeness and a GUI
-smoke test.
+Engine tests (standard library, no pytest needed) cover focus analysis, long exposure, astro
+(registration, palettes, binning, calibration), stacker, mosaic, export, parallel helper, module
+guessing, AI context, i18n completeness (incl. an unwrapped‑string guard) and a GUI smoke test.
 
 ## License
 
