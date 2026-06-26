@@ -4,6 +4,18 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.18.2] – 2026-07-03
+### UI aufgeräumt + Style konsolidiert (Stabilisierung)
+- **Astro-Panel entrümpelt:** selten gebrauchte Optionen (Engine, Bias, FITS, Hot-/Cold-Pixel,
+  Drizzle, Binning) sitzen jetzt in einem **ausklappbaren „Erweitert"-Abschnitt** (standardmäßig
+  eingeklappt). Häufiges (Methode, Kappa, Ausrichten, Dark/Flat, Auto-Kalibrierung, Filter, Palette,
+  Sessions) bleibt direkt sichtbar. Neue wiederverwendbare `CollapsibleSection`.
+- **Layout-Bug behoben:** zwei Astro-Elemente lagen auf derselben Grid-Zeile (überlappten) — getrennt.
+- **Style konsolidiert:** wiederkehrende Inline-Stile (grüne Abschnitts-Überschriften, graue Hinweise)
+  durch zentrale THEME-Regeln (`QLabel#sectionHeader`, `QLabel#hint`) ersetzt — weniger Magie-Strings,
+  einheitlicheres Aussehen.
+- Keine Funktionsänderung, keine neuen Features.
+
 ## [1.18.1] – 2026-07-02
 ### Stabilisierung (Übersetzungen + Doku)
 - **Englisches UI war zur Hälfte deutsch — behoben.** Rund 90 sichtbare Strings standen nicht in

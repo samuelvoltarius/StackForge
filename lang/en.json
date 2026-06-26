@@ -128,6 +128,7 @@
   "Erkennung": "Detection",
   "Erst ein Astro-Ergebnis erzeugen.": "Create an astro result first.",
   "Erst ein Ergebnis erzeugen.": "Create a result first.",
+  "Erweitert (Engine, Bias, Binning, Drizzle …)": "Advanced (engine, bias, binning, drizzle …)",
   "Erzeugt eine Datei mit dem fertigen Bild + allen Einzelfotos als Ebenen — Basis für den Retusche-Editor.": "Creates a file with the final image + all single frames as layers — the basis for the retouch editor.",
   "Erzeugt eine Karte (ghostmap.jpg), die rot zeigt, wo sich die Fotos stark widersprechen — also wo Bewegung/Ghosting wahrscheinlich ist.": "Creates a map (ghostmap.jpg) showing in red where the photos strongly disagree — i.e. where motion/ghosting is likely.",
   "Erzeugt neben dem Hauptbild zusätzlich passend verkleinerte und für die Plattform geschärfte JPGs (Instagram 1080px, WhatsApp 1600px, Web 2048px, 4K 3840px, Druck = volle Größe).": "Alongside the main image, also creates suitably resized and platform-sharpened JPGs (Instagram 1080px, WhatsApp 1600px, Web 2048px, 4K 3840px, Print = full size).",

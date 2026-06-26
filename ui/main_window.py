@@ -46,7 +46,7 @@ from ui.export import ExportMixin
 from ui.result_view import ResultMixin
 from ui.components import (CompareSlider, CurveWidget, AdjustDialog, RetouchDialog, _Canvas,
                            _bgr_to_pixmap, histogram_pixmap, adjust_image, HSL_BANDS,
-                           help_btn, _row, reveal_in_files, open_path, notify)
+                           help_btn, _row, reveal_in_files, open_path, notify, CollapsibleSection)
 
 
 from ui.workers import _AnalyzeWorker, _UpdateChecker, _version_newer  # noqa: F401
@@ -271,7 +271,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.auto_btn.clicked.connect(lambda: self.run(auto=True))
         p1.addWidget(self.auto_btn)
         hint = QLabel(tr("Ein Klick genügt. Für mehr Kontrolle mit „Weiter →“ durch die Schritte."))
-        hint.setStyleSheet("color:#9aa09a;"); hint.setWordWrap(True)
+        hint.setObjectName("hint"); hint.setWordWrap(True)
         p1.addWidget(hint)
 
         # Vorlage (Motiv) — setzt passende Makro-Einstellungen
@@ -413,21 +413,14 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "PixInsight öffnen."), 5, 3)
         ar.addWidget(QLabel(tr("Dark")), 6, 0); ar.addWidget(self.astro_dark, 6, 1, 1, 1); ar.addWidget(dbtn, 6, 2)
         ar.addWidget(QLabel(tr("Flat")), 7, 0); ar.addWidget(self.astro_flat, 7, 1, 1, 1); ar.addWidget(fbtn, 7, 2)
-        ar.addWidget(QLabel(tr("Bias")), 8, 0); ar.addWidget(self.astro_bias, 8, 1, 1, 1); ar.addWidget(bbtn, 8, 2)
-        ar.addWidget(QLabel(tr("Engine")), 9, 0); ar.addWidget(self.astro_engine, 9, 1, 1, 2)
-        ar.addWidget(help_btn("„Eigene“ = ForgePix selbst (Standard, kein Fremdprogramm). "
-                              "„Siril“ = optional dein installiertes Siril fernsteuern "
-                              "(Konvertieren→Registrieren→Stacken). Pfad im Setup-Menü → "
-                              "„Externe Tools“."), 9, 3)
-        ar.addWidget(self.astro_fits, 10, 0, 1, 3)
-        ar.addWidget(help_btn("Speichert das fertige Stack-Ergebnis zusätzlich als 32-bit-FITS "
-                              "(neben dem TIFF) — für PixInsight/Siril. FITS-Lights werden auch "
-                              "direkt eingelesen."), 10, 3)
+        ar.addWidget(self.astro_autocalib, 8, 0, 1, 3)
+        ar.addWidget(help_btn("Sucht im Aufnahme-Ordner (und darüber) nach Unterordnern „darks“, "
+                              "„flats“, „bias“ und wendet sie automatisch an — entfernt Amp-Glow/"
+                              "Vignette ohne Handarbeit. Manuelle Felder oben haben Vorrang."), 8, 3)
         ar.addWidget(QLabel(tr("Ausrichtung")), 11, 0); ar.addWidget(self.astro_align, 11, 1, 1, 2)
         ar.addWidget(help_btn("Translation = nur Verschiebung (nachgeführte Montierung, schnell). "
                               "Translation + Feldrotation = richtet auch gedrehte Felder aus "
                               "(Alt-Az-Montierung ohne Rotator, lange Sessions) — per Stern-Merkmalen."), 11, 3)
-        ar.addWidget(self.astro_cosmetic, 12, 0, 1, 2)
         ar.addWidget(QLabel(tr("Filter")), 17, 0); ar.addWidget(self.astro_filter, 17, 1, 1, 2)
         ar.addWidget(help_btn("Aufnahme-Filter wählen (oder wird aus dem FITS-Header erkannt). "
                               "Dual-Band/Schmalband (Ha+OIII), z. B. SVBony SV220 oder L-eXtreme: Hα "
@@ -439,20 +432,31 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "SHO synthetisch = Hubble-Look (gold + blau) — das SII wird aus Hα "
                               "SYNTHETISIERT (Dual-Band enthält KEIN echtes SII), also nur fürs "
                               "Aussehen, nicht wissenschaftlich."), 18, 3)
-        ar.addWidget(QLabel(tr("Drizzle")), 12, 2); ar.addWidget(self.astro_drizzle, 12, 3)
-        ar.addWidget(QLabel(tr("Binning")), 19, 0); ar.addWidget(self.astro_bin, 19, 1, 1, 2)
-        ar.addWidget(help_btn("Software-Binning fasst 2×2 (bzw. 3×3) Pixel zusammen: weniger "
+        ar.addWidget(self.astro_sessions_btn, 19, 0, 1, 2); ar.addWidget(self.astro_sessions_lbl, 19, 2, 1, 2)
+        # --- Erweitert (ausklappbar): selten gebrauchte Optionen, hält das Panel aufgeräumt ---
+        adv = CollapsibleSection(tr("Erweitert (Engine, Bias, Binning, Drizzle …)"))
+        ag = adv.grid
+        ag.addWidget(QLabel(tr("Bias")), 0, 0); ag.addWidget(self.astro_bias, 0, 1, 1, 1); ag.addWidget(bbtn, 0, 2)
+        ag.addWidget(QLabel(tr("Engine")), 1, 0); ag.addWidget(self.astro_engine, 1, 1, 1, 2)
+        ag.addWidget(help_btn("„Eigene“ = ForgePix selbst (Standard, kein Fremdprogramm). "
+                              "„Siril“ = optional dein installiertes Siril fernsteuern "
+                              "(Konvertieren→Registrieren→Stacken). Pfad im Setup-Menü → "
+                              "„Externe Tools“."), 1, 3)
+        ag.addWidget(self.astro_fits, 2, 0, 1, 3)
+        ag.addWidget(help_btn("Speichert das fertige Stack-Ergebnis zusätzlich als 32-bit-FITS "
+                              "(neben dem TIFF) — für PixInsight/Siril. FITS-Lights werden auch "
+                              "direkt eingelesen."), 2, 3)
+        ag.addWidget(self.astro_cosmetic, 3, 0, 1, 2)
+        ag.addWidget(QLabel(tr("Drizzle")), 3, 2); ag.addWidget(self.astro_drizzle, 3, 3)
+        ag.addWidget(QLabel(tr("Binning")), 4, 0); ag.addWidget(self.astro_bin, 4, 1, 1, 2)
+        ag.addWidget(help_btn("Software-Binning fasst 2×2 (bzw. 3×3) Pixel zusammen: weniger "
                               "Rauschen, rundere/kleinere Sterne, halbe Auflösung. Gut bei "
-                              "überabgetasteten Daten (große Sterne/FWHM)."), 19, 3)
-        ar.addWidget(self.astro_autocalib, 20, 0, 1, 3)
-        ar.addWidget(help_btn("Sucht im Aufnahme-Ordner (und darüber) nach Unterordnern „darks“, "
-                              "„flats“, „bias“ und wendet sie automatisch an — entfernt Amp-Glow/"
-                              "Vignette ohne Handarbeit. Manuelle Felder oben haben Vorrang."), 20, 3)
-        ar.addWidget(self.astro_sessions_btn, 21, 0, 1, 2); ar.addWidget(self.astro_sessions_lbl, 21, 2, 1, 2)
-        ar.addWidget(help_btn("Hot-/Cold-Pixel = entfernt helle/dunkle Einzelpixel (Sensor-Defekte) "
+                              "überabgetasteten Daten (große Sterne/FWHM)."), 4, 3)
+        ag.addWidget(help_btn("Hot-/Cold-Pixel = entfernt helle/dunkle Einzelpixel (Sensor-Defekte) "
                               "vor dem Stacken. Drizzle 2× = doppelt hochskaliert integrieren "
                               "(feineres Sampling bei unterabgetasteten Daten; „Drizzle-lite“, keine "
-                              "echte Pixel-Fraktion wie PixInsight)."), 13, 3)
+                              "echte Pixel-Fraktion wie PixInsight)."), 5, 3)
+        ar.addWidget(adv, 22, 0, 1, 4)
         # Vorschau-Aufbereitung: Auto (KI/Standard) oder manuelle Regler
         ar.addWidget(self.astro_auto, 14, 0, 1, 3)
         ar.addWidget(help_btn("Steuert NUR das angezeigte/exportierte Vorschau-JPG (die linearen "
@@ -469,7 +473,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                             "Empfohlen: 20–100+ Lights (mehr = weniger Rauschen) · Darks 15–30 · "
                             "Flats 15–30 · Bias 30+. Optional als Ordner/Datei angeben."))
         as_info.setWordWrap(True); as_info.setStyleSheet("color:#9aa09a;font-size:11px;")
-        ar.addWidget(as_info, 14, 0, 1, 4)
+        ar.addWidget(as_info, 21, 0, 1, 4)
         p1.addWidget(g_astro)
 
         # Hybrid — Mosaik (Mond/Sonne) ODER Fokus+Astro
@@ -690,7 +694,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         vg = QVBoxLayout(g_vlm)
         note = QLabel(tr("Ohne KI läuft alles per Heuristik (überall lauffähig). Optional eine "
                          "Bild-KI zuschalten — lokal/Server oder ein Anbieter mit API-Schlüssel."))
-        note.setWordWrap(True); note.setStyleSheet("color:#9aa09a;")
+        note.setWordWrap(True); note.setObjectName("hint")
         vg.addWidget(note)
         self.vlm_provider = QComboBox()
         # (Anzeige, Endpoint, Modell-Vorschlag, braucht_key)

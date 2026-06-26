@@ -16,6 +16,9 @@ QGroupBox::title {
 QGroupBox::indicator { width:18px; height:18px; }
 
 QLabel { background:transparent; }
+/* Wiederverwendbare Label-Rollen (statt verstreuter Inline-Styles) */
+QLabel#sectionHeader { color:#7bd36a; font-weight:bold; margin-top:8px; }
+QLabel#hint { color:#9aa09a; }
 
 /* Eingaben — flach, mit Grün-Fokus */
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QPlainTextEdit {

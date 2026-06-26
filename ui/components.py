@@ -296,7 +296,7 @@ class AdjustDialog(QDialog):
         last_group = None
         for key, lbl, group in self.SLIDERS:
             if group != last_group:
-                gl = QLabel(tr(group)); gl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:6px;")
+                gl = QLabel(tr(group)); gl.setObjectName("sectionHeader")
                 side.addWidget(gl); last_group = group
             row = QHBoxLayout()
             name = QLabel(tr(lbl)); name.setMinimumWidth(86)
@@ -308,14 +308,14 @@ class AdjustDialog(QDialog):
             side.addLayout(row)
 
         # --- Tonwertkurve ---
-        cl = QLabel(tr("Tonwertkurve")); cl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:8px;")
+        cl = QLabel(tr("Tonwertkurve")); cl.setObjectName("sectionHeader")
         side.addWidget(cl)
         self.curve_widget = CurveWidget(self._on_curve)
         side.addWidget(self.curve_widget)
         side.addWidget(QLabel(tr("Klick = Punkt, ziehen, Doppelklick entfernt.")))
 
         # --- HSL pro Farbe ---
-        hl = QLabel(tr("Farben (HSL)")); hl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:8px;")
+        hl = QLabel(tr("Farben (HSL)")); hl.setObjectName("sectionHeader")
         side.addWidget(hl)
         self.hsl_band = QComboBox(); self.hsl_band.addItems(list(HSL_BANDS.keys()))
         self.hsl_band.currentTextChanged.connect(self._load_hsl_band)
@@ -329,7 +329,7 @@ class AdjustDialog(QDialog):
             r.addWidget(n); r.addWidget(sld, 1); side.addLayout(r)
 
         # --- Geometrie ---
-        gl = QLabel(tr("Geometrie")); gl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:8px;")
+        gl = QLabel(tr("Geometrie")); gl.setObjectName("sectionHeader")
         side.addWidget(gl)
         self.geo_sliders = {}
         for key, lbl, lo, hi in [("angle", "Drehen", -45, 45), ("top", "Beschnitt oben", 0, 45),
@@ -753,6 +753,29 @@ def help_btn(text):
     b.setToolTip(rich)
     b.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), rich, b))
     return b
+
+
+class CollapsibleSection(QWidget):
+    """Ausklappbarer Abschnitt: ein Pfeil-Button schaltet einen Inhaltsbereich sichtbar/unsichtbar.
+    Für selten gebrauchte „Erweitert"-Optionen, damit das Panel aufgeräumt bleibt. Der Inhalt
+    kommt in `self.body` mit eigenem QGridLayout `self.grid`."""
+    def __init__(self, title, parent=None, expanded=False):
+        super().__init__(parent)
+        self._title = title
+        v = QVBoxLayout(self); v.setContentsMargins(0, 4, 0, 0); v.setSpacing(2)
+        self.toggle = QToolButton()
+        self.toggle.setCheckable(True); self.toggle.setChecked(expanded)
+        self.toggle.setStyleSheet("QToolButton{border:none;color:#7bd36a;font-weight:bold;}")
+        self.toggle.toggled.connect(self._on_toggle)
+        self.body = QWidget()
+        self.grid = QGridLayout(self.body); self.grid.setContentsMargins(8, 2, 0, 2)
+        v.addWidget(self.toggle); v.addWidget(self.body)
+        self.body.setVisible(expanded)
+        self._on_toggle(expanded)
+
+    def _on_toggle(self, on):
+        self.toggle.setText(("▾  " if on else "▸  ") + self._title)
+        self.body.setVisible(on)
 
 
 def _row(label, widget, help_text=None):
