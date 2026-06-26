@@ -64,6 +64,10 @@ Mehrere Nahaufnahmen, bei denen der Fokus **von vorne nach hinten** wandert, wer
 - **Stack-Konfidenz** — nach jedem Stack ein Score (0–100) mit **echten Metriken**:
   Fokusbereich vollständig?, Halos, Ghosting, Schärfe — kein KI-Marketing, sondern Messwerte.
 
+### 🌌 Astro
+Viele Aufnahmen desselben Himmelsausschnitts werden ausgerichtet und **gemittelt**, um
+**Rauschen zu senken**. Schlechte Aufnahmen werden automatisch aussortiert (mit Begründung).
+
 > **Dual-Band/Schmalband-Filter (Hα+OIII):** Im **Filter**-Feld *Dual-Band* wählen (z. B. SVBony
 > SV220, Optolong L-eXtreme) — oder es wird aus dem FITS-Header (`FILTER`) automatisch erkannt.
 > Dann werden Hα und OIII **sauber getrennt** und neu kombiniert. Über **Palette** wählbar:
@@ -77,10 +81,6 @@ Mehrere Nahaufnahmen, bei denen der Fokus **von vorne nach hinten** wandert, wer
 >   (G = max(OIII, 0.5·Hα)) → wärmeres, natürlicheres Bild, weniger Magenta, neutralere Sterne.
 >
 > Ohne Filter/Breitband: aus lassen (normale Farbkalibrierung + Grünstich-Entfernung).
-
-### 🌌 Astro
-Viele Aufnahmen desselben Himmelsausschnitts werden ausgerichtet und **gemittelt**, um
-**Rauschen zu senken**. Schlechte Aufnahmen werden automatisch aussortiert (mit Begründung).
 
 - **Empfohlene Bildanzahl:** 20–100+ Lights (mehr = weniger Rauschen).
 - **Kalibrierung (optional):** Darks 15–30, Flats 15–30, Bias 30+ (als Ordner oder Datei).

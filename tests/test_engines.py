@@ -306,6 +306,37 @@ class TestI18n(unittest.TestCase):
         missing = sorted(k for k in keys if k not in en and k.strip())
         self.assertEqual(missing, [], f"Ohne EN-Übersetzung: {missing[:5]}")
 
+    def test_keine_unverpackten_ui_strings(self):
+        """Regressions-Schutz: sichtbare UI-Texte müssen in tr() stehen. Erkennt rohe String-
+        Literale in QLabel/QPushButton/QCheckBox/QGroupBox/setToolTip/setText/setWindowTitle/
+        setPlaceholderText/addItem, die wie deutscher Satz/Text aussehen (Umlaut ODER Leerzeichen
+        + Buchstabe) — die wären im englischen UI nicht übersetzt."""
+        import ast
+        import re
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        SETTERS = {"QLabel", "QPushButton", "QCheckBox", "QRadioButton", "QGroupBox",
+                   "setToolTip", "setWindowTitle", "setPlaceholderText", "_row"}
+        offenders = []
+
+        def looks_like_text(s):
+            if any(c in s for c in "äöüßÄÖÜ"):
+                return True
+            return (" " in s.strip()) and any(c.isalpha() for c in s)
+
+        for fn in ("ui/main_window.py", "ui/components.py"):
+            tree = ast.parse(open(os.path.join(root, fn)).read())
+            for node in ast.walk(tree):
+                if not (isinstance(node, ast.Call) and node.args
+                        and isinstance(node.args[0], ast.Constant)
+                        and isinstance(node.args[0].value, str)):
+                    continue
+                name = (node.func.id if isinstance(node.func, ast.Name)
+                        else node.func.attr if isinstance(node.func, ast.Attribute) else "")
+                if name in SETTERS and looks_like_text(node.args[0].value):
+                    offenders.append(f"{fn}: {name}({node.args[0].value[:40]!r})")
+        self.assertEqual(offenders, [], "Unverpackte deutsche UI-Strings (in tr() setzen):\n"
+                         + "\n".join(offenders[:8]))
+
 
 class TestEditorAutoMask(unittest.TestCase):
     """Auto-Maske im Editor: schützt dunklen Hintergrund + helle Sterne, betont Mitteltöne."""

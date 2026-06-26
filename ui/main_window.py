@@ -55,7 +55,7 @@ from ui.workers import _AnalyzeWorker, _UpdateChecker, _version_newer  # noqa: F
 class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("ForgePix — Fokus-Stacking mit KI")
+        self.setWindowTitle(tr("ForgePix — Fokus-Stacking mit KI"))
         self.resize(1440, 900)  # großzügig, damit nichts abgeschnitten ist
         if os.path.isfile(ICON):
             self.setWindowIcon(QIcon(ICON))
@@ -66,7 +66,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
 
         # Setup-Dialog (Sprache + KI + Server) — sammelt alle Configs an einem Ort
         self.settings_dialog = QDialog(self)
-        self.settings_dialog.setWindowTitle("Setup")
+        self.settings_dialog.setWindowTitle(tr("Setup"))
         self.settings_dialog.resize(560, 420)
         self._settings_lay = QVBoxLayout(self.settings_dialog)
 
@@ -228,26 +228,26 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         g_paths = QGroupBox(tr("Ordner"))
         pg = QVBoxLayout(g_paths)
         self.in_edit = QLineEdit()
-        self.in_edit.setPlaceholderText("Ordner mit den Aufnahmen …")
+        self.in_edit.setPlaceholderText(tr("Ordner mit den Aufnahmen …"))
         in_btn = QPushButton(tr("Wählen…")); in_btn.clicked.connect(self.pick_input)
         ih = _row(tr("Eingabe-Ordner"), self.in_edit); ih.addWidget(in_btn)
         pg.addLayout(ih)
 
         self.work_edit = QLineEdit()
-        self.work_edit.setPlaceholderText("leer = <Eingabe>/../stack_work")
-        work_btn = QPushButton("Wählen…"); work_btn.clicked.connect(self.pick_work)
+        self.work_edit.setPlaceholderText(tr("leer = <Eingabe>/../stack_work"))
+        work_btn = QPushButton(tr("Wählen…")); work_btn.clicked.connect(self.pick_work)
         wh = _row(tr("Arbeits-Ordner"), self.work_edit); wh.addWidget(work_btn)
         pg.addLayout(wh)
         # Erweiterte Ordner-Optionen (im Anfänger-Modus ausgeblendet)
         self.adv_folder = QWidget()
         av = QVBoxLayout(self.adv_folder); av.setContentsMargins(0, 0, 0, 0)
-        self.batch = QCheckBox("Batch: jeder Unterordner = eigener Stack")
+        self.batch = QCheckBox(tr("Batch: jeder Unterordner = eigener Stack"))
         bh = QHBoxLayout(); bh.addWidget(self.batch, 1)
         bh.addWidget(help_btn("Wenn dein Ordner mehrere Foto-Serien in Unterordnern enthält "
                               "(z.B. mehrere Blumen), wird jede Serie einzeln verrechnet. "
                               "Die Automatik erkennt das auch von selbst."))
         av.addLayout(bh)
-        self.watch = QCheckBox("Watch-Modus: Ordner beobachten und automatisch stacken")
+        self.watch = QCheckBox(tr("Watch-Modus: Ordner beobachten und automatisch stacken"))
         self.watch_settle = QSpinBox(); self.watch_settle.setRange(2, 120); self.watch_settle.setValue(5)
         self.watch_settle.setSuffix(" s"); self.watch_settle.setEnabled(False)
         self.watch.toggled.connect(self.watch_settle.setEnabled)
@@ -255,22 +255,22 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         wh2.addWidget(help_btn("Das Tool läuft weiter und verrechnet automatisch, sobald du neue "
                                "Fotos in den Ordner kopierst."))
         av.addLayout(wh2)
-        av.addLayout(_row("Settle-Zeit", self.watch_settle,
-                          "Wie viele Sekunden Ruhe (kein neues Foto), bevor automatisch "
-                          "verrechnet wird — damit der Kopiervorgang sicher fertig ist."))
+        av.addLayout(_row(tr("Settle-Zeit"), self.watch_settle,
+                          tr("Wie viele Sekunden Ruhe (kein neues Foto), bevor automatisch "
+                             "verrechnet wird — damit der Kopiervorgang sicher fertig ist.")))
         pg.addWidget(self.adv_folder)
         p1.addWidget(g_paths)
 
         # Ein-Klick-Automatik (Hauptaktion)
-        self.auto_btn = QPushButton("⚡  Automatik — beste Qualität (ein Klick)")
-        self.auto_btn.setToolTip("Ordner wählen, hier klicken. Die KI bestimmt alle Einstellungen, "
-                                 "RAW läuft in 16-bit, Ebenen-TIFF fürs Weiterbearbeiten wird erzeugt.")
+        self.auto_btn = QPushButton(tr("⚡  Automatik — beste Qualität (ein Klick)"))
+        self.auto_btn.setToolTip(tr("Ordner wählen, hier klicken. Die KI bestimmt alle Einstellungen, "
+                                 "RAW läuft in 16-bit, Ebenen-TIFF fürs Weiterbearbeiten wird erzeugt."))
         self.auto_btn.setMinimumHeight(46)
         self.auto_btn.setObjectName("primary")
         self.auto_btn.setStyleSheet("font-size:14px;")
         self.auto_btn.clicked.connect(lambda: self.run(auto=True))
         p1.addWidget(self.auto_btn)
-        hint = QLabel("Ein Klick genügt. Für mehr Kontrolle mit „Weiter →“ durch die Schritte.")
+        hint = QLabel(tr("Ein Klick genügt. Für mehr Kontrolle mit „Weiter →“ durch die Schritte."))
         hint.setStyleSheet("color:#9aa09a;"); hint.setWordWrap(True)
         p1.addWidget(hint)
 
@@ -296,24 +296,24 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         # RAW-Entwicklung
         g_raw = QGroupBox(tr("RAW-Entwicklung"))
         rg = QGridLayout(g_raw)
-        self.raw_dev = QCheckBox("RAWs zu TIFF entwickeln (treu, vor dem Stacking)")
+        self.raw_dev = QCheckBox(tr("RAWs zu TIFF entwickeln (treu, vor dem Stacking)"))
         self.raw_dev.setChecked(True)
-        self.raw_dev.setToolTip("RAW (ARW/NEF/CR2/DNG…) wird mit rawpy entwickelt, damit die "
-                                "ganze Kette in hoher Bit-Tiefe läuft. Nicht-RAW bleibt unberührt.")
+        self.raw_dev.setToolTip(tr("RAW (ARW/NEF/CR2/DNG…) wird mit rawpy entwickelt, damit die "
+                                   "ganze Kette in hoher Bit-Tiefe läuft. Nicht-RAW bleibt unberührt."))
         self.raw_wb = QComboBox(); self.raw_wb.addItems(["camera", "auto", "daylight"])
         self.raw_bps = QComboBox(); self.raw_bps.addItems(["16", "8"])
-        self.raw_auto_bright = QCheckBox("Auto-Helligkeit (sonst treu)")
-        self.raw_half = QCheckBox("Halbe Auflösung (schneller)")
+        self.raw_auto_bright = QCheckBox(tr("Auto-Helligkeit (sonst treu)"))
+        self.raw_half = QCheckBox(tr("Halbe Auflösung (schneller)"))
         for w in (self.raw_wb, self.raw_bps, self.raw_auto_bright, self.raw_half):
             self.raw_dev.toggled.connect(w.setEnabled)
         rg.addWidget(self.raw_dev, 0, 0, 1, 2)
         rg.addWidget(help_btn("RAW-Dateien (ARW/NEF/CR2/DNG …) werden zuerst schonend in ein "
                               "hochwertiges Bild umgewandelt, damit die volle Qualität fürs "
                               "Bearbeiten erhalten bleibt. Normale JPGs werden direkt verwendet."), 0, 2)
-        rg.addWidget(QLabel("Weißabgleich"), 1, 0); rg.addWidget(self.raw_wb, 1, 1)
+        rg.addWidget(QLabel(tr("Weißabgleich")), 1, 0); rg.addWidget(self.raw_wb, 1, 1)
         rg.addWidget(help_btn("Wie Farben/Weiß interpretiert werden. „camera“ = Einstellung der "
                               "Kamera (empfohlen), „auto“ = Computer schätzt, „daylight“ = Tageslicht."), 1, 2)
-        rg.addWidget(QLabel("Bit-Tiefe"), 2, 0); rg.addWidget(self.raw_bps, 2, 1)
+        rg.addWidget(QLabel(tr("Bit-Tiefe")), 2, 0); rg.addWidget(self.raw_bps, 2, 1)
         rg.addWidget(help_btn("Wie fein Farbabstufungen gespeichert werden. 16 = höchste Qualität "
                               "zum Bearbeiten (empfohlen), 8 = kleiner, weniger Spielraum."), 2, 2)
         rg.addWidget(self.raw_auto_bright, 3, 0, 1, 2)
@@ -333,11 +333,11 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.astro_method.addItems(["sigma", "winsor", "average", "median", "max"])
         self.astro_kappa = QDoubleSpinBox(); self.astro_kappa.setRange(1.0, 5.0)
         self.astro_kappa.setSingleStep(0.1); self.astro_kappa.setValue(2.5)
-        self.astro_register = QCheckBox("Sterne ausrichten"); self.astro_register.setChecked(True)
+        self.astro_register = QCheckBox(tr("Sterne ausrichten")); self.astro_register.setChecked(True)
         self.astro_qc = QCheckBox(tr("Schlechte Subs automatisch aussortieren")); self.astro_qc.setChecked(True)
-        self.astro_stretch = QCheckBox("Vorschau strecken (asinh)"); self.astro_stretch.setChecked(True)
-        self.astro_bg = QCheckBox("Hintergrund/Gradient entfernen")
-        self.astro_fits = QCheckBox("Auch als FITS speichern")
+        self.astro_stretch = QCheckBox(tr("Vorschau strecken (asinh)")); self.astro_stretch.setChecked(True)
+        self.astro_bg = QCheckBox(tr("Hintergrund/Gradient entfernen"))
+        self.astro_fits = QCheckBox(tr("Auch als FITS speichern"))
         self.astro_align = QComboBox()
         self.astro_align.addItem(tr("Translation (Nachführung)"), "shift")
         self.astro_align.addItem(tr("Translation + Feldrotation (Alt-Az)"), "rotate")
@@ -386,9 +386,9 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                                                     (self.astro_bright, self.astro_sat, self.astro_color)])
         for w in (self.astro_bright, self.astro_sat, self.astro_color):
             w.setEnabled(False)
-        self.astro_dark = QLineEdit(); self.astro_dark.setPlaceholderText("optional: Dark-Ordner/-Datei")
-        self.astro_flat = QLineEdit(); self.astro_flat.setPlaceholderText("optional: Flat-Ordner/-Datei")
-        self.astro_bias = QLineEdit(); self.astro_bias.setPlaceholderText("optional: Bias-Ordner/-Datei")
+        self.astro_dark = QLineEdit(); self.astro_dark.setPlaceholderText(tr("optional: Dark-Ordner/-Datei"))
+        self.astro_flat = QLineEdit(); self.astro_flat.setPlaceholderText(tr("optional: Flat-Ordner/-Datei"))
+        self.astro_bias = QLineEdit(); self.astro_bias.setPlaceholderText(tr("optional: Bias-Ordner/-Datei"))
         dbtn = QPushButton("…"); dbtn.setFixedWidth(36); dbtn.clicked.connect(lambda: self._pick_into(self.astro_dark))
         fbtn = QPushButton("…"); fbtn.setFixedWidth(36); fbtn.clicked.connect(lambda: self._pick_into(self.astro_flat))
         bbtn = QPushButton("…"); bbtn.setFixedWidth(36); bbtn.clicked.connect(lambda: self._pick_into(self.astro_bias))
@@ -396,11 +396,11 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.astro_engine = QComboBox()
         self.astro_engine.addItem(tr("Eigene"), "own")
         self.astro_engine.addItem("Siril", "siril")
-        ar.addWidget(QLabel("Methode"), 0, 0); ar.addWidget(self.astro_method, 0, 1, 1, 2)
+        ar.addWidget(QLabel(tr("Methode")), 0, 0); ar.addWidget(self.astro_method, 0, 1, 1, 2)
         ar.addWidget(help_btn("Rauschen mitteln statt Schärfe wählen. „sigma“ (Kappa-Sigma) "
                               "entfernt Satelliten/Flugzeuge/Hot-Pixel — wie in Siril. "
                               "„max“ = Strichspuren."), 0, 3)
-        ar.addWidget(QLabel("Kappa"), 1, 0); ar.addWidget(self.astro_kappa, 1, 1, 1, 2)
+        ar.addWidget(QLabel(tr("Kappa")), 1, 0); ar.addWidget(self.astro_kappa, 1, 1, 1, 2)
         ar.addWidget(self.astro_register, 2, 0, 1, 3)
         ar.addWidget(self.astro_qc, 3, 0, 1, 3)
         ar.addWidget(help_btn("Bewertet jede Aufnahme (Sternzahl/FWHM/Elongation/Wolken/Spuren) "
@@ -411,10 +411,10 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         ar.addWidget(help_btn("Entfernt weiche Helligkeits-Gradienten (Lichtverschmutzung/Vignette). "
                               "Für stärkere Tools: das 32-bit-Linear-TIFF in GraXpert/StarNet++/"
                               "PixInsight öffnen."), 5, 3)
-        ar.addWidget(QLabel("Dark"), 6, 0); ar.addWidget(self.astro_dark, 6, 1, 1, 1); ar.addWidget(dbtn, 6, 2)
-        ar.addWidget(QLabel("Flat"), 7, 0); ar.addWidget(self.astro_flat, 7, 1, 1, 1); ar.addWidget(fbtn, 7, 2)
-        ar.addWidget(QLabel("Bias"), 8, 0); ar.addWidget(self.astro_bias, 8, 1, 1, 1); ar.addWidget(bbtn, 8, 2)
-        ar.addWidget(QLabel("Engine"), 9, 0); ar.addWidget(self.astro_engine, 9, 1, 1, 2)
+        ar.addWidget(QLabel(tr("Dark")), 6, 0); ar.addWidget(self.astro_dark, 6, 1, 1, 1); ar.addWidget(dbtn, 6, 2)
+        ar.addWidget(QLabel(tr("Flat")), 7, 0); ar.addWidget(self.astro_flat, 7, 1, 1, 1); ar.addWidget(fbtn, 7, 2)
+        ar.addWidget(QLabel(tr("Bias")), 8, 0); ar.addWidget(self.astro_bias, 8, 1, 1, 1); ar.addWidget(bbtn, 8, 2)
+        ar.addWidget(QLabel(tr("Engine")), 9, 0); ar.addWidget(self.astro_engine, 9, 1, 1, 2)
         ar.addWidget(help_btn("„Eigene“ = ForgePix selbst (Standard, kein Fremdprogramm). "
                               "„Siril“ = optional dein installiertes Siril fernsteuern "
                               "(Konvertieren→Registrieren→Stacken). Pfad im Setup-Menü → "
@@ -555,34 +555,34 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         sg = QGridLayout(g_sel)
         self.dip = QDoubleSpinBox(); self.dip.setRange(0.0, 1.0); self.dip.setSingleStep(0.05)
         self.dip.setValue(0.40); self.dip.setDecimals(2)
-        self.dip.setToolTip("Inneren Frame verwerfen, wenn Schärfe < ratio × min(Nachbarn).\n"
-                            "Höher = strenger. 0 = nie wegen Einbruch verwerfen.")
+        self.dip.setToolTip(tr("Inneren Frame verwerfen, wenn Schärfe < ratio × min(Nachbarn).\n"
+                               "Höher = strenger. 0 = nie wegen Einbruch verwerfen."))
         self.absmin = QDoubleSpinBox(); self.absmin.setRange(0.0, 1000.0); self.absmin.setValue(15.0)
-        self.absmin.setToolTip("Frame verwerfen, wenn Schärfe darunter (strukturlos/leer).")
+        self.absmin.setToolTip(tr("Frame verwerfen, wenn Schärfe darunter (strukturlos/leer)."))
         self.maxside = QSpinBox(); self.maxside.setRange(400, 6000); self.maxside.setValue(1600)
         self.maxside.setSingleStep(100)
-        self.maxside.setToolTip("Downscale-Langseite für die Schärfe-Analyse (Geschwindigkeit).")
-        self.dedup = QCheckBox("Doppelte Aufnahmen aussortieren")
+        self.maxside.setToolTip(tr("Downscale-Langseite für die Schärfe-Analyse (Geschwindigkeit)."))
+        self.dedup = QCheckBox(tr("Doppelte Aufnahmen aussortieren"))
         self.dupthresh = QDoubleSpinBox(); self.dupthresh.setRange(0.0, 0.5)
         self.dupthresh.setDecimals(4); self.dupthresh.setSingleStep(0.001); self.dupthresh.setValue(0.004)
         self.dupthresh.setEnabled(False)
         self.dedup.toggled.connect(self.dupthresh.setEnabled)
-        sg.addWidget(QLabel("Strenge gegen Verwackler"), 0, 0); sg.addWidget(self.dip, 0, 1)
+        sg.addWidget(QLabel(tr("Strenge gegen Verwackler")), 0, 0); sg.addWidget(self.dip, 0, 1)
         sg.addWidget(help_btn("Wie streng verwackelte Einzelfotos aussortiert werden. Höher = "
                               "strenger. Es fliegen nur Fotos raus, die deutlich unschärfer sind "
                               "als ihre Nachbarn (echte Verwackler) — nicht die natürlich weichen "
                               "Enden der Schärfereihe."), 0, 2)
-        sg.addWidget(QLabel("Leere Bilder aussortieren"), 1, 0); sg.addWidget(self.absmin, 1, 1)
+        sg.addWidget(QLabel(tr("Leere Bilder aussortieren")), 1, 0); sg.addWidget(self.absmin, 1, 1)
         sg.addWidget(help_btn("Fotos fast ganz ohne Struktur (komplett unscharf/schwarz) werden "
                               "aussortiert."), 1, 2)
-        sg.addWidget(QLabel("Analyse-Genauigkeit"), 2, 0); sg.addWidget(self.maxside, 2, 1)
+        sg.addWidget(QLabel(tr("Analyse-Genauigkeit")), 2, 0); sg.addWidget(self.maxside, 2, 1)
         sg.addWidget(help_btn("Wie groß die Fotos für die Schärfe-Messung verkleinert werden. "
                               "Höher = genauer, aber langsamer. 1600 ist ein guter Wert."), 2, 2)
         sg.addWidget(self.dedup, 3, 0, 1, 2)
         sg.addWidget(help_btn("Entfernt fast identische Doppelaufnahmen. Vorsicht: bei "
                               "Schärfereihen sehen Nachbarbilder absichtlich ähnlich aus — nur an, "
                               "wenn du wirklich doppelte Aufnahmen hast."), 3, 2)
-        sg.addWidget(QLabel("Empfindlichkeit (Doppelte)"), 4, 0); sg.addWidget(self.dupthresh, 4, 1)
+        sg.addWidget(QLabel(tr("Empfindlichkeit (Doppelte)")), 4, 0); sg.addWidget(self.dupthresh, 4, 1)
         sg.addWidget(help_btn("Wie ähnlich zwei Fotos sein müssen, um als Doppel zu gelten. "
                               "Kleiner = strenger."), 4, 2)
         self.reject_blurry = QCheckBox(tr("Verwackelte/unscharfe automatisch aussortieren"))
@@ -614,17 +614,17 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         # Ausrichtung
         g_ab = QGroupBox(tr("Ausrichtung"))
         ag = QGridLayout(g_ab)
-        self.align_on = QCheckBox("Fotos ausrichten"); self.align_on.setChecked(True)
+        self.align_on = QCheckBox(tr("Fotos ausrichten")); self.align_on.setChecked(True)
         self.transform = QComboBox(); self.transform.addItems(["rigid", "homography"])
         self.detector = QComboBox(); self.detector.addItems(["ORB", "SIFT", "AKAZE"])
         self.align_on.toggled.connect(lambda v: (self.transform.setEnabled(v), self.detector.setEnabled(v)))
         ag.addWidget(self.align_on, 0, 0, 1, 2)
         ag.addWidget(help_btn("Richtet die Fotos exakt übereinander aus (gleicht winzige "
                               "Verschiebungen aus). Sollte fast immer an sein."), 0, 2)
-        ag.addWidget(QLabel("Methode"), 1, 0); ag.addWidget(self.transform, 1, 1)
+        ag.addWidget(QLabel(tr("Methode")), 1, 0); ag.addWidget(self.transform, 1, 1)
         ag.addWidget(help_btn("„rigid“ für Stativ/ruhige Aufnahmen, „homography“ wenn freihand "
                               "fotografiert wurde (gleicht auch Perspektive aus)."), 1, 2)
-        ag.addWidget(QLabel("Erkennung"), 2, 0); ag.addWidget(self.detector, 2, 1)
+        ag.addWidget(QLabel(tr("Erkennung")), 2, 0); ag.addWidget(self.detector, 2, 1)
         ag.addWidget(help_btn("Wie markante Punkte zum Ausrichten gefunden werden. ORB = schnell "
                               "(Standard), SIFT = genauer bei texturarmen Motiven, aber langsamer."), 2, 2)
         self.g_ab = g_ab; p2.addWidget(g_ab)
@@ -635,17 +635,17 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.sharpen = QDoubleSpinBox(); self.sharpen.setRange(0, 100); self.sharpen.setValue(0)
         self.sharpen.setSuffix(" %")
         self.denoise = QDoubleSpinBox(); self.denoise.setRange(0, 100); self.denoise.setValue(0)
-        self.reverse = QCheckBox("Reihenfolge umkehren (Sweep hinten→vorne)")
-        self.multilayer = QCheckBox("Ebenen-Datei zum Nachbearbeiten erzeugen")
-        self.webjpg = QCheckBox("Zusätzlich ein JPG zum Teilen speichern")
-        self.ai_enhance = QCheckBox("KI-Feinschliff (Schärfen/Klarheit/Entrauschen, treu)")
-        self.ghost_map = QCheckBox("Geister-Karte erzeugen (zeigt Bewegungszonen)")
-        self.deghost = QCheckBox("Deghost (Bewegungszonen entdoppeln)")
+        self.reverse = QCheckBox(tr("Reihenfolge umkehren (Sweep hinten→vorne)"))
+        self.multilayer = QCheckBox(tr("Ebenen-Datei zum Nachbearbeiten erzeugen"))
+        self.webjpg = QCheckBox(tr("Zusätzlich ein JPG zum Teilen speichern"))
+        self.ai_enhance = QCheckBox(tr("KI-Feinschliff (Schärfen/Klarheit/Entrauschen, treu)"))
+        self.ghost_map = QCheckBox(tr("Geister-Karte erzeugen (zeigt Bewegungszonen)"))
+        self.deghost = QCheckBox(tr("Deghost (Bewegungszonen entdoppeln)"))
         self.prefix = QLineEdit("stack_")
-        self.nostack = QCheckBox("Nur Auswahl (nicht zusammenrechnen)")
-        kg.addWidget(QLabel("Nachschärfen"), 0, 0); kg.addWidget(self.sharpen, 0, 1)
+        self.nostack = QCheckBox(tr("Nur Auswahl (nicht zusammenrechnen)"))
+        kg.addWidget(QLabel(tr("Nachschärfen")), 0, 0); kg.addWidget(self.sharpen, 0, 1)
         kg.addWidget(help_btn("Schärft das fertige Bild leicht nach (in %). 0 = aus. Makro oft 10–25 %."), 0, 2)
-        kg.addWidget(QLabel("Rauschreduktion"), 1, 0); kg.addWidget(self.denoise, 1, 1)
+        kg.addWidget(QLabel(tr("Rauschreduktion")), 1, 0); kg.addWidget(self.denoise, 1, 1)
         kg.addWidget(help_btn("Reduziert Bildrauschen im Ergebnis (kantenerhaltend). 0 = aus."), 1, 2)
         kg.addWidget(self.reverse, 2, 0, 1, 2)
         kg.addWidget(help_btn("Falls du die Schärfereihe von hinten nach vorne fotografiert hast."), 2, 2)
@@ -664,7 +664,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         kg.addWidget(self.deghost, 7, 0, 1, 2)
         kg.addWidget(help_btn("In stark uneinigen Zonen wird der Median der Fotos genommen statt zu "
                               "mischen — reduziert Doppelkonturen bei Bewegung. Rest per Retusche."), 7, 2)
-        kg.addWidget(QLabel("Datei-Name-Vorsatz"), 8, 0); kg.addWidget(self.prefix, 8, 1)
+        kg.addWidget(QLabel(tr("Datei-Name-Vorsatz")), 8, 0); kg.addWidget(self.prefix, 8, 1)
         kg.addWidget(help_btn("Vorsatz für den Dateinamen des Ergebnisses."), 8, 2)
         kg.addWidget(self.nostack, 9, 0, 1, 2)
         kg.addWidget(help_btn("Nur Fotos auswählen, noch nicht verrechnen — zum Prüfen der Auswahl."), 9, 2)
@@ -688,8 +688,8 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         g_vlm.setCheckable(True); g_vlm.setChecked(False)
         self.vlm_group = g_vlm
         vg = QVBoxLayout(g_vlm)
-        note = QLabel("Ohne KI läuft alles per Heuristik (überall lauffähig). Optional eine "
-                      "Bild-KI zuschalten — lokal/Server oder ein Anbieter mit API-Schlüssel.")
+        note = QLabel(tr("Ohne KI läuft alles per Heuristik (überall lauffähig). Optional eine "
+                         "Bild-KI zuschalten — lokal/Server oder ein Anbieter mit API-Schlüssel."))
         note.setWordWrap(True); note.setStyleSheet("color:#9aa09a;")
         vg.addWidget(note)
         self.vlm_provider = QComboBox()
@@ -702,20 +702,20 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         }
         self.vlm_provider.addItems(list(self._providers.keys()))
         self.vlm_provider.currentTextChanged.connect(self._on_provider)
-        vg.addLayout(_row("Anbieter", self.vlm_provider,
-                          "Schnellwahl: lokaler/eigener Server, OpenAI oder OpenRouter "
-                          "(beide brauchen einen API-Schlüssel), oder eigene Adresse."))
+        vg.addLayout(_row(tr("Anbieter"), self.vlm_provider,
+                          tr("Schnellwahl: lokaler/eigener Server, OpenAI oder OpenRouter "
+                             "(beide brauchen einen API-Schlüssel), oder eigene Adresse.")))
         self.vlm_ep = QLineEdit("http://localhost:8000/v1")
         self.vlm_model = QLineEdit("")
         self.vlm_key = QLineEdit(); self.vlm_key.setEchoMode(QLineEdit.Password)
-        self.vlm_key.setPlaceholderText("nur bei OpenAI/OpenRouter nötig")
-        vg.addLayout(_row("Adresse (Endpoint)", self.vlm_ep,
-                          "OpenAI-kompatibler Endpoint, endet meist auf /v1."))
-        vg.addLayout(_row("Modell", self.vlm_model,
-                          "Name des Bild-Modells (z.B. gpt-4o-mini oder das lokale Modell)."))
-        vg.addLayout(_row("API-Schlüssel", self.vlm_key,
-                          "Geheimer Schlüssel des Anbieters. Bleibt lokal gespeichert. "
-                          "Hinweis: das ChatGPT-Abo ist KEIN API-Schlüssel."))
+        self.vlm_key.setPlaceholderText(tr("nur bei OpenAI/OpenRouter nötig"))
+        vg.addLayout(_row(tr("Adresse (Endpoint)"), self.vlm_ep,
+                          tr("OpenAI-kompatibler Endpoint, endet meist auf /v1.")))
+        vg.addLayout(_row(tr("Modell"), self.vlm_model,
+                          tr("Name des Bild-Modells (z.B. gpt-4o-mini oder das lokale Modell).")))
+        vg.addLayout(_row(tr("API-Schlüssel"), self.vlm_key,
+                          tr("Geheimer Schlüssel des Anbieters. Bleibt lokal gespeichert. "
+                             "Hinweis: das ChatGPT-Abo ist KEIN API-Schlüssel.")))
         self.vlm_wish = QLineEdit()
         self.vlm_wish.setPlaceholderText(tr("z. B. „seidiges Wasser, Personen scharf"))
         vg.addLayout(_row(tr("Wunsch (optional)"), self.vlm_wish,
@@ -726,8 +726,8 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         _note.setWordWrap(True); _note.setStyleSheet("color:#9aa09a;font-size:11px;")
         vg.addWidget(_note)
         self.suggest_btn = QPushButton(tr("🤖  KI schlägt Settings vor"))
-        self.suggest_btn.setToolTip("Analysiert eine Auswahl der Frames + das Schärfeprofil "
-                                    "und schlägt Einstellungen vor (braucht KI-Server).")
+        self.suggest_btn.setToolTip(tr("Analysiert eine Auswahl der Frames + das Schärfeprofil "
+                                       "und schlägt Einstellungen vor (braucht KI-Server)."))
         self.suggest_btn.clicked.connect(self.suggest)
         p3.addWidget(self.suggest_btn)
 
@@ -787,11 +787,11 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         res_btns = QHBoxLayout(); res_btns.setSpacing(8)
         # Primäre Aktionen als Buttons, alles Weitere im „Werkzeuge"-Menü (entrümpelt)
         self.cmp_btn = QPushButton(tr("🔍  Vorher/Nachher"))
-        self.cmp_btn.setToolTip("Schieberegler: schärfstes Einzelfoto gegen das fertige Bild vergleichen.")
+        self.cmp_btn.setToolTip(tr("Schieberegler: schärfstes Einzelfoto gegen das fertige Bild vergleichen."))
         self.cmp_btn.setEnabled(False); self.cmp_btn.clicked.connect(self.open_compare)
         self.adjust_btn = QPushButton(tr("🎚️  Bearbeiten"))
-        self.adjust_btn.setToolTip("Camera-Raw: Belichtung, Kontrast, Weißabgleich, Klarheit, "
-                                   "Farbe — mit Live-Vorschau und Histogramm.")
+        self.adjust_btn.setToolTip(tr("Camera-Raw: Belichtung, Kontrast, Weißabgleich, Klarheit, "
+                                   "Farbe — mit Live-Vorschau und Histogramm."))
         self.adjust_btn.setEnabled(False); self.adjust_btn.clicked.connect(self.open_adjust)
         self.export_btn = QPushButton(tr("📦  Export"))
         self.export_btn.setToolTip(tr("Exportieren: Ziele, Schärfung, Photoshop-Ebenen, 16-bit (⌘E)."))
@@ -830,7 +830,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         rv.addLayout(res_btns)
 
         # Filmstreifen: alle Fotos mit Schärfe-Wert, behalten/verworfen (unter dem Bild)
-        self.strip_label = QLabel("Bilder (grün = verwendet, rot = aussortiert):")
+        self.strip_label = QLabel(tr("Bilder (grün = verwendet, rot = aussortiert):"))
         self.strip_label.hide()
         rv.addWidget(self.strip_label)
         self.strip_scroll = QScrollArea()
@@ -1425,9 +1425,9 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         )
         self._append("\n--- KI-Vorschlag ---\n" + summary + "\n")
         box = QMessageBox(self)
-        box.setWindowTitle("KI-Vorschlag")
+        box.setWindowTitle(tr("KI-Vorschlag"))
         box.setIcon(QMessageBox.Information)
-        box.setText("Vorgeschlagene Einstellungen:")
+        box.setText(tr("Vorgeschlagene Einstellungen:"))
         box.setInformativeText(summary)
         apply_b = box.addButton("Übernehmen", QMessageBox.AcceptRole)
         box.addButton("Verwerfen", QMessageBox.RejectRole)
@@ -1538,7 +1538,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
             QMessageBox.information(self, "Vergleich", "Vorschau nicht verfügbar.")
             return
         dlg = QDialog(self)
-        dlg.setWindowTitle("Vorher / Nachher — Trennstrich ziehen")
+        dlg.setWindowTitle(tr("Vorher / Nachher — Trennstrich ziehen"))
         lay = QVBoxLayout(dlg)
         lay.addWidget(CompareSlider(before, after))
         dlg.resize(940, 660)
@@ -1928,7 +1928,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         focal = QDoubleSpinBox(); focal.setRange(8, 1200); focal.setValue(105); focal.setSuffix(" mm")
         aperture = QDoubleSpinBox(); aperture.setRange(1.0, 64); aperture.setValue(8.0); aperture.setPrefix("f/")
         mag = QDoubleSpinBox(); mag.setRange(0.0, 10.0); mag.setSingleStep(0.1); mag.setValue(1.0)
-        mag.setToolTip("Abbildungsmaßstab: 1.0 = 1:1 (Makro). 0 = stattdessen Distanz nutzen.")
+        mag.setToolTip(tr("Abbildungsmaßstab: 1.0 = 1:1 (Makro). 0 = stattdessen Distanz nutzen."))
         dist = QDoubleSpinBox(); dist.setRange(0.0, 1000); dist.setValue(0.0); dist.setSuffix(" m")
         depth = QDoubleSpinBox(); depth.setRange(0.1, 1000); depth.setValue(8.0); depth.setSuffix(" mm")
         overlap = QSpinBox(); overlap.setRange(0, 80); overlap.setValue(30); overlap.setSuffix(" %")
@@ -1948,9 +1948,9 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                             distance_m=dist.value() if mag.value() <= 0 and dist.value() > 0 else None,
                             sensor=sensor.currentData(), overlap=overlap.value() / 100.0)
             if not d:
-                out.setText("Bitte Abbildung <b>oder</b> Distanz angeben."); return
+                out.setText(tr("Bitte Abbildung <b>oder</b> Distanz angeben.")); return
             if d["dof_mm"] == float("inf"):
-                out.setText("Bei dieser Distanz/Blende reicht ein Bild (sehr große Schärfentiefe)."); return
+                out.setText(tr("Bei dieser Distanz/Blende reicht ein Bild (sehr große Schärfentiefe).")); return
             n = fa.frames_for_depth(depth.value(), d["step_mm"])
             out.setText(f"<b>Schärfentiefe je Bild:</b> {d['dof_mm']:.2f} mm<br>"
                         f"<b>Empfohlene Schrittweite:</b> {d['step_mm']:.2f} mm "

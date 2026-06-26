@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
     QGridLayout, QMessageBox, QToolButton, QToolTip,
 )
 
+from i18n import tr
+
 class CompareSlider(QWidget):
     """Vorher/Nachher mit ziehbarem Trennstrich."""
     def __init__(self, before_png, after_png, parent=None):
@@ -255,7 +257,7 @@ class AdjustDialog(QDialog):
 
     def __init__(self, img_bgr, save_path, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Bearbeiten — Camera-Raw")
+        self.setWindowTitle(tr("Bearbeiten — Camera-Raw"))
         self.full = img_bgr
         self.save_path = save_path
         s = min(1.0, 900 / img_bgr.shape[1])
@@ -294,10 +296,10 @@ class AdjustDialog(QDialog):
         last_group = None
         for key, lbl, group in self.SLIDERS:
             if group != last_group:
-                gl = QLabel(group); gl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:6px;")
+                gl = QLabel(tr(group)); gl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:6px;")
                 side.addWidget(gl); last_group = group
             row = QHBoxLayout()
-            name = QLabel(lbl); name.setMinimumWidth(86)
+            name = QLabel(tr(lbl)); name.setMinimumWidth(86)
             val = QLabel("0"); val.setMinimumWidth(32); val.setAlignment(Qt.AlignRight)
             self.value_labels[key] = val
             sld = QSlider(Qt.Horizontal); sld.setRange(-100, 100); sld.setValue(0)
@@ -306,34 +308,34 @@ class AdjustDialog(QDialog):
             side.addLayout(row)
 
         # --- Tonwertkurve ---
-        cl = QLabel("Tonwertkurve"); cl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:8px;")
+        cl = QLabel(tr("Tonwertkurve")); cl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:8px;")
         side.addWidget(cl)
         self.curve_widget = CurveWidget(self._on_curve)
         side.addWidget(self.curve_widget)
-        side.addWidget(QLabel("Klick = Punkt, ziehen, Doppelklick entfernt."))
+        side.addWidget(QLabel(tr("Klick = Punkt, ziehen, Doppelklick entfernt.")))
 
         # --- HSL pro Farbe ---
-        hl = QLabel("Farben (HSL)"); hl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:8px;")
+        hl = QLabel(tr("Farben (HSL)")); hl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:8px;")
         side.addWidget(hl)
         self.hsl_band = QComboBox(); self.hsl_band.addItems(list(HSL_BANDS.keys()))
         self.hsl_band.currentTextChanged.connect(self._load_hsl_band)
         side.addWidget(self.hsl_band)
         self.hsl_sliders = {}
         for sub in ("Farbton", "Sättigung", "Luminanz"):
-            r = QHBoxLayout(); n = QLabel(sub); n.setMinimumWidth(86)
+            r = QHBoxLayout(); n = QLabel(tr(sub)); n.setMinimumWidth(86)
             sld = QSlider(Qt.Horizontal); sld.setRange(-100, 100); sld.setValue(0)
             sld.valueChanged.connect(lambda v, s=sub: self._on_hsl(s, v))
             self.hsl_sliders[sub] = sld
             r.addWidget(n); r.addWidget(sld, 1); side.addLayout(r)
 
         # --- Geometrie ---
-        gl = QLabel("Geometrie"); gl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:8px;")
+        gl = QLabel(tr("Geometrie")); gl.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:8px;")
         side.addWidget(gl)
         self.geo_sliders = {}
         for key, lbl, lo, hi in [("angle", "Drehen", -45, 45), ("top", "Beschnitt oben", 0, 45),
                                  ("bottom", "Beschnitt unten", 0, 45), ("left", "Beschnitt links", 0, 45),
                                  ("right", "Beschnitt rechts", 0, 45)]:
-            r = QHBoxLayout(); n = QLabel(lbl); n.setMinimumWidth(110)
+            r = QHBoxLayout(); n = QLabel(tr(lbl)); n.setMinimumWidth(110)
             sld = QSlider(Qt.Horizontal); sld.setRange(lo, hi); sld.setValue(0)
             sld.valueChanged.connect(lambda v, k=key: self._on_geo(k, v))
             self.geo_sliders[key] = sld
@@ -344,40 +346,40 @@ class AdjustDialog(QDialog):
         pv.addWidget(scroll, 1)
 
         # Auto-Maske: Anpassungen nur aufs Motiv (mittlere Helligkeiten), schützt Sterne+Hintergrund
-        self.auto_mask = QCheckBox("🎯 Auto-Maske: nur Motiv aufhellen (Sterne/Hintergrund schützen)")
-        self.auto_mask.setToolTip("Legt Helligkeit/Klarheit nur auf die mittleren Helligkeiten "
-                                  "(Nebel/Motiv) — heller Kern/Sterne und dunkler Hintergrund "
-                                  "bleiben geschützt. Ideal für Astro & Makro, ganz ohne Malen.")
+        self.auto_mask = QCheckBox(tr("🎯 Auto-Maske: nur Motiv aufhellen (Sterne/Hintergrund schützen)"))
+        self.auto_mask.setToolTip(tr("Legt Helligkeit/Klarheit nur auf die mittleren Helligkeiten "
+                                     "(Nebel/Motiv) — heller Kern/Sterne und dunkler Hintergrund "
+                                     "bleiben geschützt. Ideal für Astro & Makro, ganz ohne Malen."))
         self.auto_mask.toggled.connect(self._update)
         pv.addWidget(self.auto_mask)
 
         # Masken-Pinsel: Auto-Maske als Start, dann von Hand aufnehmen/schützen
-        self.brush_on = QCheckBox("🖌 Maske von Hand malen (B)")
-        self.brush_on.setToolTip("An: auf dem Bild malen. Plus/Aufnehmen lässt die Anpassung dort "
-                                 "wirken, Minus/Schützen nimmt sie dort weg. Start ist die Auto-Maske "
-                                 "(falls aktiv), sonst leer. Tasten: B Pinsel, A/S +/-, [ ] Größe, "
-                                 "Backspace Maske löschen.")
+        self.brush_on = QCheckBox(tr("🖌 Maske von Hand malen (B)"))
+        self.brush_on.setToolTip(tr("An: auf dem Bild malen. Plus/Aufnehmen lässt die Anpassung dort "
+                                    "wirken, Minus/Schützen nimmt sie dort weg. Start ist die Auto-Maske "
+                                    "(falls aktiv), sonst leer. Tasten: B Pinsel, A/S +/-, [ ] Größe, "
+                                    "Backspace Maske löschen."))
         self.brush_on.toggled.connect(self._update)
         pv.addWidget(self.brush_on)
         brow = QHBoxLayout()
-        self.btn_add = QPushButton("+ Aufnehmen"); self.btn_add.setCheckable(True); self.btn_add.setChecked(True)
-        self.btn_erase = QPushButton("− Schützen"); self.btn_erase.setCheckable(True)
+        self.btn_add = QPushButton(tr("+ Aufnehmen")); self.btn_add.setCheckable(True); self.btn_add.setChecked(True)
+        self.btn_erase = QPushButton(tr("− Schützen")); self.btn_erase.setCheckable(True)
         self.btn_add.clicked.connect(lambda: self._set_brush(True))
         self.btn_erase.clicked.connect(lambda: self._set_brush(False))
         self.brush_size = QSlider(Qt.Horizontal); self.brush_size.setRange(8, 200); self.brush_size.setValue(40)
         self.brush_size.valueChanged.connect(lambda v: setattr(self, "brush_r", v))
-        clr = QPushButton("Maske löschen"); clr.clicked.connect(self._clear_mask)
+        clr = QPushButton(tr("Maske löschen")); clr.clicked.connect(self._clear_mask)
         brow.addWidget(self.btn_add); brow.addWidget(self.btn_erase)
-        brow.addWidget(QLabel("Größe")); brow.addWidget(self.brush_size, 1); brow.addWidget(clr)
+        brow.addWidget(QLabel(tr("Größe"))); brow.addWidget(self.brush_size, 1); brow.addWidget(clr)
         pv.addLayout(brow)
 
         btns = QHBoxLayout()
-        auto = QPushButton("Auto"); auto.clicked.connect(self._auto)
-        reset = QPushButton("Zurücksetzen"); reset.clicked.connect(self._reset)
-        save = QPushButton("💾 Speichern"); save.clicked.connect(self._save)
+        auto = QPushButton(tr("Auto")); auto.clicked.connect(self._auto)
+        reset = QPushButton(tr("Zurücksetzen")); reset.clicked.connect(self._reset)
+        save = QPushButton(tr("💾 Speichern")); save.clicked.connect(self._save)
         btns.addWidget(auto); btns.addWidget(reset); btns.addWidget(save)
         pv.addLayout(btns)
-        note = QLabel("Treue Anpassung — keine Inhalte erfunden.")
+        note = QLabel(tr("Treue Anpassung — keine Inhalte erfunden."))
         note.setStyleSheet("color:#9aa09a;"); pv.addWidget(note)
         lay.addWidget(panel)
         self.resize(1200, 800)
@@ -616,7 +618,7 @@ class RetouchDialog(QDialog):
     """Eigener Retusche-Editor: scharfe Stellen aus einem Quellfoto über das Ergebnis malen."""
     def __init__(self, result_bgr, sources, names, save_path, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Retusche — scharfe Stellen übermalen")
+        self.setWindowTitle(tr("Retusche — scharfe Stellen übermalen"))
         self.work = result_bgr.copy()
         self.original = result_bgr.copy()  # für den Radiergummi (zurück zum Stack)
         self.sources = sources
@@ -633,26 +635,26 @@ class RetouchDialog(QDialog):
         lay.addWidget(scroll, 1)
 
         side = QVBoxLayout()
-        side.addWidget(QLabel("Quelle (Foto, das du übermalst):"))
+        side.addWidget(QLabel(tr("Quelle (Foto, das du übermalst):")))
         self.src_box = QComboBox(); self.src_box.addItems(names)
         self.src_box.currentIndexChanged.connect(lambda i: setattr(self, "cur", i))
         side.addWidget(self.src_box)
         side.addWidget(help_btn("Wähle das Einzelfoto, dessen scharfe Stelle du an die "
                                 "übermalte Position holen willst.") )
-        side.addWidget(QLabel("Pinselgröße"))
+        side.addWidget(QLabel(tr("Pinselgröße")))
         bs = QSpinBox(); bs.setRange(5, 500); bs.setValue(60)
         bs.valueChanged.connect(lambda v: setattr(self, "radius", v))
         side.addWidget(bs)
-        self.eraser_box = QCheckBox("Radiergummi (zurück zum Stack)")
-        self.eraser_box.setToolTip("An: übermalte Stellen wieder auf das ursprüngliche "
-                                   "Stack-Ergebnis zurücksetzen.")
+        self.eraser_box = QCheckBox(tr("Radiergummi (zurück zum Stack)"))
+        self.eraser_box.setToolTip(tr("An: übermalte Stellen wieder auf das ursprüngliche "
+                                      "Stack-Ergebnis zurücksetzen."))
         self.eraser_box.toggled.connect(lambda v: setattr(self, "eraser", v))
         side.addWidget(self.eraser_box)
-        undo = QPushButton("↶ Rückgängig"); undo.clicked.connect(self._undo_last)
-        save = QPushButton("💾 Speichern"); save.clicked.connect(self._save)
+        undo = QPushButton(tr("↶ Rückgängig")); undo.clicked.connect(self._undo_last)
+        save = QPushButton(tr("💾 Speichern")); save.clicked.connect(self._save)
         side.addWidget(undo); side.addWidget(save)
-        side.addWidget(QLabel("Tipp: an Halos/Doppelkonturen (Ghosting) malen,\num die scharfe "
-                              "Stelle aus einem Quellfoto zu holen.\nRadiergummi setzt zurück."))
+        side.addWidget(QLabel(tr("Tipp: an Halos/Doppelkonturen (Ghosting) malen,\num die scharfe "
+                                 "Stelle aus einem Quellfoto zu holen.\nRadiergummi setzt zurück.")))
         side.addStretch(1)
         lay.addLayout(side)
 

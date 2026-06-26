@@ -4,6 +4,19 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.18.1] – 2026-07-02
+### Stabilisierung (Übersetzungen + Doku)
+- **Englisches UI war zur Hälfte deutsch — behoben.** Rund 90 sichtbare Strings standen nicht in
+  `tr()` (u. a. der **komplette Bearbeiten-/Retusche-Dialog** in components.py, wo `tr` nicht mal
+  importiert war) und erschienen im englischen UI auf Deutsch. Alle gewrappt + englische
+  Übersetzungen ergänzt (en.json deutlich gewachsen). DE bleibt unverändert (Schlüssel = deutscher Text).
+- **i18n-Test verschärft:** neuer Regressions-Schutz, der rohe deutsche UI-Strings (in QLabel/
+  QPushButton/QCheckBox/QGroupBox/setToolTip/setWindowTitle/setPlaceholderText/_row) erkennt, die
+  nicht in `tr()` stehen — damit die Lücke nicht zurückkommt.
+- **Handbuch (DE):** Der Dual-Band/Schmalband-Block stand fälschlich im **Makro**-Kapitel; jetzt
+  korrekt im **Astro**-Abschnitt (wie in der EN-Anleitung).
+- Keine neuen Features — bewusste Stabilisierungsrunde.
+
 ## [1.18.0] – 2026-07-01
 ### Schneller
 - **Parallele Registrierung:** die Ausricht-Schleife nutzt jetzt alle Kerne (OpenCV gibt den GIL
