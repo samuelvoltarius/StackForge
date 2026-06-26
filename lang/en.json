@@ -463,5 +463,9 @@
   "🛠  Werkzeuge  ▾": "🛠  Tools  ▾",
   "🛠️ Profi": "🛠️ Pro",
   "🤖  KI schlägt Settings vor": "🤖  AI suggests settings",
-  "🤖 Effekt vorschlagen": "🤖 Suggest effect"
+  "🤖 Effekt vorschlagen": "🤖 Suggest effect",
+  "Bewegtes Motiv (auf das Motiv ausrichten)": "Moving subject (align on the subject)",
+  "Für Motive, die sich während der Serie leicht bewegen (Blüte im Wind, Insekt). Richtet die Fotos am MOTIV aus statt am ganzen Bild und verwirft Aufnahmen, in denen sich das Motiv zu weit bewegt hat — gegen Doppelkonturen. In der Automatik wird das auch selbst erkannt.": "For subjects that drift slightly during the series (a flower in the wind, an insect). Aligns the photos on the SUBJECT instead of the whole frame and discards shots where the subject moved too far — preventing double edges. Auto mode detects this on its own too.",
+  "Verschmelzungs-Methode": "Merge method",
+  "Wie die scharfen Bereiche verschmolzen werden. „pyramid“ = Laplace-Pyramide (Standard): sehr scharf, ideal für feine/weiche Strukturen wie Blüten und Fell. „depthmap“ = Tiefenkarten-Auswahl: wählt pro Bildpunkt das schärfste Foto — stark bei harten Tiefenkanten (Insekten, Münzen, Platinen), bei weichen Motiven aber oft weicher als die Pyramide.": "How the in-focus areas are merged. “pyramid” = Laplacian pyramid (default): very sharp, ideal for fine/soft structures like flowers and fur. “depthmap” = depth-map selection: picks the sharpest photo per pixel — strong on hard depth edges (insects, coins, circuit boards), but often softer than the pyramid on soft subjects."
 }

@@ -33,7 +33,7 @@ except Exception:
 FRAME_RE = re.compile(r"\b(\d+)\s*/\s*(\d+)\b")
 
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
-from ui.appinfo import HERE, SCRIPT, ICON, ICON_PNG, APP_NAME, IMG_EXTS, _cache_path  # noqa: E402,F401
+from ui.appinfo import SCRIPT, ICON, ICON_PNG, APP_NAME, _cache_path  # noqa: E402,F401
 
 
 from ui.theme import THEME
@@ -641,6 +641,12 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         ag.addWidget(QLabel(tr("Erkennung")), 2, 0); ag.addWidget(self.detector, 2, 1)
         ag.addWidget(help_btn("Wie markante Punkte zum Ausrichten gefunden werden. ORB = schnell "
                               "(Standard), SIFT = genauer bei texturarmen Motiven, aber langsamer."), 2, 2)
+        self.moving_subject = QCheckBox(tr("Bewegtes Motiv (auf das Motiv ausrichten)"))
+        ag.addWidget(self.moving_subject, 3, 0, 1, 2)
+        ag.addWidget(help_btn("Für Motive, die sich während der Serie leicht bewegen (Blüte im Wind, "
+                              "Insekt). Richtet die Fotos am MOTIV aus statt am ganzen Bild und verwirft "
+                              "Aufnahmen, in denen sich das Motiv zu weit bewegt hat — gegen Doppelkonturen. "
+                              "In der Automatik wird das auch selbst erkannt."), 3, 2)
         self.g_ab = g_ab; p2.addWidget(g_ab)
 
         # Zusammenrechnen + Ergebnis-Optionen
@@ -682,6 +688,13 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         kg.addWidget(help_btn("Vorsatz für den Dateinamen des Ergebnisses."), 8, 2)
         kg.addWidget(self.nostack, 9, 0, 1, 2)
         kg.addWidget(help_btn("Nur Fotos auswählen, noch nicht verrechnen — zum Prüfen der Auswahl."), 9, 2)
+        self.focus_method = QComboBox(); self.focus_method.addItems(["pyramid", "depthmap"])
+        kg.addWidget(QLabel(tr("Verschmelzungs-Methode")), 10, 0); kg.addWidget(self.focus_method, 10, 1)
+        kg.addWidget(help_btn("Wie die scharfen Bereiche verschmolzen werden. „pyramid“ = Laplace-"
+                              "Pyramide (Standard): sehr scharf, ideal für feine/weiche Strukturen wie "
+                              "Blüten und Fell. „depthmap“ = Tiefenkarten-Auswahl: wählt pro Bildpunkt "
+                              "das schärfste Foto — stark bei harten Tiefenkanten (Insekten, Münzen, "
+                              "Platinen), bei weichen Motiven aber oft weicher als die Pyramide."), 10, 2)
         self.g_stk = g_stk; p3.addWidget(g_stk)
 
         # Export für (zusätzliche, passend skalierte+geschärfte JPGs)
@@ -1290,6 +1303,11 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
     def _build_args(self, auto):
         inp = self.in_edit.text().strip()
         args = self._common_args(inp)
+        # Verschmelzungs-Methode & Motiv-Ausrichtung gelten in Auto- wie Handbetrieb
+        if self.focus_method.currentText() == "depthmap":
+            args += ["--focus-method", "depthmap"]
+        if self.moving_subject.isChecked():
+            args += ["--moving-subject"]
         if auto:
             return args + ["--auto"]
         # manueller Modus: alle Regler übernehmen

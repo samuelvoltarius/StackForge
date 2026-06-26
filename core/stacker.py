@@ -22,12 +22,103 @@ def _to_gray8(img):
     return g
 
 
-def align_images(images, ref_idx=None, mode="rigid", detector="ORB", log=print):
-    """Richtet alle Bilder auf das Referenzbild aus. Gibt ausgerichtete Liste zurück.
-    mode: 'rigid' (Verschiebung/Drehung/Skalierung) oder 'homography' (Perspektive)."""
+def _subject_centroid(bgr, min_area=2000):
+    """Schwerpunkt des dominanten **Motivs** finden — für bewegte Makro-Motive vor ruhigem
+    Hintergrund (Blüte, Insekt …). Cue = **Farbsättigung** über dem flauen Hintergrund. Farbe ist
+    weitgehend FOKUS-unabhängig (anders als „Detail/Schärfe", das mit der Schärfeebene wandert) →
+    stabiler Anker, auch wenn die Schärfe durch das Motiv läuft.
+    Gibt (x, y, area) oder None (kein klares farbiges Motiv → normale Ausrichtung)."""
+    if bgr is None or bgr.ndim != 3:
+        return None
+    im8 = bgr if bgr.dtype == np.uint8 else \
+        np.clip(bgr / (256.0 if bgr.dtype == np.uint16 else 1.0), 0, 255).astype(np.uint8)
+    hsv = cv2.cvtColor(im8, cv2.COLOR_BGR2HSV)
+    sat = hsv[..., 1].astype(np.float32)
+    s_bg = float(np.median(sat)); s_sig = float(np.median(np.abs(sat - s_bg))) * 1.4826 + 1e-6
+    mask = ((sat > (s_bg + max(25.0, 3.0 * s_sig))) & (hsv[..., 2] > 40)).astype(np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((7, 7), np.uint8))
+    n, _lbl, stats, cent = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    if n < 2:
+        return None
+    big = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+    area = int(stats[big, cv2.CC_STAT_AREA])
+    if area < min_area:
+        return None
+    return float(cent[big][0]), float(cent[big][1]), area
+
+
+def subject_motion_span(paths, sample=12):
+    """Wie weit wandert das Motiv über die Serie? Gibt den maximalen Schwerpunkt-Versatz als
+    Anteil der Bildbreite zurück (0..~1) oder None (kein klares Motiv). Für die Auto-Erkennung
+    „bewegtes Motiv" in der Automatik. Liest nur eine Stichprobe (schnell)."""
+    if len(paths) < 3:
+        return None
+    idx = np.linspace(0, len(paths) - 1, min(sample, len(paths))).astype(int)
+    cents = []
+    for i in idx:
+        im = cv2.imread(paths[int(i)], cv2.IMREAD_UNCHANGED)
+        if im is None:
+            continue
+        if im.ndim == 2:
+            im = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
+        h, w = im.shape[:2]
+        c = _subject_centroid(im)
+        if c and w and h:
+            cents.append((c[0] / w, c[1] / h))      # NORMIERT (0..1) — robust gegen Bildgrößen
+    if len(cents) < 3:
+        return None
+    c = np.array(cents)
+    return float(np.hypot(c[:, 0].max() - c[:, 0].min(), c[:, 1].max() - c[:, 1].min()))
+
+
+def align_on_subject(images, ref_idx=None, max_shift_frac=0.25, log=print):
+    """Frames so verschieben, dass das **Motiv** (nicht das ganze Bild) deckungsgleich liegt —
+    der robuste Weg bei bewegtem Motiv vor ruhigem Hintergrund (Wind-Schwanken etc.). Frames, in
+    denen kein klares Motiv gefunden wird oder die zu weit verschoben sind, werden VERWORFEN
+    (zurückgegeben als None) — sonst kämen Geister zurück. Gibt (aligned_or_None_Liste) zurück."""
     n = len(images)
     if n < 2:
         return images
+    if ref_idx is None:
+        ref_idx = n // 2
+    ref_c = _subject_centroid(images[ref_idx])
+    if ref_c is None:                      # kein klares Motiv → Aufrufer fällt auf normale Ausrichtung zurück
+        log("    (kein klares Motiv erkannt — Motiv-Ausrichtung übersprungen)")
+        return None
+    h, w = images[ref_idx].shape[:2]
+    max_shift = max_shift_frac * max(h, w)
+    out = [None] * n
+    out[ref_idx] = images[ref_idx]
+    kept = 1
+    for i in range(n):
+        if i == ref_idx:
+            continue
+        c = _subject_centroid(images[i])
+        if c is None:
+            continue                       # Motiv nicht gefunden → Frame raus
+        dx, dy = ref_c[0] - c[0], ref_c[1] - c[1]
+        if (dx * dx + dy * dy) ** 0.5 > max_shift:
+            continue                       # Motiv zu weit verschoben → Frame raus (sonst Geist)
+        M = np.float32([[1, 0, dx], [0, 1, dy]])
+        out[i] = cv2.warpAffine(images[i], M, (w, h), flags=cv2.INTER_LANCZOS4,
+                                borderMode=cv2.BORDER_REPLICATE)
+        kept += 1
+    log(f"    Motiv-Ausrichtung: {kept}/{n} Frames passend (Rest verworfen — Motiv zu weit bewegt)")
+    return [x for x in out if x is not None]
+
+
+def align_images(images, ref_idx=None, mode="rigid", detector="ORB", log=print):
+    """Richtet alle Bilder auf das Referenzbild aus. Gibt ausgerichtete Liste zurück.
+    mode: 'rigid' (Verschiebung/Drehung/Skalierung), 'homography' (Perspektive) oder
+    'subject' (auf das dominante Motiv ausrichten — für bewegte Makro-Motive)."""
+    n = len(images)
+    if n < 2:
+        return images
+    if mode == "subject":
+        res = align_on_subject(images, ref_idx, log=log)
+        if res is not None:
+            return res
+        mode = "rigid"                     # Fallback, wenn kein klares Motiv
     if ref_idx is None:
         ref_idx = n // 2  # mittleres Bild als Referenz (meist gut fokussiert)
     if detector == "SIFT":
@@ -223,14 +314,51 @@ def focus_stack(images, min_size=32, deghost=False, deghost_thresh=0.35, log=pri
     return np.clip(img, 0, maxval).astype(dtype)
 
 
+def focus_stack_depthmap(images, sharp_blur=4, gamma=8.0, log=print):
+    """Depth-Map-Fokus-Stacking (Helicon „DMap"/Zerene-Stil): pro Bildpunkt wird das **schärfste
+    Frame** stark bevorzugt — über eine **potenzgewichtete Mischung** der Schärfekarten (Gewicht =
+    Schärfe^gamma). Hohes gamma ≈ harte Auswahl des schärfsten Frames (volle Detailschärfe), bleibt
+    aber ein weicher Blend der besten 1–2 Frames → **keine dunklen Löcher, keine harten Nähte, keine
+    Pyramiden-Halos**. Auf flachen Flächen, wo alle Frames ähnlich sind, mittelt es sauber.
+    Stärken: kontrastreiche Tiefenstruktur (Insekten, Münzen, Platinen, tiefe Makro-Stacks)."""
+    n = len(images)
+    if n < 2:
+        return images[0] if images else None
+    dtype = images[0].dtype
+    maxval = 65535.0 if dtype == np.uint16 else 255.0
+    h, w = images[0].shape[:2]
+    fl = [im.astype(np.float32) for im in images]
+    # Schärfekarte je Bild: |Laplace| auf Graustufen, leicht geglättet (Region statt Einzelpixel)
+    S = np.empty((n, h, w), np.float32)
+    for i, im in enumerate(fl):
+        g = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY) if im.ndim == 3 else im
+        S[i] = cv2.GaussianBlur(np.abs(cv2.Laplacian(g, cv2.CV_32F)), (0, 0), sharp_blur)
+        log(f"    Schärfekarte {i + 1}/{n}")
+    # Potenzgewichte: Schärfe^gamma, je Pixel normiert. Hohes gamma → schärfstes Frame dominiert klar.
+    Smax = S.max(axis=0, keepdims=True) + 1e-6
+    Wt = (S / Smax) ** gamma                              # 0..1, schärfstes Frame = 1
+    Wt /= Wt.sum(axis=0, keepdims=True) + 1e-6
+    out = np.zeros_like(fl[0])
+    for i in range(n):
+        out += (Wt[i][..., None] if fl[i].ndim == 3 else Wt[i]) * fl[i]
+    log("    Tiefenkarte (potenzgewichtet) verschmolzen")
+    return np.clip(out, 0, maxval).astype(dtype)
+
+
 def focus_stack_streamed(paths, align_mode="rigid", detector="ORB", chunk=8,
-                         do_align=True, log=print, preview_cb=None):
+                         do_align=True, method="pyramid", log=print, preview_cb=None):
     """Speicherschonendes Stacken: liest Frames in Bündeln von `chunk` von der Platte,
     richtet sie aufs (globale) Referenzbild aus, verschmilzt je Bündel, dann die
     Zwischenergebnisse. RAM ~ max(chunk, Anzahl Bündel) Frames statt alle gleichzeitig.
 
+    method: „pyramid" (Laplace-Pyramide, Standard) oder „depthmap" (Tiefenkarten-Auswahl).
+
     preview_cb(img_bgr, k): optionaler Callback für die Live-Vorschau — wird nach jedem Bündel
     mit dem bisher zusammengeführten (Teil-)Ergebnis aufgerufen."""
+    def merge(grp):
+        if method == "depthmap":
+            return focus_stack_depthmap(grp, log=lambda *a: None)
+        return focus_stack(grp, log=lambda *a: None)
     ref = cv2.imread(paths[len(paths) // 2], cv2.IMREAD_UNCHANGED)
     inters = []
     running = None
@@ -245,20 +373,25 @@ def focus_stack_streamed(paths, align_mode="rigid", detector="ORB", chunk=8,
         if do_align:
             grp = align_images([ref] + grp, ref_idx=0, mode=align_mode,
                                detector=detector, log=lambda *a: None)[1:]
-        merged = focus_stack(grp, log=lambda *a: None)
+        if not grp:                         # Motiv-Ausrichtung kann alle Frames im Bündel verwerfen
+            continue
+        merged = merge(grp)
         inters.append(merged)
         log(f"    Bündel {i // chunk + 1}/{(n + chunk - 1) // chunk} verschmolzen "
             f"({len(grp)} Frames)")
         if preview_cb:
-            running = merged if running is None else focus_stack([running, merged], log=lambda *a: None)
+            running = merged if running is None else merge([running, merged])
             try:
                 preview_cb(running, len(inters))
             except Exception:
                 pass
+    if not inters:                          # alle Bündel verworfen → Referenz zurückgeben
+        log("    (kein Bündel übrig — Referenzbild als Ergebnis)")
+        return ref
     if len(inters) == 1:
         return inters[0]
     log("    Bündel zusammenführen …")
-    return focus_stack(inters, log=lambda *a: None)
+    return merge(inters)
 
 
 def unsharp_mask(img, amount_percent=0.0, radius=1.0):

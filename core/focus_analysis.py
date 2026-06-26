@@ -454,9 +454,11 @@ def _exif_expo_iso(paths):
 
 # -------------------------------------------------------- Qualität des Stacks ----
 
-def stack_quality(result_bgr, sources=None):
+def stack_quality(result_bgr, sources=None, subject_aligned=False):
     """Bewertet das fertige Stack-Ergebnis (0–100) + menschenlesbare Befunde:
-    Schärfe (Laplace-Varianz), Halos (Überschwinger an Kanten), Ghosting (Quell-Streuung)."""
+    Schärfe (Laplace-Varianz), Halos (Überschwinger an Kanten), Ghosting (Quell-Streuung).
+    subject_aligned: wurde auf das Motiv ausgerichtet (bewegtes Motiv)? Dann ist „Ghosting" im
+    unscharfen Hintergrund erwartbar und harmlos — wird erklärt statt bestraft."""
     g = (cv2.cvtColor(result_bgr, cv2.COLOR_BGR2GRAY) if result_bgr.ndim == 3 else result_bgr)
     g = g.astype(np.float32)
     if g.max() > 255:
@@ -485,8 +487,14 @@ def stack_quality(result_bgr, sources=None):
             dm = stacker.disagreement_map(sources)
             ghost_area = float((dm > (dm.mean() + 4 * dm.std())).mean())
             if ghost_area > 0.002:
-                findings.append("Ghosting/Bewegungszonen erkannt — Retusche oder Deghost prüfen")
-                score -= 15
+                if subject_aligned:
+                    findings.append("Motiv-Ausrichtung aktiv: Motiv ist sauber zusammengeführt. Der "
+                                    "unscharfe Hintergrund kann in der Geister-Karte markiert sein — "
+                                    "das ist normal (bewegtes Motiv) und stört das Ergebnis nicht.")
+                    score -= 3
+                else:
+                    findings.append("Ghosting/Bewegungszonen erkannt — Retusche oder Deghost prüfen")
+                    score -= 15
         except Exception:
             pass
 

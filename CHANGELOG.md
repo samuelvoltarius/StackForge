@@ -4,6 +4,22 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.18.8] – 2026-07-09
+### Makro: bewegtes Motiv + Depth-Map-Methode
+- **Bewegtes Motiv (Motiv-Ausrichtung):** Neue Option „Bewegtes Motiv (auf das Motiv ausrichten)"
+  (Ausrichtung-Gruppe) bzw. `--moving-subject`. Bei Motiven, die während der Schärfereihe leicht
+  wandern (Blüte im Wind, Insekt), werden die Fotos **am Motiv** ausgerichtet statt am ganzen Bild;
+  Aufnahmen, in denen sich das Motiv zu weit bewegt hat, werden **verworfen** — gegen Doppelkonturen.
+  Die **Automatik erkennt** bewegte Motive selbst (Schwerpunkt-Wanderung der Farbsättigung) und
+  schaltet die Motiv-Ausrichtung mit Anfänger-Klartext-Hinweis (Stativ/windstill) automatisch ein.
+  Die Konfidenz-Anzeige wertet die (gewollt) verschobene, unscharfe Hintergrund-Zone nicht mehr
+  fälschlich als Ghosting.
+- **Depth-Map-Verschmelzung (Helicon „DMap"-Stil):** Neue Auswahl „Verschmelzungs-Methode" bzw.
+  `--focus-method {pyramid,depthmap}`. `depthmap` wählt pro Bildpunkt das **schärfste Foto**
+  (potenzgewichtet, lochfrei) — stark bei **harten Tiefenkanten** (Insekten, Münzen, Platinen).
+  Standard bleibt die **Laplace-Pyramide**, die bei feinen/weichen Strukturen (Blüten, Fell) in
+  Tests klar schärfer ist; die Methode ist ehrlich beschriftet, damit man je Motiv das Richtige wählt.
+
 ## [1.18.7] – 2026-07-08
 ### Starless-Workflow: Nebel + Sterne live einstellbar
 - StarNet läuft **einmal**, danach lassen sich **Nebel-Boost** und **Stern-Stärke** über zwei Regler

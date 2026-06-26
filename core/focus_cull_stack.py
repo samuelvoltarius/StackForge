@@ -814,6 +814,18 @@ def run_own_engine(selected_dir, work_dir, args):
     per = sample.shape[0] * sample.shape[1] * (sample.shape[2] if sample.ndim == 3 else 1) * sample.itemsize
     budget = int(getattr(args, "ram_budget_gb", 3) * (1024 ** 3))
     gm_path = None  # Geister-Karte (für Anzeige + KI-Retusche-Hinweis)
+
+    # Ausrichtungs-Modus: 'subject' (auf Motiv) wenn explizit gewählt ODER in der Automatik ein
+    # deutlich bewegtes Motiv erkannt wird (Wind-Schwanken). Sonst normale (rigide/Perspektive).
+    align_mode = "subject" if getattr(args, "moving_subject", False) else args.transform
+    if align_mode != "subject" and getattr(args, "auto", False) and not args.no_align:
+        span = stacker.subject_motion_span(paths)        # 0..1 (Anteil der Bildbreite)
+        if span is not None and span > 0.02:             # >2 % der Bildbreite = bewegtes Motiv
+            align_mode = "subject"
+            print(f"  🌬️  Bewegtes Motiv erkannt (Motiv wandert ~{span*100:.0f}% der Bildbreite).")
+            print("      → Richte auf das MOTIV aus statt aufs ganze Bild und verwerfe zu weit "
+                  "verschobene Aufnahmen. Tipp für perfekte Ergebnisse: Stativ + windstill.")
+    args._subject_aligned = (align_mode == "subject")    # nach Auto-Erkennung setzen
     need = int(per * len(paths) * 2.5)  # Frames + Pyramiden grob
     if need > budget and len(paths) > 4:
         chunk = max(3, budget // int(per * 3))
@@ -829,15 +841,17 @@ def run_own_engine(selected_dir, work_dir, args):
                 print(f"PREVIEW:{pv_path}"); sys.stdout.flush()
             except Exception:
                 pass
-        result = stacker.focus_stack_streamed(paths, align_mode=args.transform,
+        result = stacker.focus_stack_streamed(paths, align_mode=align_mode,
                                               detector=args.detector, chunk=chunk,
-                                              do_align=not args.no_align, preview_cb=_macro_preview)
+                                              do_align=not args.no_align,
+                                              method=getattr(args, "focus_method", "pyramid"),
+                                              preview_cb=_macro_preview)
         imgs = None  # nicht alle im RAM
         # Geister-Karte speicherschonend (ein Frame nach dem anderen) — auch für großen Stack
         if len(paths) >= 3:
             try:
                 dmap = stacker.disagreement_map_streamed(
-                    paths, align_mode=args.transform, detector=args.detector,
+                    paths, align_mode=align_mode, detector=args.detector,
                     do_align=not args.no_align, log=(print if getattr(args, "ghost_map", False)
                                                      else (lambda *a: None)))
                 if dmap is not None:
@@ -857,9 +871,13 @@ def run_own_engine(selected_dir, work_dir, args):
             imgs = [cv2.resize(im, (w, h)) if im.shape[:2] != (h, w) else im for im in imgs]
         if not args.no_align:
             print("  Ausrichten …")
-            imgs = stacker.align_images(imgs, mode=args.transform, detector=args.detector)
-        print("  Verschmelzen (Laplace-Pyramide) …")
-        result = stacker.focus_stack(imgs, deghost=getattr(args, "deghost", False))
+            imgs = stacker.align_images(imgs, mode=align_mode, detector=args.detector)
+        if getattr(args, "focus_method", "pyramid") == "depthmap":
+            print("  Verschmelzen (Depth Map / Tiefenkarte) …")
+            result = stacker.focus_stack_depthmap(imgs)
+        else:
+            print("  Verschmelzen (Laplace-Pyramide) …")
+            result = stacker.focus_stack(imgs, deghost=getattr(args, "deghost", False))
         if getattr(args, "ghost_map", False) and len(imgs) >= 3:
             gm = stacker.ghost_overlay(result, imgs)
             gm_path = os.path.join(work_dir, "ghostmap.jpg")
@@ -1008,6 +1026,13 @@ def main():
     ap.add_argument("--no-align", action="store_true", help="Frame-Ausrichtung überspringen")
     ap.add_argument("--transform", choices=["rigid", "homography"], default="rigid",
                     help="Ausrichtungs-Transform (rigid=Stativ/Makro, homography=Perspektive)")
+    ap.add_argument("--moving-subject", action="store_true",
+                    help="Auf das MOTIV ausrichten statt aufs ganze Bild — gegen Geister bei "
+                         "bewegtem Motiv (Wind-Schwanken etc.); verschobene Frames werden verworfen")
+    ap.add_argument("--focus-method", choices=["pyramid", "depthmap"], default="pyramid",
+                    help="Verschmelzungs-Methode: pyramid=Laplace-Pyramide (Standard, scharf, "
+                         "gut für feine/weiche Strukturen wie Blüten); depthmap=Tiefenkarten-Auswahl "
+                         "(für harte Tiefenkanten: Insekten, Münzen, Platinen)")
     ap.add_argument("--detector", choices=["ORB", "SIFT", "AKAZE"], default="ORB",
                     help="Feature-Detektor fürs Alignment (SIFT robuster, langsamer)")
     ap.add_argument("--sharpen", type=float, default=0.0,
@@ -1656,7 +1681,8 @@ def process(args, input_dir, work_dir):
             res = cv2.imread(max(stack_imgs, key=os.path.getmtime), cv2.IMREAD_UNCHANGED)
             srcs = [cv2.imread(os.path.join(selected_dir, f.name), cv2.IMREAD_UNCHANGED) for f in kept[:12]]
             srcs = [s for s in srcs if s is not None]
-            q = fa.stack_quality(res, srcs if len(srcs) >= 3 else None)
+            q = fa.stack_quality(res, srcs if len(srcs) >= 3 else None,
+                                 subject_aligned=getattr(args, "_subject_aligned", False))
             # Fokus-Abdeckung der verwendeten Frames -> "Fokusbereich vollständig?"
             try:
                 M = fa.sharpness_matrix([f.path for f in kept], grid=12, log=lambda *a: None)

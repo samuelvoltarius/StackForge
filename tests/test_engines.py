@@ -250,6 +250,24 @@ class TestStacker(TmpCase):
         res = stacker.focus_stack(imgs, log=lambda *a: None)  # darf nicht crashen
         self.assertEqual(res.shape[:2], (120, 160))
 
+    def test_focus_stack_depthmap(self):
+        import stacker
+        # gemeinsames Motiv, je Frame eine andere scharfe Region — Depth Map muss überall
+        # die scharfe Quelle wählen und darf KEINE schwarzen Löcher erzeugen.
+        base = (_rng().rand(120, 160, 3) * 255).astype(np.uint8)
+        imgs = []
+        for k in range(4):
+            blur = cv2.GaussianBlur(base, (0, 0), 4)
+            sharp_band = base.copy()
+            y0 = k * 30
+            blur[y0:y0 + 30] = sharp_band[y0:y0 + 30]   # je Frame ein scharfer Streifen
+            imgs.append(blur)
+        res = stacker.focus_stack_depthmap(imgs, log=lambda *a: None)
+        self.assertEqual(res.shape, base.shape)
+        self.assertEqual(res.dtype, np.uint8)
+        # keine durchgehend schwarzen Zeilen (Loch-Regression)
+        self.assertFalse(bool((res.reshape(120, -1).max(axis=1) == 0).any()))
+
     def test_disagreement_map(self):
         import stacker
         imgs = [(_rng().rand(80, 100, 3) * 255).astype(np.uint8) for _ in range(4)]
