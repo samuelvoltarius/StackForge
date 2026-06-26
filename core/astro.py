@@ -230,17 +230,37 @@ def _estimate_rotation(refg, img_g, detector="ORB", min_inliers=25):
     return M
 
 
+def _compose_affine(A, B):
+    """Zwei 2x3-Affinen verketten: Ergebnis bildet ab wie erst B, dann A (A∘B)."""
+    A3 = np.vstack([A, [0, 0, 1]]); B3 = np.vstack([B, [0, 0, 1]])
+    return (A3 @ B3)[:2].astype(np.float32)
+
+
+def _warp_and_save(f, M, out_size, op, drizzle):
+    if M is not None:
+        if drizzle > 1:
+            M = M.copy(); M[:, 2] *= drizzle
+        f = cv2.warpAffine(f, M, out_size, flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_REFLECT)
+    elif drizzle > 1:
+        f = cv2.resize(f, out_size, interpolation=cv2.INTER_LANCZOS4)
+    cv2.imwrite(op, np.clip(f * 65535, 0, 65535).astype(np.uint16),
+                [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
+    return op
+
+
 def register_and_cache(paths, out_dir, dark=None, flat=None, do_register=True,
                        align_mode="shift", cosmetic=False, drizzle=1, detector="ORB", log=print):
     """Frames kalibrieren + ausrichten, als 16-bit-TIFF in out_dir ablegen.
 
-    align_mode: 'shift' = Phasenkorrelation (nur Translation, schnell, Nachführung) ·
-                'rotate' = Stern-Merkmale (Translation + Feldrotation, für Alt-Az).
+    align_mode: 'shift'/'rotate' (stern-basiert; phaseCorrelate wird bewusst NICHT genutzt — rastet
+                bei Astro auf dem festen Fixed-Pattern statt auf den gewanderten Sternen ein).
     cosmetic:   Hot-/Cold-Pixel vor dem Ausrichten entfernen.
-    drizzle:    Ausgabe-Hochskalierung (1 = aus, 2 = doppelte Kantenlänge) — feineres Sampling
-                bei unterabgetasteten Daten („Drizzle-lite": Hochskalieren + Integrieren, keine
-                echte Pixel-Fraktion wie PixInsight/DrizzleIntegration).
-    Gibt die Liste der ausgerichteten Pfade zurück."""
+    drizzle:    Ausgabe-Hochskalierung (1=aus, 2=doppelte Kantenlänge, „Drizzle-lite").
+
+    Parallel über alle Kerne (OpenCV gibt den GIL frei). Frames, die sich nicht an die Referenz
+    ausrichten lassen (großer Dither-Sprung), werden in einem 2. Pass über eine Cluster-Brücke
+    zurückgeholt statt verworfen. Gibt die Liste der ausgerichteten Pfade zurück."""
+    from parallel import pmap
     os.makedirs(out_dir, exist_ok=True)
     drizzle = max(1, int(drizzle))
     ref = calibrate(_read_float(paths[len(paths) // 2]), dark, flat)
@@ -248,46 +268,78 @@ def register_and_cache(paths, out_dir, dark=None, flat=None, do_register=True,
         ref = cosmetic_correct(ref)
     refg = _gray(ref)
     out_size = (ref.shape[1] * drizzle, ref.shape[0] * drizzle)
-    aligned = []
-    for i, p in enumerate(paths):
-        f = calibrate(_read_float(p), dark, flat)
+
+    def _prep(i):
+        f = calibrate(_read_float(paths[i]), dark, flat)
         if f.shape[:2] != ref.shape[:2]:
             f = cv2.resize(f, (ref.shape[1], ref.shape[0]))
         if cosmetic:
             f = cosmetic_correct(f)
-        if do_register:
-            # Stern-basiert ist PRIMÄR: cv2.phaseCorrelate rastet bei Astro-Frames auf dem festen
-            # Fixed-Pattern (Hotpixel/Amp-Glow) ein und verfehlt die gewanderten Sterne komplett
-            # (→ verschmierte, „tropfenförmige" Sterne). Offset-Voting aus Sternpositionen löst das.
-            fg = _gray(f)
-            M = _estimate_star_transform(refg, fg)           # Translation+Rotation aus Sternen
-            if M is None:
-                M = _estimate_rotation(refg, fg, detector)   # Fallback: ORB (großer Dither-Sprung)
-            if M is None:
-                # Nicht sicher ausrichtbar (z. B. weit weggedithert, kaum Überlappung) → ÜBERSPRINGEN.
-                # Lieber wenige saubere Frames als ein verschmierter Stack.
-                log(f"    Frame {i + 1}/{len(paths)} übersprungen (nicht sicher ausrichtbar)")
-                continue
-            if drizzle > 1:
-                M = M.copy(); M[:, 2] *= drizzle             # Translation auf Zielraster skalieren
-            f = cv2.warpAffine(f, M, out_size,
-                               flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_REFLECT)
-        elif drizzle > 1:
-            f = cv2.resize(f, out_size, interpolation=cv2.INTER_LANCZOS4)
+        return f
+
+    def _one(i):
+        f = _prep(i)
         op = os.path.join(out_dir, f"reg_{i:04d}.tif")
-        cv2.imwrite(op, np.clip(f * 65535, 0, 65535).astype(np.uint16),
-                    [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
-        aligned.append(op)
-        log(f"    registriert {len(aligned)}/{len(paths)}")
+        if not do_register:
+            return (i, _warp_and_save(f, None, out_size, op, drizzle))
+        fg = _gray(f)
+        M = _estimate_star_transform(refg, fg)
+        if M is None:
+            M = _estimate_rotation(refg, fg, detector)
+        if M is None:
+            return (i, None)                                 # 2. Pass versucht Cluster-Brücke
+        return (i, _warp_and_save(f, M, out_size, op, drizzle))
+
+    results = pmap(_one, list(range(len(paths))), memory_heavy=True)
+    aligned = [op for _i, op in sorted(results) if op]
+    skipped = [i for i, op in sorted(results) if op is None]
+    log(f"    registriert {len(aligned)}/{len(paths)} (Pass 1)")
+
+    # ---- Pass 2: weit weggeditherte Frames über eine Cluster-Brücke zurückholen ----
+    # Sub-Referenz im Cluster wählen → per ORB an die Hauptreferenz brücken → jeden Frame an die
+    # Sub-Referenz ausrichten und die Transforms verketten. JEDER zurückgeholte Frame wird verifiziert
+    # (seine Sterne müssen nach der Transformation gut auf die Referenz fallen), sonst bleibt er außen
+    # vor — so kann eine schwache Brücke kein Verschmieren zurückbringen.
+    if do_register and len(skipped) >= 3:
+        ref_pts = _star_centroids(refg)
+        grays = {i: _gray(_prep(i)) for i in skipped}
+        subref = max(skipped, key=lambda i: len(_star_centroids(grays[i])))
+        bridge = _estimate_rotation(refg, grays[subref], detector, min_inliers=10)  # subref -> ref
+        rescued = 0
+        if bridge is not None and len(ref_pts) >= 8:
+            for i in skipped:
+                S = (np.float32([[1, 0, 0], [0, 1, 0]]) if i == subref
+                     else _estimate_star_transform(grays[subref], grays[i]))   # frame -> subref
+                if S is None:
+                    continue
+                M = _compose_affine(bridge, S)               # frame -> subref -> ref
+                # Verifizieren: Sterne des Frames mit M ins Ref-Raster bringen, gute Treffer zählen
+                ip = _star_centroids(grays[i])
+                if len(ip) < 8:
+                    continue
+                ext = np.hstack([ip, np.ones((len(ip), 1), np.float32)])
+                tp = (M @ ext.T).T
+                good = sum(1 for r in ref_pts if np.min(np.linalg.norm(tp - r, axis=1)) < 1.5)
+                if good < 25:                                # zu wenige saubere Treffer → lieber lassen
+                    continue
+                op = os.path.join(out_dir, f"reg_{i:04d}.tif")
+                aligned.append(_warp_and_save(_prep(i), M, out_size, op, drizzle))
+                rescued += 1
+        if rescued:
+            log(f"    +{rescued} weit geditherte Frames über Cluster-Brücke zurückgeholt ({len(aligned)}/{len(paths)})")
     return aligned
 
 
-def stack(paths, method="sigma", kappa=2.5, normalize=True, log=print):
+def stack(paths, method="sigma", kappa=2.5, normalize=True, log=print, preview_cb=None):
     """Speicherschonendes Stacken über die Platte (zweistufig bei sigma/winsor).
-    Gibt float32-Ergebnis [0..1] (BGR) zurück."""
+    Gibt float32-Ergebnis [0..1] (BGR) zurück.
+
+    preview_cb(img01_bgr, i, n): optionaler Callback für die Live-Vorschau — wird während des
+    Stackens periodisch mit dem laufenden (Teil-)Ergebnis aufgerufen."""
     if not paths:
         raise RuntimeError("keine Frames zum Stacken")
     n = len(paths)
+    _pv_every = max(1, n // 12)              # ~12 Vorschau-Updates über den Lauf
     first = _read_float(paths[0])
     shape = first.shape
 
@@ -318,6 +370,8 @@ def stack(paths, method="sigma", kappa=2.5, normalize=True, log=print):
             else:
                 mx = np.maximum(mx, f)
             log(f"    {method} {i + 1}/{n}")
+            if preview_cb and (i % _pv_every == 0 or i == n - 1):
+                preview_cb(np.clip((acc / (i + 1)) if method == "average" else mx, 0, 1), i + 1, n)
         return np.clip(acc / n if method == "average" else mx, 0, 1)
 
     # sigma / winsor: Pass 1 Mittel+Std, Pass 2 Rejection
@@ -339,7 +393,26 @@ def stack(paths, method="sigma", kappa=2.5, normalize=True, log=print):
             m = (f >= lo) & (f <= hi)
             acc += np.where(m, f, 0); cnt += m
         log(f"    {method}-Rejection {i + 1}/{n}")
+        if preview_cb and (i % _pv_every == 0 or i == n - 1):
+            preview_cb(np.clip(acc / np.clip(cnt, 1, None), 0, 1), i + 1, n)
     return np.clip(acc / np.clip(cnt, 1, None), 0, 1)
+
+
+def bin_image(f, factor=2):
+    """Software-Binning: factor×factor-Blöcke mitteln → halbe (bei 2×) Auflösung, aber höheres
+    Signal-Rausch-Verhältnis und kleinere/rundere Sterne. Sinnvoll bei überabgetasteten Daten
+    (FWHM ≫ 2 px). factor=1 → unverändert."""
+    factor = max(1, int(factor))
+    if factor == 1 or f is None:
+        return f
+    h, w = f.shape[:2]
+    h2, w2 = (h // factor) * factor, (w // factor) * factor
+    f = f[:h2, :w2]
+    if f.ndim == 3:
+        f = f.reshape(h2 // factor, factor, w2 // factor, factor, f.shape[2]).mean(axis=(1, 3))
+    else:
+        f = f.reshape(h2 // factor, factor, w2 // factor, factor).mean(axis=(1, 3))
+    return f.astype(np.float32)
 
 
 def background_extract(f, strength=0.12):

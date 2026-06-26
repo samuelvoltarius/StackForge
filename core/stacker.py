@@ -224,12 +224,16 @@ def focus_stack(images, min_size=32, deghost=False, deghost_thresh=0.35, log=pri
 
 
 def focus_stack_streamed(paths, align_mode="rigid", detector="ORB", chunk=8,
-                         do_align=True, log=print):
+                         do_align=True, log=print, preview_cb=None):
     """Speicherschonendes Stacken: liest Frames in Bündeln von `chunk` von der Platte,
     richtet sie aufs (globale) Referenzbild aus, verschmilzt je Bündel, dann die
-    Zwischenergebnisse. RAM ~ max(chunk, Anzahl Bündel) Frames statt alle gleichzeitig."""
+    Zwischenergebnisse. RAM ~ max(chunk, Anzahl Bündel) Frames statt alle gleichzeitig.
+
+    preview_cb(img_bgr, k): optionaler Callback für die Live-Vorschau — wird nach jedem Bündel
+    mit dem bisher zusammengeführten (Teil-)Ergebnis aufgerufen."""
     ref = cv2.imread(paths[len(paths) // 2], cv2.IMREAD_UNCHANGED)
     inters = []
+    running = None
     n = len(paths)
     for i in range(0, n, chunk):
         grp = [cv2.imread(p, cv2.IMREAD_UNCHANGED) for p in paths[i:i + chunk]]
@@ -241,9 +245,16 @@ def focus_stack_streamed(paths, align_mode="rigid", detector="ORB", chunk=8,
         if do_align:
             grp = align_images([ref] + grp, ref_idx=0, mode=align_mode,
                                detector=detector, log=lambda *a: None)[1:]
-        inters.append(focus_stack(grp, log=lambda *a: None))
+        merged = focus_stack(grp, log=lambda *a: None)
+        inters.append(merged)
         log(f"    Bündel {i // chunk + 1}/{(n + chunk - 1) // chunk} verschmolzen "
             f"({len(grp)} Frames)")
+        if preview_cb:
+            running = merged if running is None else focus_stack([running, merged], log=lambda *a: None)
+            try:
+                preview_cb(running, len(inters))
+            except Exception:
+                pass
     if len(inters) == 1:
         return inters[0]
     log("    Bündel zusammenführen …")

@@ -28,6 +28,8 @@ class SettingsMixin:
             "reject_blurry": (self.reject_blurry.setChecked, self.reject_blurry.isChecked),
             "blurry_rel": (lambda v: self.blurry_rel.setValue(float(v)), self.blurry_rel.value),
             "astro_drizzle": (lambda v: self.astro_drizzle.setCurrentIndex(int(v)), self.astro_drizzle.currentIndex),
+            "astro_bin": (lambda v: self.astro_bin.setCurrentIndex(int(v)), self.astro_bin.currentIndex),
+            "astro_autocalib": (self.astro_autocalib.setChecked, self.astro_autocalib.isChecked),
             "astro_auto": (self.astro_auto.setChecked, self.astro_auto.isChecked),
             "astro_filter": (lambda v: self.astro_filter.setCurrentIndex(int(v)), self.astro_filter.currentIndex),
             "astro_palette": (lambda v: self.astro_palette.setCurrentIndex(int(v)), self.astro_palette.currentIndex),
@@ -58,7 +60,7 @@ class SettingsMixin:
                 for k in old.allKeys():
                     st.setValue(k, old.value(k))
         bool_keys = {"raw_dev", "raw_half", "vlm_on", "astro_fits", "astro_cosmetic", "astro_qc",
-                     "astro_auto",
+                     "astro_auto", "astro_autocalib",
                      "reject_blurry"}
         for k, (setter, _g) in self._settings_map().items():
             v = st.value(k)

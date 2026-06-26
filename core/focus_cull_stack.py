@@ -819,9 +819,20 @@ def run_own_engine(selected_dir, work_dir, args):
     if need > budget and len(paths) > 4:
         chunk = max(3, budget // int(per * 3))
         print(f"  Großer Stack ({need // 1024**2} MB geschätzt) -> gebündelt (je {chunk} Frames)")
+        pv_path = os.path.join(work_dir, "_live_preview.jpg")
+
+        def _macro_preview(img, k):
+            try:
+                m = float(img.max()) or 1.0
+                small = cv2.resize(img / m, (0, 0), fx=0.4, fy=0.4)
+                cv2.imwrite(pv_path, np.clip(small * 255, 0, 255).astype(np.uint8),
+                            [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+                print(f"PREVIEW:{pv_path}"); sys.stdout.flush()
+            except Exception:
+                pass
         result = stacker.focus_stack_streamed(paths, align_mode=args.transform,
                                               detector=args.detector, chunk=chunk,
-                                              do_align=not args.no_align)
+                                              do_align=not args.no_align, preview_cb=_macro_preview)
         imgs = None  # nicht alle im RAM
         # Geister-Karte speicherschonend (ein Frame nach dem anderen) — auch für großen Stack
         if len(paths) >= 3:
@@ -982,6 +993,12 @@ def main():
                     help="Astro: Ergebnis zusätzlich als 32-bit-FITS speichern (PixInsight/Siril)")
     ap.add_argument("--no-astro-qc", action="store_true",
                     help="Astro: Sub-Bewertung/Aussortieren abschalten (alle Frames nehmen)")
+    ap.add_argument("--bin", dest="astro_bin", type=int, choices=[1, 2, 3], default=1,
+                    help="Astro: Software-Binning (2/3) — höheres SNR, rundere Sterne, halbe Auflösung")
+    ap.add_argument("--also", nargs="*", default=None,
+                    help="Astro: weitere Session-/Nacht-Ordner zum SELBEN Stack hinzufügen (mehr Integration)")
+    ap.add_argument("--no-auto-calib", action="store_true",
+                    help="Astro: Dark-/Flat-/Bias-Unterordner NICHT automatisch erkennen/anwenden")
     ap.add_argument("--astro-engine", choices=["own", "siril"], default="own",
                     help="Astro-Engine: own (eigene, Standard) oder siril (optional, falls installiert)")
     ap.add_argument("--siril-path", default=None,
@@ -1099,13 +1116,56 @@ def main():
         process(args, input_dir, work_dir)
 
 
+def _autodetect_calibration(input_dir):
+    """Dark-/Flat-/Bias-Unterordner automatisch finden (gängige Namen), damit der Nutzer sie nicht
+    von Hand setzen muss. Sucht im Eingabe-Ordner UND im übergeordneten Ordner. Gibt (dark, flat,
+    bias) als Ordnerpfade oder None zurück."""
+    names = {"dark": ("dark", "darks"), "flat": ("flat", "flats", "flatfield"),
+             "bias": ("bias", "biases", "offset", "offsets")}
+    found = {"dark": None, "flat": None, "bias": None}
+    roots = [input_dir, os.path.dirname(os.path.abspath(input_dir))]
+    for root in roots:
+        if not root or not os.path.isdir(root):
+            continue
+        for d in sorted(os.listdir(root)):
+            full = os.path.join(root, d)
+            if not os.path.isdir(full):
+                continue
+            low = d.lower()
+            for key, keys in names.items():
+                if found[key] is None and low in keys and list_images(full):
+                    found[key] = full
+    return found["dark"], found["flat"], found["bias"]
+
+
+def _gather_session_paths(input_dir, args):
+    """Light-Frames aus dem Haupt-Ordner plus optionalen weiteren Sessions/Nächten (args.also)
+    zu EINEM Stack zusammenführen (mehr Integration = besseres Ergebnis)."""
+    paths = list_images(input_dir)
+    extra = getattr(args, "also", None) or []
+    for d in extra:
+        if d and os.path.isdir(d):
+            more = list_images(d)
+            if more:
+                print(f"  + Session {os.path.basename(d.rstrip('/'))}: {len(more)} Frames")
+                paths += more
+    return paths
+
+
 def run_astro(input_dir, work_dir, args):
     """Astro-Stacking: Kalibrierung -> Registrierung -> Rejection-Stacking -> Stretch."""
     import astro
-    paths = list_images(input_dir)
+    paths = _gather_session_paths(input_dir, args)
     if len(paths) < 2:
         print("Zu wenige Bilder für Astro.", file=sys.stderr); return None
     print(f"== Astro-Modus: {len(paths)} Frames, Methode={args.astro_method} ==")
+    # Kalibrier-Frames automatisch finden, wenn nicht explizit gesetzt
+    if not getattr(args, "no_auto_calib", False):
+        ad, af, ab = _autodetect_calibration(input_dir)
+        for attr, val, label in (("dark", ad, "Dark"), ("flat", af, "Flat"), ("bias", ab, "Bias")):
+            if val and not getattr(args, attr, None):
+                setattr(args, attr, val)
+                print(f"  Kalibrierung automatisch erkannt: {label}-Ordner „{os.path.basename(val)}“")
 
     def load_master(spec, name):
         if not spec:
@@ -1186,7 +1246,24 @@ def run_astro(input_dir, work_dir, args):
                                        align_mode=align_mode, cosmetic=cosmetic,
                                        drizzle=drizzle, detector=getattr(args, "detector", "ORB"))
     print(f"  Stacken ({args.astro_method}, kappa={args.astro_kappa}) …")
-    result = astro.stack(aligned, method=args.astro_method, kappa=args.astro_kappa, normalize=True)
+    pv_path = os.path.join(work_dir, "_live_preview.jpg")
+
+    def _preview_cb(img01, i, n):
+        try:
+            v = astro.autostretch(img01, strength=6.0, saturation=1.05)
+            small = cv2.resize(v, (0, 0), fx=0.4, fy=0.4)
+            cv2.imwrite(pv_path, np.clip(small * 255, 0, 255).astype(np.uint8),
+                        [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+            print(f"PREVIEW:{pv_path}")
+            sys.stdout.flush()
+        except Exception:
+            pass
+    result = astro.stack(aligned, method=args.astro_method, kappa=args.astro_kappa, normalize=True,
+                         preview_cb=_preview_cb)
+    binf = int(getattr(args, "astro_bin", 1) or 1)
+    if binf > 1:
+        result = astro.bin_image(result, binf)
+        print(f"  {binf}×-Binning → {result.shape[1]}×{result.shape[0]} (besseres SNR, rundere Sterne)")
     out = _astro_write(result, work_dir, paths, args, astro)
     shutil.rmtree(reg_dir, ignore_errors=True)
     return out

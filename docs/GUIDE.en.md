@@ -74,6 +74,11 @@ are dropped automatically (with reasons).
 - **Extras:** hot/cold-pixel correction, drizzle 2× (finer sampling), background/gradient
   removal, sub-grading (FWHM/star count/guiding/clouds/trails).
 - **Output:** linear 16-bit TIFF + 32-bit linear + optional FITS — ready for GraXpert/StarNet/PixInsight.
+- **Faster & better (new):** registration runs **in parallel** across all cores; far-dithered
+  frames are **recovered via a cluster bridge** instead of dropped. **Binning** (2×/3×) for more
+  SNR + rounder stars; **auto-detect calibration** (dark/flat/bias subfolders); **combine multiple
+  nights/sessions into one stack** („➕ Add night"); **switching palette recolors instantly**
+  (no re-stacking); **live preview** while stacking.
 - **✨ Enhance (one click):** sends the finished linear image through **GraXpert** (gradient removal
   + AI denoising) and reimports it automatically — the usual post-stack step, without switching tools.
   GraXpert is free (graxpert.com); if it isn't installed, ForgePix tells you where to get it and shows

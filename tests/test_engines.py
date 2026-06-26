@@ -784,6 +784,37 @@ class TestParallel(unittest.TestCase):
         self.assertLessEqual(cpu_workers(memory_heavy=True), cpu_workers())
 
 
+class TestBinningAndCalib(unittest.TestCase):
+    def test_bin_image_halbiert_und_mittelt(self):
+        import numpy as np
+        import astro
+        f = np.zeros((4, 4, 3), np.float32)
+        f[0:2, 0:2] = 1.0                      # ein 2x2-Block weiß
+        out = astro.bin_image(f, 2)
+        self.assertEqual(out.shape, (2, 2, 3))
+        self.assertAlmostEqual(float(out[0, 0, 0]), 1.0)   # Block war ganz weiß
+        self.assertAlmostEqual(float(out[1, 1, 0]), 0.0)
+
+    def test_bin_image_factor1_unveraendert(self):
+        import numpy as np
+        import astro
+        f = np.random.rand(6, 8, 3).astype(np.float32)
+        self.assertTrue(np.array_equal(astro.bin_image(f, 1), f))
+
+    def test_autodetect_calibration(self):
+        import os, tempfile
+        import focus_cull_stack as F
+        with tempfile.TemporaryDirectory() as d:
+            lights = os.path.join(d, "lights"); os.makedirs(lights)
+            darks = os.path.join(d, "darks"); os.makedirs(darks)
+            import numpy as np, cv2
+            cv2.imwrite(os.path.join(darks, "d1.tif"), np.zeros((8, 8, 3), np.uint16))
+            cv2.imwrite(os.path.join(lights, "l1.tif"), np.zeros((8, 8, 3), np.uint16))
+            dark, flat, bias = F._autodetect_calibration(lights)   # darks liegt im Parent
+            self.assertTrue(dark and dark.endswith("darks"))
+            self.assertIsNone(flat)
+
+
 class TestToolsEngine(unittest.TestCase):
     def test_tool_info_vorhanden(self):
         import tools_engine

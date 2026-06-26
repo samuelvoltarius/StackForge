@@ -4,6 +4,35 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.18.0] – 2026-07-01
+### Schneller
+- **Parallele Registrierung:** die Ausricht-Schleife nutzt jetzt alle Kerne (OpenCV gibt den GIL
+  frei) statt seriell zu laufen — deutlich schneller bei vielen Frames.
+- **Palette sofort umschalten:** ein Dual-Band-Palettenwechsel (HOO/SHO/Foraxx/Bicolor) färbt das
+  fertige 32-bit-Linearbild **in Millisekunden neu ein**, statt den ganzen Stack neu zu rechnen.
+
+### Besser (Ergebnis)
+- **Weit geditherte Frames zurückholen:** Frames, die sich nicht an die Referenz ausrichten lassen,
+  werden über eine **Cluster-Brücke** (Sub-Referenz → ORB-Brücke → Verkettung) gerettet — JEDER
+  zurückgeholte Frame wird verifiziert (Sterne müssen sauber auf die Referenz fallen), sonst bleibt
+  er außen vor. (Im Test: 15 → 17 von 20 Frames, ohne Verschmieren.)
+- **Kalibrierung automatisch erkennen:** dark-/flat-/bias-Unterordner werden im Aufnahme-Ordner
+  (und darüber) gefunden und angewendet — entfernt Amp-Glow/Vignette ohne Handarbeit.
+- **Binning (2×/3×):** fasst Pixel zusammen → höheres SNR, rundere/kleinere Sterne (gut bei
+  überabgetasteten Daten).
+- **Mehrere Nächte/Sessions kombinieren:** „➕ Weitere Nacht/Session" führt mehrere Aufnahme-Ordner
+  desselben Objekts zu EINEM Stack zusammen (mehr Integration = besseres Ergebnis).
+
+### Einfacher
+- **Live-Vorschau:** während des Stackens (Astro & Makro/Fokus) zeigt ForgePix laufend ein
+  Zwischenergebnis, statt erst am Ende.
+
+### CLI
+- Neu: `--bin {1,2,3}`, `--also <ordner…>` (weitere Sessions), `--no-auto-calib`.
+
+### Tests
+- +3 Tests (Binning, Kalibrier-Auto-Erkennung). 62 grün.
+
 ## [1.17.0] – 2026-06-30
 ### Neu — One-Click „✨ Veredeln" (GraXpert-Anbindung)
 - **Veredeln-Button in der Ergebnis-Leiste (Astro/Langzeit/Hybrid):** schickt das fertige

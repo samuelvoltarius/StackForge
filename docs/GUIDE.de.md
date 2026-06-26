@@ -89,6 +89,12 @@ Viele Aufnahmen desselben Himmelsausschnitts werden ausgerichtet und **gemittelt
 - **Extras:** Hot-/Cold-Pixel-Korrektur, Drizzle 2× (feineres Sampling),
   Hintergrund-/Gradienten-Entfernung, Sub-Aussortierung (FWHM/Sternzahl/Guiding/Wolken/Spuren).
 - **Ergebnis:** lineares 16-bit-TIFF + 32-bit-Linear + optional FITS — fertig für GraXpert/StarNet/PixInsight.
+- **Schneller & besser (neu):** Registrierung läuft **parallel** über alle Kerne; weit
+  weggeditherte Frames werden über eine **Cluster-Brücke zurückgeholt** statt verworfen.
+  **Binning** (2×/3×) für mehr SNR + rundere Sterne; **Kalibrierung automatisch erkennen**
+  (dark/flat/bias-Unterordner); **mehrere Nächte/Sessions zu einem Stack** zusammenführen
+  („➕ Weitere Nacht"); **Palette-Umschalten färbt sofort neu ein** (kein Neu-Stacken);
+  **Live-Vorschau** während des Stackens.
 - **✨ Veredeln (Ein-Klick):** schickt das fertige Linearbild durch **GraXpert** (Gradienten-Entfernung
   + KI-Entrauschung) und reimportiert es automatisch — der übliche Schritt nach dem Stacken, ohne
   Tool-Wechsel. GraXpert ist kostenlos (graxpert.com); ist es nicht installiert, sagt ForgePix dir,

@@ -353,9 +353,26 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.astro_palette.addItem(tr("SHO synthetisch (Hubble gold + blau, SII gefaked)"), "sho")
         self.astro_palette.addItem(tr("SHO Foraxx (dynamisch: reines Hα rot, gemischt gold)"), "foraxx")
         self.astro_palette.addItem(tr("Bicolor (Cannistra: synth. Grün, natürlicher)"), "bicolor")
+        self.astro_palette.currentIndexChanged.connect(lambda _i: self._rerender_palette())
         self.astro_drizzle = QComboBox()
         self.astro_drizzle.addItem(tr("Aus"), 1)
         self.astro_drizzle.addItem(tr("2× (feineres Sampling)"), 2)
+        # Binning: höheres SNR / rundere Sterne bei überabgetasteten Daten
+        self.astro_bin = QComboBox()
+        self.astro_bin.addItem(tr("Aus"), 1)
+        self.astro_bin.addItem(tr("2× (mehr SNR, rundere Sterne)"), 2)
+        self.astro_bin.addItem(tr("3×"), 3)
+        # Kalibrier-Frames automatisch finden (dark/flat/bias-Unterordner)
+        self.astro_autocalib = QCheckBox(tr("Kalibrierung (Darks/Flats) automatisch erkennen"))
+        self.astro_autocalib.setChecked(True)
+        # Mehrere Sessions/Nächte zu einem Stack zusammenführen
+        self._extra_sessions = []
+        self.astro_sessions_btn = QPushButton(tr("➕ Weitere Nacht/Session …"))
+        self.astro_sessions_btn.setToolTip(tr("Ordner einer weiteren Nacht desselben Objekts "
+                                              "hinzufügen — alles wird zu EINEM Stack vereint "
+                                              "(mehr Integration = besseres Ergebnis)."))
+        self.astro_sessions_btn.clicked.connect(self._add_session_folder)
+        self.astro_sessions_lbl = QLabel(""); self.astro_sessions_lbl.setStyleSheet("color:#7bd36a;")
         # Bild-Aufbereitung (Vorschau): Auto (KI/Standard) ODER manuelle Regler
         self.astro_auto = QCheckBox(tr("Aufbereitung automatisch (KI / Standard)"))
         self.astro_auto.setChecked(True)
@@ -423,6 +440,15 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "SYNTHETISIERT (Dual-Band enthält KEIN echtes SII), also nur fürs "
                               "Aussehen, nicht wissenschaftlich."), 18, 3)
         ar.addWidget(QLabel(tr("Drizzle")), 12, 2); ar.addWidget(self.astro_drizzle, 12, 3)
+        ar.addWidget(QLabel(tr("Binning")), 19, 0); ar.addWidget(self.astro_bin, 19, 1, 1, 2)
+        ar.addWidget(help_btn("Software-Binning fasst 2×2 (bzw. 3×3) Pixel zusammen: weniger "
+                              "Rauschen, rundere/kleinere Sterne, halbe Auflösung. Gut bei "
+                              "überabgetasteten Daten (große Sterne/FWHM)."), 19, 3)
+        ar.addWidget(self.astro_autocalib, 20, 0, 1, 3)
+        ar.addWidget(help_btn("Sucht im Aufnahme-Ordner (und darüber) nach Unterordnern „darks“, "
+                              "„flats“, „bias“ und wendet sie automatisch an — entfernt Amp-Glow/"
+                              "Vignette ohne Handarbeit. Manuelle Felder oben haben Vorrang."), 20, 3)
+        ar.addWidget(self.astro_sessions_btn, 21, 0, 1, 2); ar.addWidget(self.astro_sessions_lbl, 21, 2, 1, 2)
         ar.addWidget(help_btn("Hot-/Cold-Pixel = entfernt helle/dunkle Einzelpixel (Sensor-Defekte) "
                               "vor dem Stacken. Drizzle 2× = doppelt hochskaliert integrieren "
                               "(feineres Sampling bei unterabgetasteten Daten; „Drizzle-lite“, keine "
@@ -1214,6 +1240,12 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                 args += ["--astro-cosmetic"]
             if self.astro_drizzle.currentData() and int(self.astro_drizzle.currentData()) > 1:
                 args += ["--astro-drizzle", str(self.astro_drizzle.currentData())]
+            if self.astro_bin.currentData() and int(self.astro_bin.currentData()) > 1:
+                args += ["--bin", str(self.astro_bin.currentData())]
+            if not self.astro_autocalib.isChecked():
+                args += ["--no-auto-calib"]
+            if self._extra_sessions:
+                args += ["--also"] + self._extra_sessions
             if self.astro_dark.text().strip():
                 args += ["--dark", self.astro_dark.text().strip()]
             if self.astro_flat.text().strip():
@@ -1451,6 +1483,16 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         raw = bytes(self.proc.readAllStandardOutput()).decode(errors="replace")
         clean = ANSI.sub("", raw).replace("\r", "\n")
         self._append(clean)
+        # Live-Vorschau: die Engine meldet Zwischenstände als „PREVIEW:<pfad>" → sofort anzeigen
+        for line in clean.splitlines():
+            s = line.strip()
+            if s.startswith("PREVIEW:"):
+                p = s[len("PREVIEW:"):].strip()
+                if p and os.path.isfile(p):
+                    pix = QPixmap(p)
+                    if not pix.isNull():
+                        self.preview.setPixmap(pix.scaled(self.preview.size(), Qt.KeepAspectRatio,
+                                                          Qt.SmoothTransformation))
         # Fortschritt aus "i/N" ableiten (letzter Treffer im Chunk)
         m = None
         for m in FRAME_RE.finditer(clean):
@@ -1623,6 +1665,55 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
             reveal_in_files(linear_file)
             self._append(f"\n📤 {name} fehlt — Linearbild im Dateimanager: {os.path.basename(linear_file)}\n"
                          "   → Pfad im Setup eintragen, dann erneut Veredeln.\n")
+
+    def _rerender_palette(self):
+        """Dual-Band-Palette umschalten = das fertige 32-bit-Linearbild SOFORT neu einfärben
+        (Millisekunden), statt den ganzen Stack neu zu rechnen. Greift nur, wenn schon ein
+        Astro-Ergebnis existiert; sonst färbt der nächste normale Lauf."""
+        if getattr(self, "astro_filter", None) is None or self.astro_filter.currentData() != "dual":
+            return
+        if not getattr(self, "result_path", None):
+            return
+        lin = self._best_export_file(bits=32)
+        if not lin or not os.path.isfile(lin):
+            return
+        try:
+            import tifffile, numpy as np
+            import astro
+            import focus_cull_stack as F
+            rgb = tifffile.imread(lin).astype(np.float32)
+            if rgb.max() > 1.5:
+                rgb /= rgb.max()
+            bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+            view = F._dualband_view(bgr, self.astro_palette.currentData(), astro)
+            if not self.astro_auto.isChecked():
+                view = astro.autostretch(view, strength=self.astro_bright.value(),
+                                         saturation=self.astro_sat.value())
+            else:
+                view = astro.autostretch(view)
+            out = os.path.splitext(lin)[0].replace("_linear_32bit", "") + "_palette.jpg"
+            cv2.imwrite(out, np.clip(view * 255, 0, 255).astype(np.uint8),
+                        [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+            self.result_path = out
+            self._set_preview(out)
+            self._append(tr("🎨 Palette {p} — sofort neu eingefärbt (kein Neu-Stacken).\n")
+                         .format(p=self.astro_palette.currentText().split(" ")[0]))
+        except Exception as e:
+            self._append(f"(Palette-Vorschau: {e})\n")
+
+    def _add_session_folder(self):
+        """Weiteren Aufnahme-Ordner (Nacht/Session) zum selben Stack hinzufügen."""
+        start = self.in_edit.text().strip() or os.path.expanduser("~")
+        d = QFileDialog.getExistingDirectory(self, tr("Weitere Session/Nacht wählen"), start)
+        if not d:
+            return
+        if d not in self._extra_sessions:
+            self._extra_sessions.append(d)
+        n = len(self._extra_sessions)
+        self.astro_sessions_lbl.setText(tr("+{n} Session(s)").format(n=n))
+        self.astro_sessions_lbl.setToolTip("\n".join(self._extra_sessions))
+        self._append(tr("➕ Session hinzugefügt: {d} (insgesamt {n} zusätzlich)\n")
+                     .format(d=os.path.basename(d.rstrip("/")), n=n))
 
     def enhance_result(self):
         """One-Click „Veredeln": GraXpert (Gradient + Entrauschen) auf das lineare Astro-Ergebnis,
