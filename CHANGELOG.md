@@ -4,6 +4,22 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.19.0] – 2026-07-10
+### Neu — 📸 HDR-Modul (Exposure Fusion) + robustere Fokus-Ausrichtung
+- **HDR aus Belichtungsreihen (`core/hdr.py`, Modus „📸 HDR"/`--hdr`):** Verrechnet AEB-Reihen
+  (z. B. −1/0/+1 EV) per **Mertens Exposure Fusion** zu einem durchgezeichneten Bild — Lichter aus
+  den dunkleren, Schatten aus den helleren Aufnahmen, ohne Tonemapping-Artefakte und ohne bekannte
+  Belichtungszeiten. **Mehrere Reihen** in einem Ordner werden automatisch erkannt (`--hdr-bracket`
+  für feste Gruppengröße) und einzeln verrechnet. **Freihand-Reihen werden vor der Fusion
+  feature-basiert (rigide) ausgerichtet** → kein Ghosting. Klarstellung in der UI: HDR ≠ Fokus-Stacking.
+- **Paarweise/sequenzielle Ausrichtung (`--align-sequential`, GUI „Paarweise ausrichten"):** Richtet
+  jedes Frame an seinem **direkten Nachbarn** aus (2→1, 3→2, …) und kettet die Transformationen auf —
+  statt alle auf ein globales Referenzbild. Benachbarte Frames sind fast identisch → sehr robuste
+  Schätzung. Macht bei tiefen Stativ-Reihen mit großem Fokusbereich den Unterschied zwischen „hält"
+  und „bricht".
+- **Hierarchischer Baum-Merge (`--merge tree`, GUI „Baum-Merge"):** Verschmilzt paarweise
+  (1+2, 3+4, …) und die Ergebnisse weiter — bei vielen Frames oft sauberer als alles flach auf einmal.
+
 ## [1.18.8] – 2026-07-09
 ### Makro: bewegtes Motiv + Depth-Map-Methode
 - **Bewegtes Motiv (Motiv-Ausrichtung):** Neue Option „Bewegtes Motiv (auf das Motiv ausrichten)"

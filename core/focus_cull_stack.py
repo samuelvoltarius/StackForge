@@ -817,8 +817,13 @@ def run_own_engine(selected_dir, work_dir, args):
 
     # Ausrichtungs-Modus: 'subject' (auf Motiv) wenn explizit gewählt ODER in der Automatik ein
     # deutlich bewegtes Motiv erkannt wird (Wind-Schwanken). Sonst normale (rigide/Perspektive).
-    align_mode = "subject" if getattr(args, "moving_subject", False) else args.transform
-    if align_mode != "subject" and getattr(args, "auto", False) and not args.no_align:
+    if getattr(args, "moving_subject", False):
+        align_mode = "subject"
+    elif getattr(args, "align_sequential", False):
+        align_mode = "sequential"
+    else:
+        align_mode = args.transform
+    if align_mode not in ("subject", "sequential") and getattr(args, "auto", False) and not args.no_align:
         span = stacker.subject_motion_span(paths)        # 0..1 (Anteil der Bildbreite)
         if span is not None and span > 0.02:             # >2 % der Bildbreite = bewegtes Motiv
             align_mode = "subject"
@@ -845,6 +850,7 @@ def run_own_engine(selected_dir, work_dir, args):
                                               detector=args.detector, chunk=chunk,
                                               do_align=not args.no_align,
                                               method=getattr(args, "focus_method", "pyramid"),
+                                              tree=(getattr(args, "merge", "flat") == "tree"),
                                               preview_cb=_macro_preview)
         imgs = None  # nicht alle im RAM
         # Geister-Karte speicherschonend (ein Frame nach dem anderen) — auch für großen Stack
@@ -872,7 +878,16 @@ def run_own_engine(selected_dir, work_dir, args):
         if not args.no_align:
             print("  Ausrichten …")
             imgs = stacker.align_images(imgs, mode=align_mode, detector=args.detector)
-        if getattr(args, "focus_method", "pyramid") == "depthmap":
+        _fm = getattr(args, "focus_method", "pyramid")
+        if getattr(args, "merge", "flat") == "tree":
+            print(f"  Verschmelzen (Baum-Merge, {_fm}) …")
+            if _fm == "depthmap":
+                _mf = lambda g: stacker.focus_stack_depthmap(g, log=lambda *a: None)
+            else:
+                _mf = lambda g: stacker.focus_stack(g, deghost=getattr(args, "deghost", False),
+                                                    log=lambda *a: None)
+            result = stacker.merge_tree(imgs, _mf)
+        elif _fm == "depthmap":
             print("  Verschmelzen (Depth Map / Tiefenkarte) …")
             result = stacker.focus_stack_depthmap(imgs)
         else:
@@ -968,6 +983,11 @@ def main():
                          "dann fokus-stacken (Schärfentiefe)")
     ap.add_argument("--hybrid-group", type=int, default=5,
                     help="Fokus+Astro: Shots je Position, falls keine Unterordner vorhanden")
+    ap.add_argument("--hdr", action="store_true",
+                    help="HDR aus Belichtungsreihen (AEB) per Exposure Fusion (Mertens) — "
+                         "durchgezeichnete Lichter + Schatten. NICHT Fokus-Stacking!")
+    ap.add_argument("--hdr-bracket", type=int, default=0,
+                    help="Feste Gruppengröße der Belichtungsreihe (z. B. 3); 0 = automatisch erkennen")
     ap.add_argument("--longexp", action="store_true",
                     help="Langzeitbelichtung aus einer Serie (Wasser/Wolken/Lichtspuren) ohne ND-Filter")
     ap.add_argument("--longexp-mode", choices=["smooth", "trails", "declutter", "bright"],
@@ -1033,6 +1053,13 @@ def main():
                     help="Verschmelzungs-Methode: pyramid=Laplace-Pyramide (Standard, scharf, "
                          "gut für feine/weiche Strukturen wie Blüten); depthmap=Tiefenkarten-Auswahl "
                          "(für harte Tiefenkanten: Insekten, Münzen, Platinen)")
+    ap.add_argument("--align-sequential", action="store_true",
+                    help="Paarweise/sequenzielle Ausrichtung (jedes Frame auf den Nachbarn, "
+                         "aufkumuliert) statt aufs globale Referenzbild — robuster bei großem "
+                         "Fokusbereich / Stativ-Reihen")
+    ap.add_argument("--merge", choices=["flat", "tree"], default="flat",
+                    help="Verschmelzungs-Reihenfolge: flat=alle auf einmal (Standard); "
+                         "tree=hierarchisch paarweise (1+2,3+4,… gutmütiger bei vielen Frames)")
     ap.add_argument("--detector", choices=["ORB", "SIFT", "AKAZE"], default="ORB",
                     help="Feature-Detektor fürs Alignment (SIFT robuster, langsamer)")
     ap.add_argument("--sharpen", type=float, default=0.0,
@@ -1541,8 +1568,58 @@ def run_mosaic(input_dir, work_dir, args):
     return stack_dir
 
 
+def run_hdr(input_dir, work_dir, args):
+    """HDR aus Belichtungsreihen (AEB) per Exposure Fusion (Mertens). Erkennt mehrere Reihen
+    in einem Ordner automatisch (oder feste Gruppengröße via --hdr-bracket)."""
+    import hdr
+    import constants
+    paths = list_images(input_dir)
+    if len(paths) < 2:
+        print("Zu wenige Aufnahmen für HDR (mind. 2 Belichtungen).", file=sys.stderr)
+        return None
+
+    def load(p):                                         # RAW treu entwickeln, sonst einlesen
+        if os.path.splitext(p)[1].lower() in constants.RAW_EXTS:
+            return develop_raw_to_bgr(p, wb=getattr(args, "raw_wb", "camera"), bps=8)
+        return cv2.imread(p, cv2.IMREAD_UNCHANGED)
+
+    groups = hdr.split_brackets(paths, size=getattr(args, "hdr_bracket", 0))
+    print(f"== HDR-Modus: {len(paths)} Aufnahmen → {len(groups)} Belichtungsreihe(n) ==")
+    stack_dir = os.path.join(work_dir, "stack")
+    if os.path.isdir(stack_dir):
+        shutil.rmtree(stack_dir)
+    os.makedirs(stack_dir)
+    made = []
+    for gi, grp in enumerate(groups):
+        print(f"  Reihe {gi + 1}/{len(groups)} ({len(grp)} Belichtungen) …")
+        imgs = [im for im in (load(p) for p in grp) if im is not None]
+        if len(imgs) < 2:
+            print("    (übersprungen — zu wenige lesbare Bilder)")
+            continue
+        result = hdr.merge_exposures(imgs, align=not getattr(args, "no_align", False))
+        base = os.path.splitext(os.path.basename(grp[len(grp) // 2]))[0]
+        out_jpg = os.path.join(stack_dir, f"{args.prefix}{base}_hdr.jpg")
+        cv2.imwrite(out_jpg, result, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+        out_tif = os.path.join(stack_dir, f"{args.prefix}{base}_hdr.tif")
+        cv2.imwrite(out_tif, result, [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
+        copy_exif(grp[len(grp) // 2], [out_jpg, out_tif])
+        made.append(out_jpg)
+        print(f"    geschrieben: {out_jpg}")
+    if not made:
+        print("  (kein HDR erzeugt)", file=sys.stderr)
+        return None
+    if getattr(args, "web_jpg", False):
+        export_web_jpg(stack_dir, os.path.join(work_dir, "export"))
+    return stack_dir
+
+
 def process(args, input_dir, work_dir):
     """Ein kompletter Durchlauf: analysieren -> cullen -> (VLM-QC) -> stacken."""
+    if getattr(args, "hdr", False):
+        out = run_hdr(input_dir, work_dir, args)
+        if out:
+            print(f"\nFertig. Ergebnis in: {out}")
+        return out
     if getattr(args, "longexp", False):
         out = run_longexp(input_dir, work_dir, args)
         if out:

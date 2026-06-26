@@ -107,8 +107,9 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         header.addWidget(task_lbl)
         self.task_box = QComboBox()
         self.task_box.addItems([tr("🔬 Makro (Fokus)"), tr("🌌 Astro (Sterne)"),
-                                tr("🌗 Hybrid (Mosaik)"), tr("📷 Langzeitbelichtung")])
-        # 0=Makro, 1=Astro, 2=Hybrid, 3=Langzeit
+                                tr("🌗 Hybrid (Mosaik)"), tr("📷 Langzeitbelichtung"),
+                                tr("📸 HDR (Belichtungsreihe)")])
+        # 0=Makro, 1=Astro, 2=Hybrid, 3=Langzeit, 4=HDR
         self.task_box.currentIndexChanged.connect(lambda _i: self._set_task())
         header.addWidget(self.task_box)
         header.addSpacing(14)
@@ -564,6 +565,22 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         lg.addWidget(le_info, 4, 0, 1, 4)
         p1.addWidget(g_le)
 
+        # HDR (Belichtungsreihe)
+        g_hdr = QGroupBox(tr("HDR (Belichtungsreihe)"))
+        self.hdr_group = g_hdr
+        hg = QGridLayout(g_hdr)
+        self.hdr_bracket = QSpinBox(); self.hdr_bracket.setRange(0, 9); self.hdr_bracket.setValue(0)
+        hg.addWidget(QLabel(tr("Bilder pro Reihe")), 0, 0); hg.addWidget(self.hdr_bracket, 0, 1)
+        hg.addWidget(help_btn("Wie viele Belichtungen eine Reihe bilden (z. B. 3 für −1/0/+1 EV). "
+                              "0 = automatisch erkennen. Mehrere Reihen im Ordner werden einzeln zu "
+                              "je einem HDR verrechnet."), 0, 2)
+        hdr_info = QLabel(tr("Verrechnet Belichtungsreihen (Lichter + Schatten durchgezeichnet, "
+                             "Exposure Fusion). Das ist NICHT Fokus-Stacking. Freihand wird "
+                             "automatisch ausgerichtet."))
+        hdr_info.setWordWrap(True); hdr_info.setStyleSheet("color:#9aa09a;font-size:11px;")
+        hg.addWidget(hdr_info, 1, 0, 1, 3)
+        p1.addWidget(g_hdr)
+
         # Selektion
         g_sel = QGroupBox(tr("Bildauswahl"))
         sg = QGridLayout(g_sel)
@@ -647,6 +664,12 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "Insekt). Richtet die Fotos am MOTIV aus statt am ganzen Bild und verwirft "
                               "Aufnahmen, in denen sich das Motiv zu weit bewegt hat — gegen Doppelkonturen. "
                               "In der Automatik wird das auch selbst erkannt."), 3, 2)
+        self.align_sequential = QCheckBox(tr("Paarweise ausrichten (stabiler bei großem Fokusbereich)"))
+        ag.addWidget(self.align_sequential, 4, 0, 1, 2)
+        ag.addWidget(help_btn("Richtet jedes Foto an seinem direkten NACHBARN aus (2→1, 3→2, …) und "
+                              "kettet die Verschiebungen zusammen — statt alle aufs mittlere Bild. "
+                              "Benachbarte Fotos sind fast gleich → sehr robust. Empfohlen für saubere "
+                              "Stativ-Reihen mit vielen Schärfeebenen (tiefe Makros)."), 4, 2)
         self.g_ab = g_ab; p2.addWidget(g_ab)
 
         # Zusammenrechnen + Ergebnis-Optionen
@@ -695,6 +718,12 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "Blüten und Fell. „depthmap“ = Tiefenkarten-Auswahl: wählt pro Bildpunkt "
                               "das schärfste Foto — stark bei harten Tiefenkanten (Insekten, Münzen, "
                               "Platinen), bei weichen Motiven aber oft weicher als die Pyramide."), 10, 2)
+        self.merge_tree = QCheckBox(tr("Baum-Merge (paarweise, gutmütiger bei vielen Fotos)"))
+        kg.addWidget(self.merge_tree, 11, 0, 1, 2)
+        kg.addWidget(help_btn("Verschmilzt hierarchisch je zwei Fotos (1+2, 3+4, …) und dann die "
+                              "Ergebnisse weiter — statt alle auf einmal. Da jeweils nur zwei sehr "
+                              "ähnliche Bilder kombiniert werden, ist das Ergebnis bei vielen Frames oft "
+                              "sauberer. Etwas langsamer."), 11, 2)
         self.g_stk = g_stk; p3.addWidget(g_stk)
 
         # Export für (zusätzliche, passend skalierte+geschärfte JPGs)
@@ -1074,6 +1103,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.is_astro = i == 1     # 1 = Astro
         self.is_hybrid = i == 2    # 2 = Hybrid (Mosaik / Fokus+Astro)
         self.is_longexp = i == 3   # 3 = Langzeitbelichtung
+        self.is_hdr = i == 4       # 4 = HDR (Belichtungsreihe)
         self.astro_group.setChecked(self.is_astro)
         self._apply_visibility()
 
@@ -1092,11 +1122,13 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         astro = getattr(self, "is_astro", False)
         hybrid = getattr(self, "is_hybrid", False)
         longexp = getattr(self, "is_longexp", False)
-        makro = not astro and not hybrid and not longexp
+        hdr = getattr(self, "is_hdr", False)
+        makro = not astro and not hybrid and not longexp and not hdr
         self._set_step(0)
         self.astro_group.setVisible(astro)
         self.mosaic_group.setVisible(hybrid)
         self.longexp_group.setVisible(longexp)
+        self.hdr_group.setVisible(hdr)
         self.preset_group.setVisible(makro)
         for g in (self.g_sel, self.g_ab, self.g_stk, self.g_exp):
             g.setVisible(makro)
@@ -1298,16 +1330,22 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                      "--longexp-mode", self.longexp_mode.currentData(),
                      "--longexp-align", self.longexp_align.currentData(),
                      "--longexp-strength", str(self.longexp_strength.value())]
+        if getattr(self, "is_hdr", False):
+            args += ["--hdr", "--hdr-bracket", str(self.hdr_bracket.value())]
         return args
 
     def _build_args(self, auto):
         inp = self.in_edit.text().strip()
         args = self._common_args(inp)
-        # Verschmelzungs-Methode & Motiv-Ausrichtung gelten in Auto- wie Handbetrieb
+        # Verschmelzungs-Methode, Motiv-/Paar-Ausrichtung & Merge gelten in Auto- wie Handbetrieb
         if self.focus_method.currentText() == "depthmap":
             args += ["--focus-method", "depthmap"]
         if self.moving_subject.isChecked():
             args += ["--moving-subject"]
+        if self.align_sequential.isChecked():
+            args += ["--align-sequential"]
+        if self.merge_tree.isChecked():
+            args += ["--merge", "tree"]
         if auto:
             return args + ["--auto"]
         # manueller Modus: alle Regler übernehmen

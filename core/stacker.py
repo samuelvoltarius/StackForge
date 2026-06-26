@@ -107,10 +107,95 @@ def align_on_subject(images, ref_idx=None, max_shift_frac=0.25, log=print):
     return [x for x in out if x is not None]
 
 
+def _make_detector(detector="ORB"):
+    """Feature-Detektor + passender Matcher."""
+    if detector == "SIFT":
+        return cv2.SIFT_create(), cv2.BFMatcher(cv2.NORM_L2)
+    if detector == "AKAZE":
+        return cv2.AKAZE_create(), cv2.BFMatcher(cv2.NORM_HAMMING)
+    return cv2.ORB_create(5000), cv2.BFMatcher(cv2.NORM_HAMMING)
+
+
+def _estimate_transform(src_img, dst_img, mode, det, matcher,
+                        kp_dst=None, des_dst=None):
+    """3×3-Transformation, die src_img-Koordinaten auf dst_img abbildet, oder None
+    (zu wenige Merkmale/Treffer). kp_dst/des_dst optional vorbelegbar (spart Neuberechnung
+    beim Verketten benachbarter Frames)."""
+    if kp_dst is None:
+        kp_dst, des_dst = det.detectAndCompute(_to_gray8(dst_img), None)
+    kp, des = det.detectAndCompute(_to_gray8(src_img), None)
+    if des is None or des_dst is None or len(kp) < 4 or len(kp_dst) < 4:
+        return None
+    matches = matcher.knnMatch(des, des_dst, k=2)
+    good = [m for pair in matches if len(pair) == 2
+            for m, nmatch in [pair] if m.distance < 0.75 * nmatch.distance]
+    if len(good) < 8:
+        return None
+    src = np.float32([kp[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+    dst = np.float32([kp_dst[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+    if mode == "homography":
+        M, _ = cv2.findHomography(src, dst, cv2.RANSAC, 3.0)
+        return M.astype(np.float32) if M is not None else None
+    M, _ = cv2.estimateAffinePartial2D(src, dst, method=cv2.RANSAC, ransacReprojThreshold=3.0)
+    return np.vstack([M, [0, 0, 1]]).astype(np.float32) if M is not None else None
+
+
+def align_sequential(images, ref_idx=None, sub_mode="rigid", detector="ORB", log=print):
+    """Sequenzielle (paarweise) Ausrichtung: jedes Frame auf seinen NACHBARN ausrichten und die
+    Transformationen Richtung Referenz **aufkumulieren** — statt alle auf ein globales Referenzbild.
+    Benachbarte Frames im Fokus-Stack sind fast identisch → sehr robuste Schätzung; Frame 1 direkt
+    auf Frame 50 (sieht völlig anders aus) wäre fehleranfällig. Ideal für saubere Stativ-Reihen mit
+    großem Fokusbereich. sub_mode: 'rigid' (empfohlen — driftet beim Verketten am wenigsten)."""
+    n = len(images)
+    if n < 2:
+        return images
+    if ref_idx is None:
+        ref_idx = n // 2
+    det, matcher = _make_detector(detector)
+    h, w = images[ref_idx].shape[:2]
+    out = [None] * n
+    out[ref_idx] = images[ref_idx]
+    feats = {}
+
+    def F(i):                               # Keypoints je Frame cachen (dient als src und Nachbar-dst)
+        if i not in feats:
+            feats[i] = det.detectAndCompute(_to_gray8(images[i]), None)
+        return feats[i]
+
+    def warp(img, T):
+        if sub_mode == "homography":
+            return cv2.warpPerspective(img, T, (w, h), flags=cv2.INTER_LANCZOS4,
+                                       borderMode=cv2.BORDER_REPLICATE)
+        return cv2.warpAffine(img, T[:2], (w, h), flags=cv2.INTER_LANCZOS4,
+                              borderMode=cv2.BORDER_REPLICATE)
+
+    fail = 0
+    cum = np.eye(3, dtype=np.float32)       # nach rechts: i → i-1 → … → ref
+    for i in range(ref_idx + 1, n):
+        kp_d, des_d = F(i - 1)
+        M = _estimate_transform(images[i], images[i - 1], sub_mode, det, matcher, kp_d, des_d)
+        if M is None:
+            M = np.eye(3, dtype=np.float32); fail += 1
+        cum = cum @ M
+        out[i] = warp(images[i], cum)
+    cum = np.eye(3, dtype=np.float32)       # nach links: i → i+1 → … → ref
+    for i in range(ref_idx - 1, -1, -1):
+        kp_d, des_d = F(i + 1)
+        M = _estimate_transform(images[i], images[i + 1], sub_mode, det, matcher, kp_d, des_d)
+        if M is None:
+            M = np.eye(3, dtype=np.float32); fail += 1
+        cum = cum @ M
+        out[i] = warp(images[i], cum)
+    log(f"    Sequenzielle Ausrichtung: {n} Frames verkettet"
+        + (f" ({fail} Paar(e) ohne Treffer — als unverschoben übernommen)" if fail else ""))
+    return out
+
+
 def align_images(images, ref_idx=None, mode="rigid", detector="ORB", log=print):
     """Richtet alle Bilder auf das Referenzbild aus. Gibt ausgerichtete Liste zurück.
-    mode: 'rigid' (Verschiebung/Drehung/Skalierung), 'homography' (Perspektive) oder
-    'subject' (auf das dominante Motiv ausrichten — für bewegte Makro-Motive)."""
+    mode: 'rigid' (Verschiebung/Drehung/Skalierung), 'homography' (Perspektive),
+    'subject' (auf das dominante Motiv — für bewegte Makro-Motive) oder
+    'sequential' (paarweise Nachbar-Verkettung — robust bei großem Fokusbereich)."""
     n = len(images)
     if n < 2:
         return images
@@ -119,17 +204,11 @@ def align_images(images, ref_idx=None, mode="rigid", detector="ORB", log=print):
         if res is not None:
             return res
         mode = "rigid"                     # Fallback, wenn kein klares Motiv
+    if mode == "sequential":
+        return align_sequential(images, ref_idx, sub_mode="rigid", detector=detector, log=log)
     if ref_idx is None:
         ref_idx = n // 2  # mittleres Bild als Referenz (meist gut fokussiert)
-    if detector == "SIFT":
-        det = cv2.SIFT_create()
-        matcher = cv2.BFMatcher(cv2.NORM_L2)
-    elif detector == "AKAZE":
-        det = cv2.AKAZE_create()
-        matcher = cv2.BFMatcher(cv2.NORM_HAMMING)
-    else:
-        det = cv2.ORB_create(5000)
-        matcher = cv2.BFMatcher(cv2.NORM_HAMMING)
+    det, matcher = _make_detector(detector)
 
     ref_gray = _to_gray8(images[ref_idx])
     kp_ref, des_ref = det.detectAndCompute(ref_gray, None)
@@ -345,8 +424,26 @@ def focus_stack_depthmap(images, sharp_blur=4, gamma=8.0, log=print):
     return np.clip(out, 0, maxval).astype(dtype)
 
 
+def merge_tree(images, merge_fn, log=print):
+    """Hierarchische („Baum-") Verschmelzung: 1+2, 3+4, … dann die Ergebnisse paarweise weiter,
+    bis ein Bild übrig ist. Jede Verschmelzung kombiniert nur **zwei sehr ähnliche** Bilder →
+    gutmütiger als alle Frames auf einmal flach zu mischen. merge_fn(liste_aus_2) → ein Bild."""
+    level = [im for im in images if im is not None]
+    if len(level) < 2:
+        return level[0] if level else None
+    rnd = 1
+    while len(level) > 1:
+        nxt = []
+        for i in range(0, len(level), 2):
+            nxt.append(merge_fn(level[i:i + 2]) if i + 1 < len(level) else level[i])
+        log(f"    Baum-Merge Runde {rnd}: {len(level)} → {len(nxt)}")
+        level = nxt
+        rnd += 1
+    return level[0]
+
+
 def focus_stack_streamed(paths, align_mode="rigid", detector="ORB", chunk=8,
-                         do_align=True, method="pyramid", log=print, preview_cb=None):
+                         do_align=True, method="pyramid", tree=False, log=print, preview_cb=None):
     """Speicherschonendes Stacken: liest Frames in Bündeln von `chunk` von der Platte,
     richtet sie aufs (globale) Referenzbild aus, verschmilzt je Bündel, dann die
     Zwischenergebnisse. RAM ~ max(chunk, Anzahl Bündel) Frames statt alle gleichzeitig.
@@ -391,6 +488,8 @@ def focus_stack_streamed(paths, align_mode="rigid", detector="ORB", chunk=8,
     if len(inters) == 1:
         return inters[0]
     log("    Bündel zusammenführen …")
+    if tree:                                # Bündel-Ergebnisse hierarchisch (paarweise) verschmelzen
+        return merge_tree(inters, lambda pair: merge(pair), log=log)
     return merge(inters)
 
 

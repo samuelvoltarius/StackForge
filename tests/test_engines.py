@@ -274,6 +274,59 @@ class TestStacker(TmpCase):
         dm = stacker.disagreement_map(imgs)
         self.assertTrue(0.0 <= float(dm.min()) and float(dm.max()) <= 1.0001)
 
+    def test_align_sequential_recenters_shift(self):
+        import stacker
+        base = (_rng().rand(160, 200, 3) * 255).astype(np.uint8)
+        base = cv2.GaussianBlur(base, (0, 0), 1.0)            # etwas Textur fürs Matching
+        # Frames mit wachsender bekannter Verschiebung (Drift wie bei Freihand-Reihe)
+        imgs = []
+        for k in range(5):
+            M = np.float32([[1, 0, 2 * k], [0, 1, 1 * k]])
+            imgs.append(cv2.warpAffine(base, M, (200, 160), borderMode=cv2.BORDER_REFLECT))
+        out = stacker.align_sequential(imgs, detector="ORB", log=lambda *a: None)
+        self.assertEqual(len(out), 5)
+        self.assertTrue(all(o.shape == base.shape for o in out))
+        # Nach der Ausrichtung müssen die Frames deutlich ähnlicher zur Referenz (Mitte) sein
+        ref = out[2].astype(np.float32)
+        before = np.abs(imgs[0].astype(np.float32) - imgs[2].astype(np.float32)).mean()
+        after = np.abs(out[0].astype(np.float32) - ref).mean()
+        self.assertLess(after, before)
+
+    def test_hdr_exposure_fusion(self):
+        import hdr
+        # Drei „Belichtungen" derselben Szene: dunkel / mittel / hell
+        base = (_rng().rand(120, 160, 3) * 255).astype(np.uint8)
+        dark = (base * 0.4).astype(np.uint8)
+        mid = base
+        bright = np.clip(base.astype(np.float32) * 1.8, 0, 255).astype(np.uint8)
+        out = hdr.merge_exposures([dark, mid, bright], align=False, log=lambda *a: None)
+        self.assertEqual(out.shape, base.shape)
+        self.assertEqual(out.dtype, np.uint8)
+        # Fusion soll weniger ausgebrannte UND weniger abgesoffene Pixel haben als die Extreme
+        g = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY)
+        self.assertLess((g > 250).mean(), (cv2.cvtColor(bright, cv2.COLOR_BGR2GRAY) > 250).mean() + 1e-6)
+        self.assertLess((g < 5).mean(), (cv2.cvtColor(dark, cv2.COLOR_BGR2GRAY) < 5).mean() + 1e-6)
+
+    def test_hdr_split_brackets_fixed(self):
+        import hdr
+        paths = [f"f{i}.arw" for i in range(9)]
+        groups = hdr.split_brackets(paths, size=3, log=lambda *a: None)
+        self.assertEqual(len(groups), 3)
+        self.assertTrue(all(len(g) == 3 for g in groups))
+
+    def test_merge_tree_matches_shape_and_count(self):
+        import stacker
+        calls = {"n": 0}
+
+        def mf(pair):
+            self.assertLessEqual(len(pair), 2)               # immer nur Paare
+            calls["n"] += 1
+            return np.maximum(pair[0], pair[1]) if len(pair) == 2 else pair[0]
+        imgs = [(_rng().rand(40, 50, 3) * 255).astype(np.uint8) for _ in range(5)]
+        res = stacker.merge_tree(imgs, mf, log=lambda *a: None)
+        self.assertEqual(res.shape, imgs[0].shape)
+        self.assertGreaterEqual(calls["n"], 3)               # 5 Frames → mind. 3 Paar-Merges
+
 
 class TestMosaic(TmpCase):
     def test_stitch_runs(self):
