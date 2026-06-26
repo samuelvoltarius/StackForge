@@ -32,11 +32,16 @@ def find_graxpert(explicit=None):
 
 def find_starnet(explicit=None):
     """Pfad zur StarNet++-CLI finden. StarNet bringt je nach Plattform `starnet++`,
-    `StarNetv2CLI` o.ä. mit."""
+    `StarNetv2CLI` o.ä. mit. Sucht auch in gängigen Installations-/Siril-Ordnern."""
     cands = [explicit] if explicit else []
     cands += [shutil.which("starnet++"), shutil.which("StarNetv2CLI"),
               shutil.which("starnet2"), shutil.which("StarNet++"),
               "/usr/local/bin/starnet++", "/Applications/StarNet/StarNetv2CLI"]
+    # Häufige Installationsorte (auch der von Siril mitgelieferte/verlinkte StarNet-Ordner)
+    for d in ("~/siril/starnet", "~/Documents/starnet", "~/StarNet", "~/starnet",
+              "/Applications/Siril.app/Contents/Resources/starnet"):
+        for name in ("starnet++", "StarNetv2CLI", "starnet2"):
+            cands.append(os.path.join(os.path.expanduser(d), name))
     for c in cands:
         if c and os.path.isfile(c):
             return c

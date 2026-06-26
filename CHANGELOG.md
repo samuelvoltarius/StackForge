@@ -4,6 +4,21 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.18.4] – 2026-07-05
+### Astro: Feinschliff nach Feedback
+- **Weicherer Auto-Stretch:** Schwarzpunkt von Median+0.5·MAD auf **0.25·MAD** gesenkt und Kern-Schutz
+  früher (ab 80 % statt 85 %). Zeigt **mehr von schwachen Nebel-Außenbereichen**, ohne das Rauschen
+  hochzuziehen; der helle Kern bleibt geschützt (keine weitere Überstrahlung). Sterne bleiben gleich.
+- **Paletten umbenannt & neu sortiert** (verständlicher, sinnvolle Default-Reihenfolge):
+  **HOO — naturgetreu (Dual-Band)** · **Bicolor — warm/natürlich** · **Foraxx — dynamisch** ·
+  **SHO Gold — synthetischer Hubble-Look**.
+### Externe Tools
+- **StarNet++ Auto-Erkennung erweitert:** sucht jetzt auch in `~/siril/starnet`, `~/Documents/starnet`,
+  `~/StarNet` und im Siril-App-Ordner. (Hinweis: macOS kann die unsignierte StarNet-Binärdatei
+  quarantänen — einmalig `xattr -dr com.apple.quarantine <ordner>` nötig.)
+- **Siril liest OSC jetzt farbig:** beim Konvertieren wird **CFA automatisch debayert** (`-debayer`,
+  wenn BAYERPAT im Header) — vorher kam aus dem Siril-Pfad nur Graustufen.
+
 ## [1.18.3] – 2026-07-04
 ### Aufgeräumt (Code)
 - **Tote Imports entfernt** (pyflakes): ~18 ungenutzte Imports in main_window.py/components.py

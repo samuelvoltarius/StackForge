@@ -585,16 +585,17 @@ def autostretch(f, black_clip=None, strength=6.0, protect_core=True, saturation=
     else:
         med = float(np.median(g))
         mad = float(np.median(np.abs(g - med))) * 1.4826      # robustes Sigma
-        bg = med + 0.5 * mad                                   # Schwarzpunkt knapp über dem Himmel
+        bg = med + 0.25 * mad                                  # Schwarzpunkt knapp über dem Himmel
+        #  (weicher als 0.5·MAD: zeigt schwache Nebel-Außenbereiche, Hintergrund bleibt dunkel)
     x = np.clip(f - bg, 0, None)
     norm = np.quantile(_gray(x), 0.9997) + 1e-6
     x = x / norm
     out = np.clip(np.arcsinh(x * strength) / np.arcsinh(strength), 0, 1)
     if protect_core:
-        # In den hellsten ~15 % nur sanft strecken (Kern-Schutz) und mit der starken Kurve mischen.
+        # In den hellsten ~20 % nur sanft strecken (Kern-Schutz) und mit der starken Kurve mischen.
         gentle = np.clip(np.arcsinh(x * (strength * 0.25)) / np.arcsinh(strength * 0.25), 0, 1)
         lum = _gray(out)
-        hi = np.clip((lum - 0.85) / 0.15, 0, 1)
+        hi = np.clip((lum - 0.80) / 0.20, 0, 1)
         hi = cv2.GaussianBlur(hi, (0, 0), 2)[..., None] if hi.ndim == 2 else hi[..., None]
         out = out * (1 - hi) + gentle * hi
     if denoise_chroma and out.ndim == 3:

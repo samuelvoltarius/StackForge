@@ -43,9 +43,21 @@ def run_siril_astro(paths, work_dir, kappa=3.0, dark=None, flat=None, bias=None,
     for i, p in enumerate(sorted(paths)):
         shutil.copy2(p, os.path.join(seq_dir, f"light_{i:04d}{os.path.splitext(p)[1].lower()}"))
 
+    # OSC (Farb-CFA) erkennen → Siril beim Konvertieren debayern lassen, sonst kommt nur Grau raus.
+    debayer = ""
+    try:
+        from astropy.io import fits
+        p0 = sorted(paths)[0]
+        if os.path.splitext(p0)[1].lower() in (".fit", ".fits", ".fts"):
+            if str(fits.getheader(p0).get("BAYERPAT", "")).strip():
+                debayer = " -debayer"
+                log("  OSC/CFA erkannt → Siril debayert (Farbe)")
+    except Exception:
+        pass
+
     seq = "light_"
     # Mindestversion bewusst niedrig (1.0.0) — läuft auf älteren wie neueren Siril
-    lines = ["requires 1.0.0", "convert light"]
+    lines = ["requires 1.0.0", "convert light" + debayer]
     cal = []
     for opt, val in (("-dark=", dark), ("-flat=", flat), ("-bias=", bias)):
         if val and os.path.isfile(val):
