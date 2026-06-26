@@ -4,6 +4,13 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.18.6] – 2026-07-07
+### Starless-Workflow: kräftigerer, kernschonender Nebel-Boost
+- Der Nebel-Boost im Starless-Workflow hebt jetzt **schwache/mittlere Nebelbereiche deutlich an**
+  (asinh-Lift), lässt aber den **bereits hellen Kern unverändert** (Kern-Maske) — so brennt z. B.
+  der M42-Trapez-Kern nicht weiter aus, während die äußeren Hα-Schwingen sichtbar mehr Struktur
+  zeigen. Plus lokaler Kontrast + dezente Sättigung.
+
 ## [1.18.5] – 2026-07-06
 ### Neu — ⭐ Starless-Workflow (StarNet++ Anbindung)
 Voll automatisierter „Profi-Weg" für Astro: **Sterne trennen → Nebel verstärken (lokaler Kontrast +

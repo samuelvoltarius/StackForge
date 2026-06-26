@@ -42,13 +42,20 @@ def _palette_view(bgr, palette):
     return astro.remove_green_cast(astro.color_balance(bgr, 1.0))
 
 
-def _boost_nebula(neb, contrast=0.5, saturation=1.15):
-    """Sternenlosen Nebel verstärken: sanfter lokaler Kontrast (Unsharp groß) + dezente Sättigung.
-    Geht nur, weil keine Sterne drin sind (sonst würden die aufblähen)."""
-    blur = cv2.GaussianBlur(neb, (0, 0), 8)
-    out = np.clip(neb + (neb - blur) * contrast, 0, 1)
-    lum = out.mean(axis=2, keepdims=True)
-    return np.clip(lum + (out - lum) * saturation, 0, 1)
+def _boost_nebula(neb, lift=3.5, contrast=0.6, saturation=1.25, core_lo=0.62):
+    """Sternenlosen Nebel **kernschonend** verstärken: schwache/mittlere Bereiche werden per
+    asinh-Lift kräftig angehoben, der bereits helle Kern bleibt UNVERÄNDERT (sonst brennt er aus).
+    Danach lokaler Kontrast (Unsharp) für Struktur + dezente Sättigung. Geht nur, weil keine Sterne
+    drin sind (die würden sonst aufblähen)."""
+    lum = neb.mean(axis=2, keepdims=True)
+    boosted = np.arcsinh(neb * lift) / np.arcsinh(lift)         # hebt schwach/mittel deutlich an
+    core = np.clip((lum[..., 0] - core_lo) / (1.0 - core_lo), 0, 1)   # 1 im hellen Kern
+    core = cv2.GaussianBlur(core, (0, 0), 4)[..., None]         # weicher Übergang
+    out = neb * core + boosted * (1.0 - core)                  # Kern unverändert, Rest gehoben
+    blur = cv2.GaussianBlur(out, (0, 0), 8)
+    out = np.clip(out + (out - blur) * contrast, 0, 1)         # lokaler Kontrast
+    lum2 = out.mean(axis=2, keepdims=True)
+    return np.clip(lum2 + (out - lum2) * saturation, 0, 1)
 
 
 def run(linear_path, palette, work_dir, broadband=False, graxpert_path=None, starnet_path=None,
