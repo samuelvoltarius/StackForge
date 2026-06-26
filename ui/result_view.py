@@ -114,7 +114,7 @@ class ResultMixin:
         self.ghost_btn.setEnabled(bool(self._ghostmap_path()))
         # Ansicht-Umschalter: Ergebnis immer, Geister-Karte wenn da, Fokus-Map nur Makro
         makro = not (getattr(self, "is_astro", False) or getattr(self, "is_hybrid", False)
-                     or getattr(self, "is_longexp", False))
+                     or getattr(self, "is_longexp", False) or getattr(self, "is_hdr", False))
         self.view_result.setEnabled(True)
         self.view_ghost.setEnabled(bool(self._ghostmap_path()))
         self.view_focusmap.setEnabled(makro)
@@ -132,6 +132,7 @@ class ResultMixin:
         fa = getattr(self, "is_hybrid", False) and self.hybrid_kind.currentData() == "fa"
         retouch_ok = (not getattr(self, "is_astro", False)
                       and not getattr(self, "is_longexp", False)
+                      and not getattr(self, "is_hdr", False)
                       and (not getattr(self, "is_hybrid", False) or fa))
         self.retouch_btn.setVisible(retouch_ok)
         self.retouch_btn.setEnabled(retouch_ok)

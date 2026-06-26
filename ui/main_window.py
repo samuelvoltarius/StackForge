@@ -857,8 +857,9 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.cmp_btn.setEnabled(False); self.cmp_btn.clicked.connect(self.open_compare)
         self.adjust_btn = QPushButton(tr("🎚️  Bearbeiten"))
         self.adjust_btn.setToolTip(tr("Camera-Raw: Belichtung, Kontrast, Weißabgleich, Klarheit, "
-                                   "Farbe — mit Live-Vorschau und Histogramm."))
-        self.adjust_btn.setEnabled(False); self.adjust_btn.clicked.connect(self.open_adjust)
+                                   "Farbe — mit Live-Vorschau und Histogramm. Ohne Ergebnis: "
+                                   "öffnet ein beliebiges Bild (auch RAW) zum Bearbeiten."))
+        self.adjust_btn.setEnabled(True); self.adjust_btn.clicked.connect(self.open_adjust)
         self.export_btn = QPushButton(tr("📦  Export"))
         self.export_btn.setToolTip(tr("Exportieren: Ziele, Schärfung, Photoshop-Ebenen, 16-bit (⌘E)."))
         self.export_btn.setEnabled(False); self.export_btn.clicked.connect(self.export_result)
@@ -2167,15 +2168,41 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                                     "Beim Lauf war „Geister-Karte erzeugen“ nicht aktiv.")
 
     def open_adjust(self):
-        if not self.result_path or cv2 is None:
+        """Camera-Raw-Editor. Mit Ergebnis: bearbeitet das Ergebnis. Ohne Ergebnis: öffnet einen
+        Datei-Dialog und bearbeitet ein BELIEBIGES Bild (auch RAW) — funktioniert also überall."""
+        if cv2 is None:
             return
-        img = cv2.imread(self.result_path, cv2.IMREAD_UNCHANGED)
+        path = self.result_path
+        if not path or not os.path.isfile(path):
+            raw = "*.arw *.cr2 *.cr3 *.nef *.raf *.rw2 *.dng *.orf *.pef *.srw"
+            flt = tr("Bilder") + f" (*.jpg *.jpeg *.png *.tif *.tiff {raw})"
+            path, _ = QFileDialog.getOpenFileName(
+                self, tr("Bild zum Bearbeiten wählen"),
+                self.in_edit.text().strip() or os.path.expanduser("~"), flt)
+            if not path:
+                return
+        self._open_adjust_path(path)
+
+    def _open_adjust_path(self, path):
+        ext = os.path.splitext(path)[1].lower()
+        raw_exts = {".arw", ".cr2", ".cr3", ".nef", ".raf", ".rw2", ".dng", ".orf", ".pef", ".srw"}
+        try:
+            if ext in raw_exts:
+                import rawpy
+                self._append(tr("📷 RAW entwickeln zum Bearbeiten …\n")); QApplication.processEvents()
+                rgb = rawpy.imread(path).postprocess(use_camera_wb=True, no_auto_bright=False, output_bps=8)
+                img = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+            else:
+                img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+        except Exception as e:
+            QMessageBox.warning(self, tr("Fehler"), f"{e}"); return
         if img is None:
-            QMessageBox.warning(self, "Fehler", "Bild konnte nicht geladen werden.")
+            QMessageBox.warning(self, tr("Fehler"), tr("Bild konnte nicht geladen werden."))
             return
-        d = os.path.dirname(self.result_path)
-        b, e = os.path.splitext(os.path.basename(self.result_path))
-        dlg = AdjustDialog(img, os.path.join(d, f"{b}_bearbeitet{e}"), self)
+        d = os.path.dirname(path)
+        b, e = os.path.splitext(os.path.basename(path))
+        save_ext = e if e.lower() in (".jpg", ".jpeg", ".png", ".tif", ".tiff") else ".jpg"
+        dlg = AdjustDialog(img, os.path.join(d, f"{b}_bearbeitet{save_ext}"), self)
         dlg.show()
         self._adjust_dlg = dlg
 

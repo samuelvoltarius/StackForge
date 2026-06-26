@@ -482,5 +482,11 @@
   "Neutral (flach, treu)": "Neutral (flat, faithful)",
   "Kräftig": "Vivid",
   "Dramatisch (lokaler Kontrast)": "Dramatic (local contrast)",
-  "Tonlook fürs Ergebnis. Exposure Fusion ist von Natur aus flach — Natürlich gibt dezenten Kontrast/Pop (Standard), Kräftig mehr, Dramatisch starken lokalen Kontrast (Wolken/Struktur), Neutral lässt es flach. Treu — nur Tonwerte, keine erfundenen Inhalte.": "Tone look for the result. Exposure fusion is flat by nature — Natural adds subtle contrast/pop (default), Vivid more, Dramatic strong local contrast (clouds/structure), Neutral leaves it flat. Faithful — tones only, no invented content."
+  "Tonlook fürs Ergebnis. Exposure Fusion ist von Natur aus flach — Natürlich gibt dezenten Kontrast/Pop (Standard), Kräftig mehr, Dramatisch starken lokalen Kontrast (Wolken/Struktur), Neutral lässt es flach. Treu — nur Tonwerte, keine erfundenen Inhalte.": "Tone look for the result. Exposure fusion is flat by nature — Natural adds subtle contrast/pop (default), Vivid more, Dramatic strong local contrast (clouds/structure), Neutral leaves it flat. Faithful — tones only, no invented content.",
+  "Bild konnte nicht geladen werden.": "Image could not be loaded.",
+  "Bild zum Bearbeiten wählen": "Choose an image to edit",
+  "Bilder": "Images",
+  "Fehler": "Error",
+  "📷 RAW entwickeln zum Bearbeiten …\n": "📷 Developing RAW for editing …\n",
+  "Camera-Raw: Belichtung, Kontrast, Weißabgleich, Klarheit, Farbe — mit Live-Vorschau und Histogramm. Ohne Ergebnis: öffnet ein beliebiges Bild (auch RAW) zum Bearbeiten.": "Camera Raw: exposure, contrast, white balance, clarity, colour — with live preview and histogram. Without a result: opens any image (incl. RAW) to edit."
 }

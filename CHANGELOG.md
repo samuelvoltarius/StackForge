@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.19.2] – 2026-07-11
+### Camera-Raw-Editor überall + HDR korrekt
+- **„Bearbeiten" (Camera-Raw) funktioniert jetzt überall:** ist immer aktiv und öffnet ohne Lauf-
+  Ergebnis einen Datei-Dialog für **jedes beliebige Bild — auch RAW** (wird treu entwickelt). HDR-
+  Ergebnisse landen wie alle anderen im `stack/`-Ordner und sind damit direkt im Editor bearbeitbar.
+- **HDR-Modus korrekt eingestuft:** `is_hdr` wird nicht mehr fälschlich als „Makro" behandelt —
+  Fokus-Map und Retusche (beides fürs Fokus-Stacking) tauchen im HDR-Modus nicht mehr auf.
+
 ## [1.19.1] – 2026-07-11
 ### HDR-Looks (Presets gegen den flachen Fusion-Look)
 - Exposure Fusion (Mertens) wirkt von Natur aus **flach** — neue **Tonlook-Presets** geben Pop, treu
