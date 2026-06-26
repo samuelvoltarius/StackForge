@@ -113,17 +113,38 @@ def run(linear_path, palette, work_dir, broadband=False, graxpert_path=None, sta
     stars = np.clip(stretched_rgb - starless_rgb, 0, 1)
     nebula = _boost_nebula(starless_rgb) if boost else starless_rgb
 
-    # 5. Zusammenfügen (Screen-Blend bringt Sterne ohne Ausbrennen zurück)
-    log("  5/5 Sterne zurück (Screen-Blend) …")
-    final = 1.0 - (1.0 - nebula) * (1.0 - stars)
-    final_bgr = cv2.cvtColor(np.clip(final, 0, 1).astype(np.float32), cv2.COLOR_RGB2BGR)
+    # Ebenen cachen (16-bit), damit Nebel-/Stern-Stärke SPÄTER ohne neues StarNet einstellbar sind.
+    import tifffile as _tf
+    def _save16(name, rgb):
+        _tf.imwrite(os.path.join(work_dir, name),
+                    (np.clip(rgb, 0, 1) * 65535).astype(np.uint16), photometric="rgb")
+    _save16("layer_starless.tif", starless_rgb)   # roh (ohne Boost) — für „dezenter"
+    _save16("layer_nebula.tif", nebula)           # mit Boost
+    _save16("layer_stars.tif", stars)             # Sternebene
 
+    # 5. Zusammenfügen mit Standard-Stärken
+    log("  5/5 Sterne zurück (Screen-Blend) …")
+    out = recombine(work_dir, neb_amt=1.0, star_amt=1.0, log=log)
+    log(f"  ✓ Starless-Workflow fertig: {os.path.basename(out)}")
+    return out
+
+
+def recombine(work_dir, neb_amt=1.0, star_amt=1.0, log=print):
+    """Aus den gecachten Ebenen (layer_starless/nebula/stars) das Endbild SOFORT neu mischen —
+    ohne StarNet erneut laufen zu lassen. So sind Nebel-Boost und Stern-Stärke einstellbar:
+
+    neb_amt  : 0 = flacher (sternenloser) Nebel ohne Boost · 1 = voller Boost (Standard).
+    star_amt : 0 = keine Sterne · 1 = volle Sterne (Standard) · >1 = kräftiger.
+    Gibt den Pfad zum result_starless.jpg zurück."""
+    import tifffile
+    sl = tifffile.imread(os.path.join(work_dir, "layer_starless.tif")).astype(np.float32) / 65535.0
+    neb = tifffile.imread(os.path.join(work_dir, "layer_nebula.tif")).astype(np.float32) / 65535.0
+    stars = tifffile.imread(os.path.join(work_dir, "layer_stars.tif")).astype(np.float32) / 65535.0
+    nebula = np.clip(sl * (1.0 - neb_amt) + neb * neb_amt, 0, 1)          # Boost ein-/ausblenden
+    st = np.clip(stars * float(star_amt), 0, 1)                           # Stern-Stärke
+    final = 1.0 - (1.0 - nebula) * (1.0 - st)                            # Screen → Sterne zurück
+    final_bgr = cv2.cvtColor(np.clip(final, 0, 1).astype(np.float32), cv2.COLOR_RGB2BGR)
     out = os.path.join(work_dir, "result_starless.jpg")
     cv2.imwrite(out, np.clip(final_bgr * 255, 0, 255).astype(np.uint8),
                 [int(cv2.IMWRITE_JPEG_QUALITY), 94])
-    # Nebenprodukte mitspeichern (sternenlos + Sternebene) — nützlich fürs Weiterbearbeiten
-    cv2.imwrite(os.path.join(work_dir, "result_starless_nebula.jpg"),
-                np.clip(cv2.cvtColor(nebula.astype(np.float32), cv2.COLOR_RGB2BGR) * 255, 0, 255).astype(np.uint8),
-                [int(cv2.IMWRITE_JPEG_QUALITY), 92])
-    log(f"  ✓ Starless-Workflow fertig: {os.path.basename(out)}")
     return out

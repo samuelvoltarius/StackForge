@@ -350,6 +350,18 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.astro_palette.addItem(tr("Foraxx — dynamisch"), "foraxx")
         self.astro_palette.addItem(tr("SHO Gold — synthetischer Hubble-Look"), "sho")
         self.astro_palette.currentIndexChanged.connect(lambda _i: self._rerender_palette())
+        # Starless-Regler: nach einem Starless-Workflow Nebel-Boost + Stern-Stärke SOFORT neu mischen
+        self._starless_dir = None
+        self.starless_neb = QDoubleSpinBox(); self.starless_neb.setRange(0.0, 1.5)
+        self.starless_neb.setSingleStep(0.1); self.starless_neb.setValue(1.0); self.starless_neb.setEnabled(False)
+        self.starless_neb.setToolTip(tr("Nebel-Boost im Starless-Ergebnis: 0 = flach, 1 = voll. "
+                                        "Wirkt sofort (kein neues StarNet)."))
+        self.starless_stars = QDoubleSpinBox(); self.starless_stars.setRange(0.0, 1.5)
+        self.starless_stars.setSingleStep(0.1); self.starless_stars.setValue(1.0); self.starless_stars.setEnabled(False)
+        self.starless_stars.setToolTip(tr("Stern-Stärke im Starless-Ergebnis: 0 = ohne Sterne, "
+                                          "1 = volle Sterne, höher = kräftiger."))
+        self.starless_neb.valueChanged.connect(lambda _v: self._recombine_starless())
+        self.starless_stars.valueChanged.connect(lambda _v: self._recombine_starless())
         self.astro_drizzle = QComboBox()
         self.astro_drizzle.addItem(tr("Aus"), 1)
         self.astro_drizzle.addItem(tr("2× (feineres Sampling)"), 2)
@@ -429,6 +441,8 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "SYNTHETISIERT (Dual-Band enthält KEIN echtes SII), also nur fürs "
                               "Aussehen, nicht wissenschaftlich."), 18, 3)
         ar.addWidget(self.astro_sessions_btn, 19, 0, 1, 2); ar.addWidget(self.astro_sessions_lbl, 19, 2, 1, 2)
+        ar.addWidget(QLabel(tr("Starless: Nebel")), 20, 0); ar.addWidget(self.starless_neb, 20, 1)
+        ar.addWidget(QLabel(tr("Sterne")), 20, 2); ar.addWidget(self.starless_stars, 20, 3)
         # --- Erweitert (ausklappbar): selten gebrauchte Optionen, hält das Panel aufgeräumt ---
         adv = CollapsibleSection(tr("Erweitert (Engine, Bias, Binning, Drizzle …)"))
         ag = adv.grid
@@ -1788,7 +1802,26 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self._set_preview(out)
         self.cmp_btn.setEnabled(True); self.adjust_btn.setEnabled(True)
         self.open_btn.setEnabled(True); self.openfolder_btn.setEnabled(True)
-        self._append(f"\n✅ Starless-Workflow fertig: {os.path.basename(out)}\n")
+        # Regler scharfschalten: Nebel-/Stern-Stärke ab jetzt sofort nachregelbar
+        self._starless_dir = work
+        for s in (self.starless_neb, self.starless_stars):
+            s.blockSignals(True); s.setValue(1.0); s.setEnabled(True); s.blockSignals(False)
+        self._append(f"\n✅ Starless-Workflow fertig: {os.path.basename(out)}\n"
+                     + tr("   Tipp: die Regler Starless Nebel/Sterne (links) passen die Stärke sofort an.\n"))
+
+    def _recombine_starless(self):
+        """Nebel-Boost + Stern-Stärke aus den gecachten Ebenen sofort neu mischen (kein neues StarNet)."""
+        if not getattr(self, "_starless_dir", None):
+            return
+        try:
+            import starless
+            out = starless.recombine(self._starless_dir,
+                                     neb_amt=self.starless_neb.value(),
+                                     star_amt=self.starless_stars.value())
+            self.result_path = out
+            self._set_preview(out)
+        except Exception as e:
+            self._append(f"(Starless-Vorschau: {e})\n")
 
     def _run_external_tool(self, which):
         """GraXpert/StarNet++ headless auf das lineare Ergebnis anwenden und automatisch

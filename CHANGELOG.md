@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.18.7] – 2026-07-08
+### Starless-Workflow: Nebel + Sterne live einstellbar
+- StarNet läuft **einmal**, danach lassen sich **Nebel-Boost** und **Stern-Stärke** über zwei Regler
+  (Astro-Bereich: „Starless: Nebel / Sterne") **sofort** nachregeln — die Vorschau aktualisiert in
+  ~30 ms, ohne dass StarNet neu rechnet (die Ebenen werden gecacht). So bekommt man Sterne dezenter
+  oder kräftiger, Nebel flacher oder voller — alles sichtbar im Vorschaubild. (Klarstellung: das
+  Endbild enthält selbstverständlich die Sterne; nur die separate `*_nebula`-Datei ist sternenlos.)
+
 ## [1.18.6] – 2026-07-07
 ### Starless-Workflow: kräftigerer, kernschonender Nebel-Boost
 - Der Nebel-Boost im Starless-Workflow hebt jetzt **schwache/mittlere Nebelbereiche deutlich an**
