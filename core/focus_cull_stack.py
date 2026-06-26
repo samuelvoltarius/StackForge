@@ -292,7 +292,6 @@ def suggest_settings(frames, endpoint, model, api_key=None, context=None):
     context (optional, alles datensparsam): {exif, coverage, quality, wish,
     focusmap_path}. Texte gehen in den Prompt, focusmap_path als zusaetzliches Bild."""
     n = len(frames)
-    peaks = [f.peak_sharp for f in frames]
     # repraesentative Frames: schaerfster, weichster, erster, letzter, Mitte
     order = sorted(range(n), key=lambda i: frames[i].peak_sharp)
     sel = sorted(set([0, n - 1, n // 2, order[0], order[-1]]))[:5]

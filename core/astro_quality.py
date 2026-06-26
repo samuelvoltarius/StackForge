@@ -133,7 +133,7 @@ def select_subs(paths, fwhm_factor=1.5, ecc_max=1.7, star_frac=0.5, bg_factor=1.
         if f["ecc"] > ecc_max:
             r.append(f"längliche Sterne (Elongation {f['ecc']:.2f}) — Guidingfehler")
         if f["bg"] > bg_factor * med_bg:
-            r.append(f"heller Hintergrund — Wolken/Mond/Lichtverschmutzung")
+            r.append("heller Hintergrund — Wolken/Mond/Lichtverschmutzung")
         f["keep"] = len(r) == 0
         log(f"  {f['name']}: Sterne={f['stars']} FWHM={f['fwhm']:.1f} "
             f"Elong={f['ecc']:.2f} BG={f['bg']:.3f} {'✓' if f['keep'] else '✗ ' + '; '.join(r)}")

@@ -4,6 +4,13 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.18.3] – 2026-07-04
+### Aufgeräumt (Code)
+- **Tote Imports entfernt** (pyflakes): ~18 ungenutzte Imports in main_window.py/components.py
+  (u. a. hashlib, subprocess, ungenutzte Qt-Klassen, nicht genutzte components-Re-Importe),
+  eine ungenutzte Variable (`peaks`) und ein f-string ohne Platzhalter. Keine Funktionsänderung.
+- README-Screenshots auf den aktuellen v1.18.2-Stand gebracht (übersetzte UI, ausklappbares Astro).
+
 ## [1.18.2] – 2026-07-03
 ### UI aufgeräumt + Style konsolidiert (Stabilisierung)
 - **Astro-Panel entrümpelt:** selten gebrauchte Optionen (Engine, Bias, FITS, Hot-/Cold-Pixel,

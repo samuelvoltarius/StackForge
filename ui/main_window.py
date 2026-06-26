@@ -7,23 +7,20 @@ und Ergebnis-Vorschau. Ruft focus_cull_stack.py als Subprozess auf (streamt stdo
 Einstiegspunkt: focus_stack_gui.py (dünner Launcher) bzw. ForgePix.app.
 """
 import os
-import hashlib
 import re
-import subprocess
 import sys
 
 from i18n import tr, set_language, available_languages, current_language
 
 
 
-from PySide6.QtCore import Qt, QProcess, QSettings, QRect, QSize, QThread, QTimer, Signal
-from PySide6.QtGui import (QPixmap, QFont, QIcon, QPainter, QColor, QPen, QCursor, QImage,
-                           QShortcut, QKeySequence, QAction)
+from PySide6.QtCore import Qt, QProcess, QSettings, QSize, QTimer
+from PySide6.QtGui import (QPixmap, QFont, QIcon, QShortcut, QKeySequence, QAction)
 from PySide6.QtWidgets import (
     QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QGridLayout,
     QGroupBox, QLabel, QLineEdit, QPushButton, QFileDialog, QPlainTextEdit,
     QDoubleSpinBox, QSpinBox, QCheckBox, QMessageBox, QSplitter, QFrame, QComboBox,
-    QScrollArea, QProgressBar, QToolButton, QDialog, QToolTip, QSlider, QStackedWidget,
+    QScrollArea, QProgressBar, QToolButton, QDialog, QSlider, QStackedWidget,
     QMenu,
 )
 
@@ -44,8 +41,7 @@ from ui.welcome import WelcomeMixin
 from ui.settings_io import SettingsMixin
 from ui.export import ExportMixin
 from ui.result_view import ResultMixin
-from ui.components import (CompareSlider, CurveWidget, AdjustDialog, RetouchDialog, _Canvas,
-                           _bgr_to_pixmap, histogram_pixmap, adjust_image, HSL_BANDS,
+from ui.components import (CompareSlider, AdjustDialog, RetouchDialog,
                            help_btn, _row, reveal_in_files, open_path, notify, CollapsibleSection)
 
 

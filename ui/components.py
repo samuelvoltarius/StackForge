@@ -12,11 +12,11 @@ import subprocess
 import cv2
 import numpy as np
 
-from PySide6.QtCore import Qt, QRect, QSize
+from PySide6.QtCore import Qt, QRect
 from PySide6.QtGui import QPixmap, QImage, QPainter, QColor, QPen, QCursor
 from PySide6.QtWidgets import (
     QWidget, QLabel, QDialog, QPushButton, QSlider, QComboBox, QSpinBox,
-    QDoubleSpinBox, QCheckBox, QScrollArea, QFrame, QHBoxLayout, QVBoxLayout,
+    QCheckBox, QScrollArea, QFrame, QHBoxLayout, QVBoxLayout,
     QGridLayout, QMessageBox, QToolButton, QToolTip,
 )
 
