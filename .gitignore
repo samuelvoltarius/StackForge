@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 testdata/
+astro_test/
 */stack_work/
 assets/ForgePix.iconset/
 .DS_Store
