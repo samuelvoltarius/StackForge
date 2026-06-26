@@ -721,7 +721,7 @@ def ai_astro_stretch_params(view_bgr, endpoint, model, api_key=None):
             pass
     # Zurückhaltend deckeln — kein Neon-Comic. Strength bis 12, Sättigung bis 1.25.
     out["strength"] = float(max(3.0, min(12.0, out.get("strength", 6.0))))
-    out["saturation"] = float(max(1.0, min(1.25, out.get("saturation", 1.1))))
+    out["saturation"] = float(max(1.0, min(1.25, out.get("saturation", 1.05))))
     out["color"] = float(max(0.0, min(1.0, out.get("color", 1.0))))
     out["protect_core"] = bool(out.get("protect_core", True))
     return out
@@ -1269,7 +1269,7 @@ def _astro_write(result, work_dir, paths, args, astro):
     man_sat = float(getattr(args, "astro_saturation", -1.0))
     color_s = man_color if man_color >= 0 else 1.0
     strength = man_bright if man_bright > 0 else 6.0
-    sat = man_sat if man_sat > 0 else 1.1
+    sat = man_sat if man_sat > 0 else 1.05
     protect = True
     if args.astro_stretch:
         if getattr(args, "vlm_endpoint", None):

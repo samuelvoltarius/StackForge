@@ -375,16 +375,24 @@ def _extract_ha_oiii(bgr, unmix=0.20):
     return _norm(ha2), _norm(oiii2)
 
 
-def _star_desat(out, ha_n, oiii_n):
-    """Kleine, kontrastreiche Punkte (Sterne = Kontinuum) neutral ziehen → kein Farbsaum
-    (Bayer-R/B-Versatz + chromat. Aberration). Ausgedehnte Nebel behalten ihre Farbe."""
+def _star_desat(out, ha_n, oiii_n, strength=0.92):
+    """Sterne (Kontinuum-Quellen) **neutral/weiß** ziehen — in Schmalband ist Sternfarbe ein
+    Artefakt (durchs Dual-Band-Filter kommen nur Hα-Rot + OIII-Cyan → türkise Sternkugeln).
+    Ausgedehnte Nebel behalten ihre Farbe.
+
+    Zwei Stufen: kompakte Sternkerne über lokalen Kontrast erkennen (niedriges Helligkeits-Gate,
+    damit auch mittelhelle Sterne erfasst werden) und die Maske um die **Sternhöfe** aufweiten —
+    sonst bleibt der Glow heller Sterne farbig, während nur der Kern entsättigt wird."""
     lum = np.maximum(ha_n, oiii_n).astype(np.float32)
     smooth = cv2.medianBlur((lum * 255).astype(np.uint8), 9).astype(np.float32) / 255.0
     detail = np.clip(lum - smooth, 0, 1)
-    star = np.clip(detail * 6.0, 0, 1) * np.clip((lum - 0.4) / 0.3, 0, 1)
-    star = cv2.GaussianBlur(star, (0, 0), 1)[..., None]
+    core = np.clip(detail * 6.0, 0, 1) * np.clip((lum - 0.06) / 0.06, 0, 1)   # kompakte Sternkerne
+    coreb = (core > 0.25).astype(np.uint8)
+    halo = cv2.dilate(coreb, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (13, 13)))  # Hof drumherum
+    mask = np.maximum(core, halo.astype(np.float32))
+    mask = cv2.GaussianBlur(mask, (0, 0), 3)[..., None]
     gray = out.mean(axis=2, keepdims=True)
-    return np.clip(out * (1 - 0.85 * star) + gray * (0.85 * star), 0, 1)
+    return np.clip(out * (1 - strength * mask) + gray * (strength * mask), 0, 1)
 
 
 def dualband_hoo(bgr, unmix=0.20):
@@ -482,7 +490,7 @@ def remove_green_cast(f, amount=1.0):
     return out
 
 
-def autostretch(f, black_clip=None, strength=6.0, protect_core=True, saturation=1.1,
+def autostretch(f, black_clip=None, strength=6.0, protect_core=True, saturation=1.05,
                 denoise_chroma=True):
     """asinh-Auto-Stretch fürs Anzeigen des (linearen, dunklen) Astro-Ergebnisses.
 

@@ -4,6 +4,15 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.16.19] – 2026-06-29
+### Behoben (Astro: türkise Sterne neutralisiert, Farben ruhiger)
+- **Sterne leuchteten knallig cyan/türkis.** In Schmalband ist Sternfarbe ein Artefakt (durchs
+  Dual-Band-Filter kommen nur Hα-Rot + OIII-Cyan → türkise Sternkugeln). Die Stern-Entsättigung
+  erfasste bisher nur die hellsten Kerne (Helligkeits-Gate zu hoch) und ließ den farbigen **Glow/Hof**
+  stehen. Jetzt: niedrigeres Gate (auch mittelhelle Sterne) **plus Aufweiten der Maske auf die
+  Sternhöfe** → Sterne werden neutral/weiß, der Nebel behält seine Farbe.
+- **Sättigung-Default 1.1 → 1.05** (CLI/GUI/KI) — ruhigere, natürlichere Farben.
+
 ## [1.16.18] – 2026-06-28
 ### Behoben (Astro: echte Bearbeitung statt „Comic" — Sterne rund, Rauschen runter)
 Gründliche Diagnose an echten IC-5146-Daten (Dual-Band, ASI294MC Pro) hat zwei ernste Fehler

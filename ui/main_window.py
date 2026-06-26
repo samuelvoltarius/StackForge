@@ -362,7 +362,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.astro_bright = QDoubleSpinBox(); self.astro_bright.setRange(3, 30)
         self.astro_bright.setSingleStep(1); self.astro_bright.setValue(6)
         self.astro_sat = QDoubleSpinBox(); self.astro_sat.setRange(1.0, 1.6)
-        self.astro_sat.setSingleStep(0.05); self.astro_sat.setValue(1.1)
+        self.astro_sat.setSingleStep(0.05); self.astro_sat.setValue(1.05)
         self.astro_color = QDoubleSpinBox(); self.astro_color.setRange(0.0, 1.0)
         self.astro_color.setSingleStep(0.1); self.astro_color.setValue(1.0)
         self.astro_auto.toggled.connect(lambda on: [w.setEnabled(not on) for w in
