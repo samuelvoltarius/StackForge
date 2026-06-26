@@ -138,6 +138,14 @@
   .codeblock{background:#0c0d10;border:1px solid var(--line);border-radius:12px;padding:16px 18px;
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:var(--soft);overflow:auto;margin-bottom:22px}
   .codeblock .c{color:var(--green)}
+  .whatsnew{margin:0 0 22px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:0 18px}
+  .whatsnew summary{cursor:pointer;padding:15px 0;font-weight:600;color:var(--soft);list-style:none}
+  .whatsnew summary::-webkit-details-marker{display:none}
+  .whatsnew summary:before{content:"▸ ";color:var(--green)}
+  .whatsnew[open] summary:before{content:"▾ "}
+  .whatsnew pre{white-space:pre-wrap;font-size:12.5px;color:var(--muted);max-height:260px;overflow:auto;
+    margin:0 0 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.55}
+  .whatsnew .all{display:inline-block;margin-bottom:16px;color:var(--green);font-weight:600;font-size:14px}
   .helpbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--card);
     border:1px solid var(--line);border-radius:var(--radius);padding:18px 22px}
   .helpbar .t{font-size:15px;color:var(--soft)}
@@ -267,6 +275,7 @@
       <figure><img src="assets/shots/03_astro.png" alt=""><figcaption data-i18n="g3">Astro — deep‑sky stacking.</figcaption></figure>
       <figure><img src="assets/shots/05_hybrid.png" alt=""><figcaption data-i18n="g4">Hybrid — Moon, Sun &amp; panoramas.</figcaption></figure>
       <figure><img src="assets/shots/06_longexp.png" alt=""><figcaption data-i18n="g5">Long exposure — virtual exposure time.</figcaption></figure>
+      <figure><img src="assets/shots/07_editor.png" alt=""><figcaption data-i18n="g7">Built‑in editor — exposure, colour, curve, crop.</figcaption></figure>
       <figure><img src="assets/shots/05_focusmap.png" alt=""><figcaption data-i18n="g6">Focus map — which photo is sharp where.</figcaption></figure>
     </div>
   </div>
@@ -331,6 +340,11 @@
       git clone https://github.com/samuelvoltarius/ForgePix.git &amp;&amp; cd ForgePix<br>
       python3 -m pip install -r requirements.txt<br>
       python3 focus_stack_gui.py</div>
+    <details class="whatsnew">
+      <summary><span data-i18n="wn_sum">What’s new in the latest version</span> <span data-version></span></summary>
+      <pre data-release-notes>…</pre>
+      <a class="all" href="https://github.com/samuelvoltarius/ForgePix/releases" target="_blank" rel="noopener" data-i18n="wn_all">Full changelog on GitHub →</a>
+    </details>
     <div class="helpbar">
       <span class="t" data-i18n="bug_line">🐞 Found a bug or have a question?</span>
       <a href="https://github.com/samuelvoltarius/ForgePix/issues" target="_blank" rel="noopener" data-i18n="bug_report">Report it on GitHub →</a>
@@ -349,6 +363,8 @@
       <a href="https://github.com/samuelvoltarius/ForgePix/discussions" target="_blank" rel="noopener" data-i18n="foot_discuss2">Discussions</a>
       <a data-release-link href="https://github.com/samuelvoltarius/ForgePix/releases/latest" target="_blank" rel="noopener" data-i18n="foot_releases">Releases</a>
       <a href="https://github.com/samuelvoltarius/ForgePix/blob/main/docs/GUIDE.en.md" target="_blank" rel="noopener" data-i18n="foot_help">Help</a>
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutz</a>
     </div>
   </div>
 </footer>
@@ -394,6 +410,8 @@ var I18N = {
   res_eyebrow:"Echte Ergebnisse", res_h2:"Gemacht mit ForgePix", res_lead:"Echte Fotos, in ForgePix gestackt — direkt aus der App.",
   res1:"Makro — Fliegen in Bernstein, durchgehend scharf.", res2:"Astro — Kokonnebel (IC 5146).", res3:"Astro — Orionnebel (M 42).",
   ba_h:"Astro: von Strichspuren zu runden Sternen", ba1:"Vorher — Bilder nicht ausgerichtet: Sterne verschmiert/doppelt.", ba2:"Nachher — automatisch ausgerichtet: saubere, runde Sterne.",
+  g7:"Eingebauter Editor — Belichtung, Farbe, Kurve, Zuschnitt.",
+  wn_sum:"Was ist neu in der aktuellen Version", wn_all:"Vollständiger Changelog auf GitHub →",
   hl_eyebrow:"Was du bekommst", hl_h2:"Alles ist dabei",
   li1:"<b>Ein‑Knopf‑Automatik</b> — oder ein Profi‑Modus mit voller Kontrolle.",
   li2:"<b>Öffnet die Fotos deiner Kamera</b>, auch RAW — Farben bleiben echt.",
@@ -449,6 +467,8 @@ var I18N = {
       .then(function(d){
         if(!d || !d.tag_name) return;
         document.querySelectorAll("[data-version]").forEach(function(el){ el.textContent = d.tag_name; });
+        var notes=document.querySelector("[data-release-notes]");
+        if(notes) notes.textContent = (d.body && d.body.trim()) ? d.body.trim() : (d.name || d.tag_name);
         if(d.html_url) document.querySelectorAll("[data-release-link]").forEach(function(a){ a.href = d.html_url; });
         /* Wire each OS button straight to the matching release file (keeps site = repo). */
         (d.assets||[]).forEach(function(a){
