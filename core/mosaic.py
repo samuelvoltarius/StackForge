@@ -82,7 +82,12 @@ def stitch_detail(imgs, projection="spherical", log=print):
     if not ok:
         raise RuntimeError("Bündelausgleich fehlgeschlagen")
     rmats = [np.copy(c.R) for c in cams]
-    cv2.detail.waveCorrect(rmats, cv2.detail.WAVE_CORRECT_HORIZ)
+    # WAVE_CORRECT_AUTO statt hart HORIZ: HORIZ verbiegt Multi-Row-/Gitter-Mosaike (z. B. Mond-Kachelraster)
+    # vertikal. AUTO wählt Horizontal/Vertikal passend; Fallback HORIZ für ältere OpenCV ohne AUTO.
+    try:
+        cv2.detail.waveCorrect(rmats, cv2.detail.WAVE_CORRECT_AUTO)
+    except (cv2.error, AttributeError):
+        cv2.detail.waveCorrect(rmats, cv2.detail.WAVE_CORRECT_HORIZ)
     for c, R in zip(cams, rmats):
         c.R = R
     scale = float(np.median([c.focal for c in cams]))

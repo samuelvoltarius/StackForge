@@ -22,11 +22,16 @@ def _gray(frame):
 
 
 def _sharpness(frame):
-    """Schärfe-Maß: Varianz des Laplace (höher = schärfer/besseres Seeing)."""
+    """Schärfe-Maß fürs Frame-Ranking. Wichtig (AutoStakkert-Prinzip): (1) leicht vorglätten, sonst
+    misst die Laplace-Varianz das RAUSCHEN statt das Seeing (Rauschen²-getrieben); (2) auf die mittlere
+    Szenenhelligkeit NORMIEREN, sonst gewinnen einfach hellere Frames (Transparenz-/Höhenschwankung)."""
     g = _gray(frame)
     if g.dtype != np.uint8:
         g = cv2.convertScaleAbs(g)
-    return float(cv2.Laplacian(g, cv2.CV_64F).var())
+    gb = cv2.GaussianBlur(g, (0, 0), 1.0)                      # Noise-Parameter (uint8 bleibt)
+    lap_var = float(cv2.Laplacian(gb, cv2.CV_64F).var())
+    mean = float(gb.mean()) + 1.0
+    return lap_var / (mean * mean)                             # helligkeitsnormiert
 
 
 def _disk_centroid(frame, thresh=None):
@@ -310,15 +315,16 @@ def lucky_stack_map(path, keep_global=0.6, keep_local=0.3, max_load=200,
         box_q.sort(key=lambda t: -t[0])
         sel = [i for _, i in box_q[:keep_n]]
         tpl = mean_g[y - box_half:y + box_half, x - box_half:x + box_half]
-        patch_acc = np.zeros((2 * patch_half, 2 * patch_half, 3), np.float64)
-        cnt = 0
+        patches = []
         for i in sel:
             sr = grays[i][y - box_half - search_half:y + box_half + search_half,
                           x - box_half - search_half:x + box_half + search_half]
             if sr.shape[0] < tpl.shape[0] or sr.shape[1] < tpl.shape[1]:
                 continue
             res = cv2.matchTemplate(sr, tpl, cv2.TM_CCOEFF_NORMED)
-            _, _, _, mx = cv2.minMaxLoc(res)
+            _, peak, _, mx = cv2.minMaxLoc(res)
+            if peak < 0.3:                                  # Korrelations-Peak = Konfidenz: schwacher
+                continue                                    # Match (Fehlkorrelation) → verwerfen
             px, py = mx
             dx, dy = px - search_half, py - search_half
             if 0 < px < res.shape[1] - 1:
@@ -329,13 +335,17 @@ def lucky_stack_map(path, keep_global=0.6, keep_local=0.3, max_load=200,
                 d = res[py - 1, px] - 2 * res[py, px] + res[py + 1, px]
                 if abs(d) > 1e-9:
                     dy += 0.5 * (res[py - 1, px] - res[py + 1, px]) / d
-            patch = cv2.getRectSubPix(frames[i], (2 * patch_half, 2 * patch_half),
-                                      (float(x + dx), float(y + dy)))
-            patch_acc += patch.astype(np.float64)
-            cnt += 1
-        if cnt == 0:
+            patches.append(cv2.getRectSubPix(frames[i], (2 * patch_half, 2 * patch_half),
+                                             (float(x + dx), float(y + dy))).astype(np.float32))
+        if not patches:
             continue
-        patch_avg = (patch_acc / cnt).astype(np.float32)
+        stack = np.stack(patches)
+        if len(patches) >= 4:                               # Sigma-Clip statt rohem Mittel: ein einzelner
+            mu = stack.mean(0); sd = stack.std(0) + 1e-3    # Fehl-Match zieht den AP-Mittelwert nicht mehr
+            m = np.abs(stack - mu) <= 2.5 * sd
+            patch_avg = (stack * m).sum(0) / np.clip(m.sum(0), 1, None)
+        else:
+            patch_avg = stack.mean(0)
         acc[y - patch_half:y + patch_half, x - patch_half:x + patch_half] += hann[..., None] * patch_avg
         wsum[y - patch_half:y + patch_half, x - patch_half:x + patch_half] += hann
         if k % 100 == 0:
