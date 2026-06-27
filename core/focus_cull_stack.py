@@ -1195,6 +1195,16 @@ def main():
                     help="Astro: Dark-/Flat-/Bias-Unterordner NICHT automatisch erkennen/anwenden")
     ap.add_argument("--astro-engine", choices=["own", "siril"], default="own",
                     help="Astro-Engine: own (eigene, Standard) oder siril (optional, falls installiert)")
+    ap.add_argument("--astro-bg-backend", choices=["own", "graxpert"], default="own",
+                    help="Hintergrund-/Gradienten-Entfernung: own (eigene RBF/DBE) oder graxpert "
+                         "(GraXpert-KI, falls installiert — deutlich sauberer bei Gradienten/Glow).")
+    ap.add_argument("--astro-graxpert-denoise", action="store_true",
+                    help="Nach der GraXpert-Hintergrund-Entfernung zusätzlich GraXpert-KI-Entrauschen "
+                         "(langsam auf CPU — GPU empfohlen).")
+    ap.add_argument("--graxpert-gpu", action="store_true",
+                    help="GraXpert mit GPU-Beschleunigung laufen lassen.")
+    ap.add_argument("--graxpert-path", default=None,
+                    help="Pfad zur GraXpert-CLI (sonst automatisch gesucht: /Applications/GraXpert.app …)")
     ap.add_argument("--siril-path", default=None,
                     help="Pfad zu siril-cli (sonst automatisch gesucht)")
     ap.add_argument("--dark", help="Astro: Master-Dark (Datei) oder Ordner mit Dark-Frames")
@@ -1570,8 +1580,30 @@ def _astro_write(result, work_dir, paths, args, astro):
     """Astro-Ergebnis schreiben: optional Hintergrund-Extraktion, dann 16-bit-Linear +
     32-bit-Linear (GraXpert/StarNet/PixInsight) + gestreckte Vorschau-JPG."""
     if getattr(args, "bg_extract", False):
-        print("  Hintergrund/Gradient entfernen …")
-        result = astro.background_extract(result)
+        backend = getattr(args, "astro_bg_backend", "own")
+        gx_path = getattr(args, "graxpert_path", None)
+        if backend == "graxpert":
+            try:
+                import graxpert_engine
+                if graxpert_engine.available(gx_path):
+                    print("  Hintergrund/Gradient entfernen (GraXpert-AI) …")
+                    result = graxpert_engine.run(result, os.path.join(work_dir, "graxpert"),
+                                                 command="background-extraction",
+                                                 gpu=getattr(args, "graxpert_gpu", False), path=gx_path)
+                    if getattr(args, "astro_graxpert_denoise", False):
+                        print("  Entrauschen (GraXpert-AI) …")
+                        result = graxpert_engine.run(result, os.path.join(work_dir, "graxpert"),
+                                                     command="denoising",
+                                                     gpu=getattr(args, "graxpert_gpu", False), path=gx_path)
+                else:
+                    print("  GraXpert nicht gefunden → eigene Hintergrund-Entfernung")
+                    result = astro.background_extract(result)
+            except Exception as e:
+                print(f"  GraXpert fehlgeschlagen ({e}) → eigene Hintergrund-Entfernung", file=sys.stderr)
+                result = astro.background_extract(result)
+        else:
+            print("  Hintergrund/Gradient entfernen …")
+            result = astro.background_extract(result)
     if getattr(args, "astro_deconv", False):
         print("  Dekonvolution (Richardson-Lucy, PSF aus Sternen) …")
         result = astro.deconvolve(result, iterations=getattr(args, "astro_deconv_iter", 15),
