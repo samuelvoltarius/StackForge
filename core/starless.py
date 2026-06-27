@@ -2,15 +2,15 @@
 """
 starless.py — Starless-Workflow (Sterne trennen, Nebel bearbeiten, zusammenfügen).
 
-Der „Profi-Weg" für Astro, voll automatisiert: aus dem fertigen (linearen) Stack wird mit
-externen Tools ein besseres Bild gemacht:
+Der „Profi-Weg" für Astro, voll automatisiert. KERN-REGEL: Bearbeitungs-Filter wirken NIEMALS auf
+die Sterne — die werden zuerst getrennt, bleiben unangetastet und kommen erst am Schluss zurück.
 
-  1. GraXpert  — Gradient/Hintergrund entfernen (auf dem LINEAREN Bild, vor dem Strecken).
-  2. Strecken + Palette (HOO/SHO/… oder Breitband) — unsere eigene Aufbereitung.
-  3. StarNet++ — Sterne entfernen → „sternenloses" Nebelbild.
-  4. Nebel verstärken — lokaler Kontrast + dezente Sättigung (OHNE Sterne aufzublähen,
-     weil sie ja raus sind).
-  5. Zusammenfügen — Sterne per Screen-Blend zurück: Ergebnis = 1−(1−Nebel)·(1−Sterne).
+  1. Strecken + Palette (HOO/SHO/… oder Breitband) — StarNet braucht ein gestrecktes Bild.
+  2. StarNet++ — Sterne entfernen → sternenloses Nebelbild + UNBEARBEITETE Sternebene.
+  3. GraXpert — Hintergrund/Gradient + KI-Entrauschen, NUR auf dem sternenlosen Nebel
+     (auf den Sternen würde das sie weichzeichnen/aufblähen → nie).
+  4. Nebel verstärken/Farben — lokaler Kontrast + Sättigung, ebenfalls nur sternenlos.
+  5. Zusammenfügen — die unbearbeiteten Sterne per Screen-Blend zurück: 1−(1−Nebel)·(1−Sterne).
 
 Kein fremder Code wird kopiert — GraXpert/StarNet werden nur aufgerufen (ForgePix bleibt MIT).
 Fehlt ein Tool, wird der jeweilige Schritt übersprungen (mit Hinweis im Log).
@@ -68,23 +68,14 @@ def run(linear_path, palette, work_dir, broadband=False, graxpert_path=None, sta
     die Stern-Trennung — dann nur Strecken)."""
     os.makedirs(work_dir, exist_ok=True)
     pal = None if (broadband or not palette) else palette
+    import tifffile
 
-    # 1. GraXpert: Gradient/Hintergrund auf dem linearen Bild (optional)
-    cur = linear_path
-    if tools_engine.find_graxpert(graxpert_path):
-        try:
-            log("  1/5 GraXpert: Gradient/Hintergrund entfernen …")
-            cur = tools_engine.run_graxpert(cur, op="background-extraction",
-                                            path=graxpert_path, log=log)
-        except Exception as e:
-            log(f"      GraXpert übersprungen ({e})")
-
-    # 2. Palette + Strecken (unsere Aufbereitung)
-    log(f"  2/5 Strecken + Palette ({pal or 'Breitband'}) …")
-    bgr = astro._read_float(cur)
+    # 1. Strecken + Palette (StarNet braucht ein gestrecktes Bild). NOCH KEINE Bearbeitungs-Filter.
+    log(f"  1/5 Strecken + Palette ({pal or 'Breitband'}) …")
+    bgr = astro._read_float(linear_path)
     stretched = astro.autostretch(_palette_view(bgr, pal), strength=strength, saturation=saturation)
 
-    # ohne StarNet: hier ist Schluss (nur gestrecktes Bild)
+    # ohne StarNet: hier ist Schluss (nur gestrecktes Bild) — der Starless-Weg braucht StarNet.
     if not tools_engine.find_starnet(starnet_path):
         out = os.path.join(work_dir, "result_stretched.jpg")
         cv2.imwrite(out, np.clip(stretched * 255, 0, 255).astype(np.uint8),
@@ -92,9 +83,10 @@ def run(linear_path, palette, work_dir, broadband=False, graxpert_path=None, sta
         log("      StarNet++ nicht gefunden — Sterntrennung entfällt (nur gestreckt).")
         return out
 
-    # 3. StarNet: Sterne entfernen (braucht 16-bit-TIFF)
-    log("  3/5 StarNet++: Sterne entfernen …")
-    import tifffile
+    # 2. StarNet: Sterne entfernen → sternenloses Bild + UNBEARBEITETE Sternebene.
+    #    Ab hier wirken ALLE Filter (GraXpert, Boost, Farbe) NUR auf den sternenlosen Nebel —
+    #    die Sterne (`stars`) bleiben bis zum Schluss komplett unangetastet.
+    log("  2/5 StarNet++: Sterne entfernen …")
     in16 = os.path.join(work_dir, "starnet_in.tif")
     rgb16 = (np.clip(cv2.cvtColor(stretched.astype(np.float32), cv2.COLOR_BGR2RGB), 0, 1)
              * 65535).astype(np.uint16)
@@ -106,11 +98,30 @@ def run(linear_path, palette, work_dir, broadband=False, graxpert_path=None, sta
     if sl.shape[:2] != stretched.shape[:2]:
         sl = cv2.resize(sl, (stretched.shape[1], stretched.shape[0]))
     starless_rgb = np.clip(sl, 0, 1)
-
-    # 4. Sterne isolieren + Nebel verstärken
-    log("  4/5 Nebel verstärken (sternenlos) …")
     stretched_rgb = np.clip(cv2.cvtColor(stretched.astype(np.float32), cv2.COLOR_BGR2RGB), 0, 1)
-    stars = np.clip(stretched_rgb - starless_rgb, 0, 1)
+    stars = np.clip(stretched_rgb - starless_rgb, 0, 1)      # PRISTINE Sternebene — nie bearbeitet
+
+    # 3. GraXpert (Hintergrund + KI-Entrauschen) — AUSSCHLIESSLICH auf dem sternenlosen Nebel.
+    #    Auf den Sternen würde Denoise/Background sie weichzeichnen/aufblähen → niemals.
+    if tools_engine.find_graxpert(graxpert_path):
+        try:
+            log("  3/5 GraXpert (Hintergrund + Entrauschen) — nur sternenlos …")
+            sl_tif = os.path.join(work_dir, "starless_for_graxpert.tif")
+            tifffile.imwrite(sl_tif, (np.clip(starless_rgb, 0, 1) * 65535).astype(np.uint16),
+                             photometric="rgb")
+            gx_out = tools_engine.run_graxpert_enhance(sl_tif, path=graxpert_path, denoise=True, log=log)
+            g = tifffile.imread(gx_out).astype(np.float32)
+            g = g / 65535.0 if g.max() > 1.5 else g
+            if g.ndim == 2:
+                g = cv2.cvtColor(g, cv2.COLOR_GRAY2RGB)
+            if g.shape[:2] != starless_rgb.shape[:2]:
+                g = cv2.resize(g, (starless_rgb.shape[1], starless_rgb.shape[0]))
+            starless_rgb = np.clip(g, 0, 1)
+        except Exception as e:
+            log(f"      GraXpert übersprungen ({e})")
+
+    # 4. Nebel-Farben/Boost — ebenfalls nur sternenlos.
+    log("  4/5 Nebel verstärken/Farben (sternenlos) …")
     nebula = _boost_nebula(starless_rgb) if boost else starless_rgb
 
     # Ebenen cachen (16-bit), damit Nebel-/Stern-Stärke SPÄTER ohne neues StarNet einstellbar sind.

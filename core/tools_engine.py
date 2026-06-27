@@ -92,7 +92,7 @@ def run_graxpert(infile, outfile=None, op="background-extraction", path=None, lo
         b, e = os.path.splitext(infile)
         outfile = f"{b}_graxpert{e or '.tif'}"
     infile = _ensure_uncompressed_tif(infile)               # gegen LZW-Lesefehler in GraXpert
-    cmd = [exe, "-cli", "-cmd", op, infile, "-output", outfile]
+    cmd = [exe, "-cli", "-cmd", op, infile, "-output", outfile, "-gpu", "true"]  # GPU (CoreML/CUDA)
     log("  GraXpert: " + " ".join(cmd))
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
