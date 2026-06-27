@@ -30,9 +30,11 @@ def available(explicit=None):
 
 
 def run_siril_astro(paths, work_dir, kappa=3.0, dark=None, flat=None, bias=None,
-                    siril_path=None, log=print):
-    """Lights mit Siril stacken. Gibt Pfad zum Ergebnis-TIFF zurück.
-    dark/flat/bias = optionale Master-Frame-Dateien."""
+                    siril_path=None, subsky=True, rmgreen=True, log=print):
+    """Lights mit Siril stacken und Sirils Kern-Nachbearbeitung anwenden. Gibt Pfad zum Ergebnis-TIFF
+    zurück. dark/flat/bias = optionale Master-Frame-Dateien.
+    subsky=True: Sirils Hintergrund-/Gradienten-Extraktion (Polynom) auf das Stack-Ergebnis.
+    rmgreen=True: Sirils SCNR-Grünentfernung (Average Neutral) — bei OSC fast immer sinnvoll."""
     cli = find_siril(siril_path)
     if not cli:
         raise RuntimeError("Siril (siril-cli) nicht gefunden")
@@ -67,7 +69,12 @@ def run_siril_astro(paths, work_dir, kappa=3.0, dark=None, flat=None, bias=None,
         seq = "pp_light_"
     lines += [f"register {seq}",
               f"stack r_{seq} rej {kappa} {kappa} -nonorm -out=result_stacked",
-              "load result_stacked", "savetif siril_result"]
+              "load result_stacked"]
+    if subsky:
+        lines.append("subsky 1")                            # Siril-Hintergrund/Gradient (Polynom Grad 1)
+    if rmgreen:
+        lines.append("rmgreen 0")                           # Siril-SCNR (Average Neutral) gegen Grünstich
+    lines.append("savetif siril_result")
     script = os.path.join(seq_dir, "stack.ssf")
     open(script, "w").write("\n".join(lines) + "\n")
     log("  Siril: " + cli)

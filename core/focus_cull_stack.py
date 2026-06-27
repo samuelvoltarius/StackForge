@@ -1198,11 +1198,11 @@ def main():
     ap.add_argument("--astro-bg-backend", choices=["own", "graxpert"], default="own",
                     help="Hintergrund-/Gradienten-Entfernung: own (eigene RBF/DBE) oder graxpert "
                          "(GraXpert-KI, falls installiert — deutlich sauberer bei Gradienten/Glow).")
-    ap.add_argument("--astro-graxpert-denoise", action="store_true",
-                    help="Nach der GraXpert-Hintergrund-Entfernung zusätzlich GraXpert-KI-Entrauschen "
-                         "(langsam auf CPU — GPU empfohlen).")
-    ap.add_argument("--graxpert-gpu", action="store_true",
-                    help="GraXpert mit GPU-Beschleunigung laufen lassen.")
+    ap.add_argument("--astro-graxpert-denoise", action=argparse.BooleanOptionalAction, default=True,
+                    help="Bei --astro-bg-backend graxpert zusätzlich GraXpert-KI-Entrauschen (Standard AN; "
+                         "--no-astro-graxpert-denoise zum Abschalten). Nutzt die GPU.")
+    ap.add_argument("--graxpert-gpu", action=argparse.BooleanOptionalAction, default=True,
+                    help="GraXpert mit GPU-Beschleunigung (Standard AN — CoreML auf Mac, CUDA auf dem Spark).")
     ap.add_argument("--graxpert-path", default=None,
                     help="Pfad zur GraXpert-CLI (sonst automatisch gesucht: /Applications/GraXpert.app …)")
     ap.add_argument("--siril-path", default=None,
