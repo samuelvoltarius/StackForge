@@ -59,7 +59,8 @@ def _boost_nebula(neb, lift=3.5, contrast=0.6, saturation=1.25, core_lo=0.62):
 
 
 def run(linear_path, palette, work_dir, broadband=False, graxpert_path=None, starnet_path=None,
-        boost=True, strength=6.0, saturation=1.05, log=print):
+        boost=True, strength=6.0, saturation=1.05, ai_sharpen=True, cosmicclarity_path=None,
+        log=print):
     """Vollen Starless-Workflow ausführen. Gibt den Pfad zum fertigen JPG zurück.
 
     linear_path : 32-bit-lineares Stack-Ergebnis (TIFF/FITS).
@@ -119,6 +120,20 @@ def run(linear_path, palette, work_dir, broadband=False, graxpert_path=None, sta
             starless_rgb = np.clip(g, 0, 1)
         except Exception as e:
             log(f"      GraXpert übersprungen ({e})")
+
+    # 3b. KI-Schärfung (Cosmic Clarity = freie BlurXTerminator-Alternative) — NUR sternenlos,
+    #     Modus „Non-Stellar Only" (Nebel-Dekonvolution). Auf Sternen würde Schärfung sie verziehen.
+    if ai_sharpen:
+        try:
+            import cosmicclarity_engine
+            if cosmicclarity_engine.available(cosmicclarity_path):
+                log("  3b/5 Cosmic Clarity: KI-Schärfung (sternenlos, Non-Stellar) …")
+                sl_bgr = cv2.cvtColor(starless_rgb.astype(np.float32), cv2.COLOR_RGB2BGR)
+                sl_bgr = cosmicclarity_engine.sharpen(sl_bgr, mode="Non-Stellar Only",
+                                                      path=cosmicclarity_path, log=log)
+                starless_rgb = np.clip(cv2.cvtColor(sl_bgr.astype(np.float32), cv2.COLOR_BGR2RGB), 0, 1)
+        except Exception as e:
+            log(f"      Cosmic Clarity übersprungen ({e})")
 
     # 4. Nebel-Farben/Boost — ebenfalls nur sternenlos.
     log("  4/5 Nebel verstärken/Farben (sternenlos) …")

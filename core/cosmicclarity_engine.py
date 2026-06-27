@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""
+cosmicclarity_engine.py — optionales KI-Backend für Schärfung/Dekonvolution (Seti Astro „Cosmic
+Clarity", MIT-Lizenz, https://github.com/setiastro/cosmicclarity). Freie Alternative zu BlurXTerminator.
+
+ForgePix ruft die installierte Cosmic-Clarity-CLI auf (gleiches Muster wie GraXpert/Siril). Das
+Sharpen-Tool nutzt eine input/output-Ordner-Konvention im Programmverzeichnis und schreibt
+``<name>_sharpened.tif``. Läuft auf Apple Silicon über MPS (GPU), sonst CPU.
+
+WICHTIG (Starless-Regel): Schärfung gehört auf den STERNENLOSEN Nebel — „Non-Stellar Only".
+"""
+import os
+import glob
+import shutil
+import subprocess
+import numpy as np
+import cv2
+
+_CANDIDATES = [
+    os.path.expanduser("~/cosmicclarity/SetiAstroCosmicClaritymac"),
+    os.path.expanduser("~/cosmicclarity/SetiAstroCosmicClarity"),
+    "/Applications/CosmicClarity/SetiAstroCosmicClaritymac",
+]
+
+
+def find_cli(path=None):
+    for c in ([path] if path else []) + _CANDIDATES + [shutil.which("SetiAstroCosmicClaritymac")]:
+        if c and os.path.exists(c):
+            return c
+    return None
+
+
+def available(path=None):
+    return find_cli(path) is not None
+
+
+def sharpen(bgr01, mode="Non-Stellar Only", nonstellar_strength=3.0, nonstellar_amount=0.9,
+            stellar_amount=0.9, auto_psf=False, gpu=True, path=None, timeout=1800, log=print):
+    """BGR-Float (0..1) mit Cosmic Clarity schärfen (KI-Dekonvolution) und Ergebnis zurückgeben.
+    mode: 'Non-Stellar Only' (Nebel — für sternenlose Bilder!), 'Stellar Only', 'Both'."""
+    cli = find_cli(path)
+    if cli is None:
+        raise RuntimeError("Cosmic Clarity nicht gefunden")
+    exe_dir = os.path.dirname(cli)
+    indir, outdir = os.path.join(exe_dir, "input"), os.path.join(exe_dir, "output")
+    os.makedirs(indir, exist_ok=True); os.makedirs(outdir, exist_ok=True)
+    for f in glob.glob(os.path.join(indir, "*")) + glob.glob(os.path.join(outdir, "*")):
+        os.remove(f)
+    import tifffile
+    rgb16 = (np.clip(cv2.cvtColor(np.asarray(bgr01, np.float32), cv2.COLOR_BGR2RGB), 0, 1)
+             * 65535).astype(np.uint16)
+    tifffile.imwrite(os.path.join(indir, "ccin.tif"), rgb16, photometric="rgb")
+    cmd = [cli, "--sharpening_mode", mode,
+           "--nonstellar_strength", str(nonstellar_strength),
+           "--nonstellar_amount", str(nonstellar_amount),
+           "--stellar_amount", str(stellar_amount)]
+    if auto_psf:
+        cmd.append("--auto_detect_psf")
+    if not gpu:
+        cmd.append("--disable_gpu")
+    log(f"    Cosmic Clarity Schärfung ({mode}, GPU={gpu}) …")
+    subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=exe_dir)
+    outs = glob.glob(os.path.join(outdir, "*.tif")) + glob.glob(os.path.join(outdir, "*.tiff"))
+    if not outs:
+        raise RuntimeError("Cosmic Clarity lieferte keine Ausgabe")
+    g = tifffile.imread(outs[0]).astype(np.float32)
+    g = g / 65535.0 if g.max() > 1.5 else g
+    if g.ndim == 3:
+        g = cv2.cvtColor(g, cv2.COLOR_RGB2BGR)
+    return np.clip(g, 0, 1)
