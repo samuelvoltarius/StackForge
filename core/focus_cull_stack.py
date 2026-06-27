@@ -72,11 +72,12 @@ def load_gray(path, max_side=1600):
 
 
 def develop_raw_to_bgr(path, wb="camera", auto_bright=False, bps=16, half=False,
-                       demosaic="auto", reconstruct_highlights=False):
+                       demosaic="auto", reconstruct_highlights=False, lens=None):
     """RAW treu entwickeln (rawpy) und als BGR-Array zurückgeben (cv2-Konvention).
     Nicht-generativ: nur Demosaicing/WB/Gamma, keine erfundenen Inhalte.
     demosaic: 'auto'(=AHD) | 'dht' | 'dcb' | 'vng' | 'ahd' (AMaZE braucht GPL-LibRaw-Build).
-    reconstruct_highlights: ausgebrannte Lichter rekonstruieren (Kanal-Verhältnis + Entsättigen)."""
+    reconstruct_highlights: ausgebrannte Lichter rekonstruieren (Kanal-Verhältnis + Entsättigen).
+    lens: optionales Dict mit Objektivkorrekturen {auto, vignette, distortion, ca}."""
     import rawpy
     with rawpy.imread(path) as raw:
         kw = dict(output_bps=bps, no_auto_bright=not auto_bright, half_size=half,
@@ -101,6 +102,12 @@ def develop_raw_to_bgr(path, wb="camera", auto_bright=False, bps=16, half=False,
     if reconstruct_highlights:
         import develop
         bgr = develop.highlight_reconstruct(bgr)
+    if lens and (lens.get("auto") or any(abs(lens.get(k, 0.0)) > 1e-4
+                                         for k in ("vignette", "distortion", "ca"))):
+        import develop
+        bgr = develop.lens_correct(bgr, vignette=lens.get("vignette", 0.0),
+                                   distortion=lens.get("distortion", 0.0), ca=lens.get("ca", 0.0),
+                                   auto=lens.get("auto", False), exif_path=path)
     return bgr
 
 
@@ -124,7 +131,11 @@ def develop_all(paths, dev_dir, args):
             bgr = develop_raw_to_bgr(p, args.raw_wb, args.raw_auto_bright,
                                      args.raw_bps, args.raw_half,
                                      demosaic=getattr(args, "raw_demosaic", "auto"),
-                                     reconstruct_highlights=getattr(args, "raw_highlights", False))
+                                     reconstruct_highlights=getattr(args, "raw_highlights", False),
+                                     lens={"auto": getattr(args, "lens_auto", False),
+                                           "vignette": getattr(args, "lens_vignette", 0.0),
+                                           "distortion": getattr(args, "lens_distortion", 0.0),
+                                           "ca": getattr(args, "lens_ca", 0.0)})
             cv2.imwrite(outp, bgr, [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
             return outp
         dst = os.path.join(dev_dir, f"{i:04d}_" + name)
@@ -899,8 +910,17 @@ def run_own_engine(selected_dir, work_dir, args):
             imgs = stacker.align_images(imgs, mode=align_mode, detector=args.detector)
             imgs = stacker.crop_to_overlap(imgs)        # schwarze Warp-Ränder/Striche entfernen
         _fm = getattr(args, "focus_method", "pyramid")
-        _merge1 = {"depthmap": lambda g: stacker.focus_stack_depthmap(g, log=lambda *a: None),
-                   "average": lambda g: stacker.focus_stack_average(g, log=lambda *a: None),
+        _frad = getattr(args, "focus_radius", -1.0)
+        _fsm = getattr(args, "focus_smoothing", -1.0)
+        _dm_kw = {} if _frad < 0 else {"radius": _frad}
+        if _fsm >= 0:
+            _dm_kw["smoothing"] = _fsm
+        _avg_kw = {} if _frad < 0 else {"radius": int(round(_frad))}
+        if _fsm >= 0:
+            _avg_kw["smoothing"] = _fsm
+        _merge1 = {"depthmap": lambda g: stacker.focus_stack_depthmap(g, log=lambda *a: None, **_dm_kw),
+                   "average": lambda g: stacker.focus_stack_average(g, log=lambda *a: None, **_avg_kw),
+                   "halofix": lambda g: stacker.focus_stack_halofix(g, log=lambda *a: None),
                    "wavelet": lambda g: stacker.focus_stack_wavelet(g, log=lambda *a: None)}.get(
             _fm, lambda g: stacker.focus_stack(g, deghost=getattr(args, "deghost", False),
                                                log=lambda *a: None))
@@ -1073,6 +1093,10 @@ def main():
                          "Hochskalieren) — braucht --astro-drizzle 2 und gediterte Subs")
     ap.add_argument("--astro-pixfrac", type=float, default=0.7,
                     help="Drop-Größe fürs echte Drizzle 0.1..1 (kleiner = schärfer, braucht mehr Frames)")
+    ap.add_argument("--astro-pcc", action="store_true",
+                    help="Breitband: photometrischer Farbabgleich (PCC-lite) — neutralisiert die "
+                         "mittlere Farbe vieler ungesättigter Sterne (robuster als Quantil-Weißpunkt; "
+                         "kein Online-Katalog)")
     ap.add_argument("--astro-stretch", action="store_true",
                     help="Astro: Vorschau-JPG asinh-gestreckt (Ergebnis-TIFF bleibt linear)")
     ap.add_argument("--astro-bright", type=float, default=-1.0,
@@ -1112,11 +1136,19 @@ def main():
     ap.add_argument("--moving-subject", action="store_true",
                     help="Auf das MOTIV ausrichten statt aufs ganze Bild — gegen Geister bei "
                          "bewegtem Motiv (Wind-Schwanken etc.); verschobene Frames werden verworfen")
-    ap.add_argument("--focus-method", choices=["pyramid", "depthmap", "average", "wavelet"],
+    ap.add_argument("--focus-radius", type=float, default=-1.0,
+                    help="Fokus (depthmap/average): Struktur-/Fenstergröße des Schärfemaßes "
+                         "(Helicon-Radius; größer = ruhiger, weniger Feindetail). -1 = Standard")
+    ap.add_argument("--focus-smoothing", type=float, default=-1.0,
+                    help="Fokus (depthmap/average): Weichheit der Übergänge zwischen Quellbildern "
+                         "(Helicon-Smoothing; Feathering gegen harte Nähte). -1/0 = aus")
+    ap.add_argument("--focus-method", choices=["pyramid", "depthmap", "average", "halofix", "wavelet"],
                     default="pyramid",
                     help="Verschmelzungs-Methode: pyramid=Laplace-Pyramide (Standard, scharf, "
                          "gut für feine/weiche Strukturen wie Blüten); depthmap=Tiefenkarten-Auswahl "
-                         "(für harte Tiefenkanten: Insekten, Münzen, Platinen)")
+                         "(für harte Tiefenkanten: Insekten, Münzen, Platinen); halofix=Dual-Output-"
+                         "Halo-Retusche (DMap-Basis + PMax-Detail, Schärfe ohne Halos); "
+                         "wavelet=à-trous-Detailfusion")
     ap.add_argument("--align-sequential", action="store_true",
                     help="Paarweise/sequenzielle Ausrichtung (jedes Frame auf den Nachbarn, "
                          "aufkumuliert) statt aufs globale Referenzbild — robuster bei großem "
@@ -1155,6 +1187,15 @@ def main():
                          "dcb (wenig Falschfarbe), vng (weich). AMaZE braucht GPL-LibRaw.")
     ap.add_argument("--raw-highlights", action="store_true",
                     help="Ausgebrannte Lichter rekonstruieren (Kanal-Verhältnis + Entsättigen-zu-Weiß)")
+    ap.add_argument("--lens-auto", action="store_true",
+                    help="Objektivkorrektur automatisch aus der lensfun-Datenbank (wenn lensfunpy "
+                         "installiert und Objektiv bekannt): Vignette, Verzeichnung, Farbquerfehler")
+    ap.add_argument("--lens-vignette", type=float, default=0.0,
+                    help="Manuelle Vignetten-Korrektur (>0 hellt die Ecken auf, ~0.1..0.5)")
+    ap.add_argument("--lens-distortion", type=float, default=0.0,
+                    help="Manuelle Verzeichnungs-Korrektur k1 (<0 Tonnen-, >0 Kissenverzeichnung)")
+    ap.add_argument("--lens-ca", type=float, default=0.0,
+                    help="Manuelle Farbquerfehler-Korrektur (laterale CA, ~0.001..0.01)")
     ap.add_argument("--raw-auto-bright", action="store_true",
                     help="Auto-Helligkeit aktivieren (Default aus = treu)")
     ap.add_argument("--raw-bps", type=int, choices=[8, 16], default=16,
@@ -1489,6 +1530,13 @@ def _astro_write(result, work_dir, paths, args, astro):
     strength = man_bright if man_bright > 0 else 6.0
     sat = man_sat if man_sat > 0 else 1.05
     protect = True
+
+    def _broadband(res):
+        # Breitband-Farbe: optional PCC-lite (stern-photometrisch) statt einfachem Farbabgleich, + SCNR
+        cal = (astro.photometric_balance(res, color_s) if getattr(args, "astro_pcc", False)
+               else astro.color_balance(res, color_s))
+        return astro.remove_green_cast(cal)
+
     if args.astro_stretch:
         if getattr(args, "vlm_endpoint", None):
             try:
@@ -1508,11 +1556,15 @@ def _astro_write(result, work_dir, paths, args, astro):
             except Exception as e:
                 print(f"  (KI-Aufbereitung übersprungen: {e})", file=sys.stderr)
         # Dual-Band: Hα/OIII trennen → HOO (rot+teal), SHO (gold+blau) oder Foraxx (dynamisch).
-        # Breitband: Farbkalibrierung + Grünstich-Entfernung (SCNR).
+        # Breitband: Farbkalibrierung (optional PCC-lite, stern-photometrisch) + SCNR.
+        def _broadband(res):
+            cal = (astro.photometric_balance(res, color_s) if getattr(args, "astro_pcc", False)
+                   else astro.color_balance(res, color_s))
+            return astro.remove_green_cast(cal)
         if dualband:
             base_view = _dualband_view(result, getattr(args, "palette", "hoo"), astro)
         else:
-            base_view = astro.remove_green_cast(astro.color_balance(result, color_s))
+            base_view = _broadband(result)
         _sm = getattr(args, "astro_stretch_mode", "asinh")
         if _sm == "mtf":
             view = astro.mtf_stretch(base_view, saturation=sat)
@@ -1526,7 +1578,7 @@ def _astro_write(result, work_dir, paths, args, astro):
         if dualband:
             view = _dualband_view(result, getattr(args, "palette", "hoo"), astro)
         else:
-            view = astro.remove_green_cast(astro.color_balance(result, color_s))
+            view = _broadband(result)
     out_view = os.path.join(stack_dir, f"{args.prefix}{base}_astro.jpg")
     cv2.imwrite(out_view, np.clip(view * 255, 0, 255).astype(np.uint8),
                 [int(cv2.IMWRITE_JPEG_QUALITY), 95])

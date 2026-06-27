@@ -346,6 +346,45 @@ def ghost_overlay(result_bgr, images, thresh=0.35):
     return ghost_overlay_from_map(result_bgr, disagreement_map(images), thresh)
 
 
+def focus_stack_halofix(images, margin=0.02, soft=2.0, log=print):
+    """Dual-Output-Halo-Retusche (Helicon-Retusche-Gedanke, automatisch): die Laplace-Pyramide
+    (PMax) ist am schärfsten, erzeugt aber an kontrastreichen Kanten helle/dunkle HALOS — das sind
+    Über-/Unterschwinger, also Werte, die in KEINEM einzelnen Quellbild vorkommen (heller als das
+    hellste bzw. dunkler als das dunkelste Frame an dieser Stelle).
+
+    Lösung ohne manuelles Pinseln: PMax rechnen (volle Schärfe), dann auf die **Pixel-Hülle** der
+    Quellbilder (lokales Min..Max über alle Frames, +kleiner Toleranzrand) begrenzen. Genau die
+    unmöglichen Halo-Werte werden gekappt, jedes echte Detail bleibt erhalten. In gekappten Zonen
+    wird sanft zur halo-freien Tiefenkarte (DMap) übergeblendet, damit keine harten Klipp-Kanten
+    entstehen. margin = Toleranz (Anteil des Wertebereichs), soft = Weichheit der Übergänge."""
+    n = len(images)
+    if n < 2:
+        return images[0] if images else None
+    dtype = images[0].dtype
+    maxval = 65535.0 if dtype == np.uint16 else 255.0
+    imgs = [im if im.ndim == 3 else cv2.cvtColor(im, cv2.COLOR_GRAY2BGR) for im in images]
+    sharp = focus_stack(imgs, log=lambda *a: None).astype(np.float32)            # scharf, mit Halo
+    base = focus_stack_depthmap(imgs, log=lambda *a: None).astype(np.float32)    # halo-frei
+    lo = np.full_like(sharp, np.inf)
+    hi = np.full_like(sharp, -np.inf)
+    for im in imgs:                                       # Pixel-Hülle (Min..Max) über alle Frames
+        f = im.astype(np.float32)
+        lo = np.minimum(lo, f); hi = np.maximum(hi, f)
+    m = float(margin) * maxval
+    lo -= m; hi += m
+    clamped = np.clip(sharp, lo, hi)                      # Halos (außerhalb der Hülle) kappen
+    halo_amt = np.abs(sharp - clamped).mean(axis=2) if sharp.ndim == 3 else np.abs(sharp - clamped)
+    if soft and soft > 0:                                 # in Halo-Zonen sanft zu DMap blenden
+        wt = np.clip(halo_amt / (m + 1e-6), 0, 1)
+        wt = cv2.GaussianBlur(wt, (0, 0), float(soft))[..., None]
+        out = clamped * (1 - wt) + base * wt
+    else:
+        out = clamped
+    frac = float((halo_amt > 1.0).mean())
+    log(f"    Halo-Retusche: PMax auf Pixel-Hülle begrenzt ({frac*100:.1f}% Halo-Fläche korrigiert)")
+    return np.clip(out, 0, maxval).astype(dtype)
+
+
 def focus_stack(images, min_size=32, deghost=False, deghost_thresh=0.35, log=print):
     """Laplace-Pyramiden-Fusion: pro Pyramidenebene den schärfsten (energiereichsten)
     Koeffizienten je Bildpunkt wählen. Gibt das verschmolzene Bild im Eingabe-dtype zurück."""
@@ -393,34 +432,44 @@ def focus_stack(images, min_size=32, deghost=False, deghost_thresh=0.35, log=pri
     return np.clip(img, 0, maxval).astype(dtype)
 
 
-def focus_stack_depthmap(images, sharp_blur=4, gamma=8.0, log=print):
+def focus_stack_depthmap(images, sharp_blur=4, gamma=8.0, radius=None, smoothing=None, log=print):
     """Depth-Map-Fokus-Stacking (Helicon „DMap"/Zerene-Stil): pro Bildpunkt wird das **schärfste
     Frame** stark bevorzugt — über eine **potenzgewichtete Mischung** der Schärfekarten (Gewicht =
     Schärfe^gamma). Hohes gamma ≈ harte Auswahl des schärfsten Frames (volle Detailschärfe), bleibt
     aber ein weicher Blend der besten 1–2 Frames → **keine dunklen Löcher, keine harten Nähte, keine
     Pyramiden-Halos**. Auf flachen Flächen, wo alle Frames ähnlich sind, mittelt es sauber.
-    Stärken: kontrastreiche Tiefenstruktur (Insekten, Münzen, Platinen, tiefe Makro-Stacks)."""
+    Stärken: kontrastreiche Tiefenstruktur (Insekten, Münzen, Platinen, tiefe Makro-Stacks).
+
+    Helicon-artige Regler:
+      • radius    = Struktur-/Fenstergröße des Schärfemaßes (größer = ruhiger, aber weniger Feindetail).
+                    Steuert die Glättung der Schärfekarte (Standard ≈ sharp_blur).
+      • smoothing = Weichheit der Übergänge zwischen Quellbildern (Feathering der Gewichtskarten gegen
+                    harte Nähte; 0 = aus)."""
     n = len(images)
     if n < 2:
         return images[0] if images else None
+    rad = float(sharp_blur if radius is None else max(0.5, radius))
+    sm = float(0.0 if smoothing is None else max(0.0, smoothing))
     dtype = images[0].dtype
     maxval = 65535.0 if dtype == np.uint16 else 255.0
     h, w = images[0].shape[:2]
     fl = [im.astype(np.float32) for im in images]
-    # Schärfekarte je Bild: |Laplace| auf Graustufen, leicht geglättet (Region statt Einzelpixel)
+    # Schärfekarte je Bild: |Laplace| auf Graustufen, geglättet im Radius-Fenster (Region statt Pixel)
     S = np.empty((n, h, w), np.float32)
     for i, im in enumerate(fl):
         g = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY) if im.ndim == 3 else im
-        S[i] = cv2.GaussianBlur(np.abs(cv2.Laplacian(g, cv2.CV_32F)), (0, 0), sharp_blur)
+        S[i] = cv2.GaussianBlur(np.abs(cv2.Laplacian(g, cv2.CV_32F)), (0, 0), rad)
         log(f"    Schärfekarte {i + 1}/{n}")
     # Potenzgewichte: Schärfe^gamma, je Pixel normiert. Hohes gamma → schärfstes Frame dominiert klar.
     Smax = S.max(axis=0, keepdims=True) + 1e-6
     Wt = (S / Smax) ** gamma                              # 0..1, schärfstes Frame = 1
+    if sm > 0:                                            # Übergänge feathern (weiche Nähte)
+        Wt = np.stack([cv2.GaussianBlur(Wt[i], (0, 0), sm) for i in range(n)])
     Wt /= Wt.sum(axis=0, keepdims=True) + 1e-6
     out = np.zeros_like(fl[0])
     for i in range(n):
         out += (Wt[i][..., None] if fl[i].ndim == 3 else Wt[i]) * fl[i]
-    log("    Tiefenkarte (potenzgewichtet) verschmolzen")
+    log(f"    Tiefenkarte verschmolzen (radius {rad:.1f}, smoothing {sm:.1f})")
     return np.clip(out, 0, maxval).astype(dtype)
 
 
@@ -432,18 +481,23 @@ def _focus_measure(bgr):
     return np.abs(lx) + np.abs(ly)
 
 
-def focus_stack_average(images, radius=9, log=print):
+def focus_stack_average(images, radius=9, smoothing=0, log=print):
     """Method A (Helicon): **gewichteter Mittelwert** nach lokalem Schärfemaß. Rauscharm und
-    farbtreu — ideal für kurze/Freihand-Stacks und weiche Motive. radius = Fenster des Schärfemaßes."""
+    farbtreu — ideal für kurze/Freihand-Stacks und weiche Motive.
+      • radius    = Fenster des Schärfemaßes (größer = ruhiger/weicher).
+      • smoothing = zusätzliche Weichheit der Gewichtskarten (Feathering der Übergänge; 0 = aus)."""
     n = len(images)
     if n < 2:
         return images[0] if images else None
+    radius = max(1, int(radius))
     dtype = images[0].dtype
     maxval = 65535.0 if dtype == np.uint16 else 255.0
     fl = [im.astype(np.float32) if im.ndim == 3 else cv2.cvtColor(im, cv2.COLOR_GRAY2BGR).astype(np.float32)
           for im in images]
     W = np.stack([cv2.boxFilter(_focus_measure(im), cv2.CV_32F, (radius, radius)) for im in images])
     W = (W + 1e-6)
+    if smoothing and smoothing > 0:
+        W = np.stack([cv2.GaussianBlur(W[i], (0, 0), float(smoothing)) for i in range(n)])
     W /= W.sum(axis=0, keepdims=True)
     out = np.zeros_like(fl[0])
     for i in range(n):

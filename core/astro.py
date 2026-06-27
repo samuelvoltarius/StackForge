@@ -701,6 +701,42 @@ def color_balance(f, strength=1.0):
     return out if s >= 1.0 else np.clip(src * (1 - s) + out * s, 0, None)
 
 
+def photometric_balance(f, strength=1.0, max_stars=300, log=print):
+    """Photometrischer Farbabgleich (PCC-lite, OHNE Online-Sternkatalog): Anders als die einfache
+    Quantil-Kalibrierung misst dies die ECHTEN Farben vieler einzelner, UNGESÄTTIGTER Sterne und
+    gleicht die Kanäle so ab, dass die mittlere Sternfarbe neutral wird (Sterne sind im Mittel ~weiß).
+    Robuster als der 99.5%-Quantil-Weißpunkt, weil gesättigte Sternkerne und gefärbter Nebel
+    ausgeschlossen werden → echte, glaubwürdige Nebelfarben statt Farbstich.
+
+    Hinweis: Das ist KEIN katalogbasiertes SPCC (das bräuchte Plate-Solving + Gaia-Abfrage online);
+    es nutzt nur die statistische Weiß-Annahme der Sternpopulation im Bild — treu und reproduzierbar."""
+    if f is None or f.ndim != 3 or f.shape[2] != 3 or strength <= 0:
+        return f
+    src = f.astype(np.float32)
+    bg = np.array([np.quantile(src[..., c], 0.30) for c in range(3)], np.float32)
+    out = np.clip(src - bg.reshape(1, 1, 3), 0, None)          # 1) Hintergrund neutralisieren
+    g = _gray(out)
+    pts = _star_centroids(g / (g.max() + 1e-6), max_stars=max_stars)
+    cols = []
+    H, W = g.shape[:2]
+    for x, y in pts:
+        xi, yi = int(round(x)), int(round(y))
+        if 2 <= xi < W - 2 and 2 <= yi < H - 2:
+            patch = out[yi - 2:yi + 3, xi - 2:xi + 3].reshape(-1, 3)
+            peak = float(patch.max())
+            if 0.02 < peak < 0.95:                            # ungesättigt UND über dem Rauschen
+                cols.append(patch.mean(0))
+    if len(cols) < 15:                                        # zu wenige Sterne → Quantil-Fallback
+        log(f"    PCC-lite: nur {len(cols)} brauchbare Sterne → Standard-Farbabgleich")
+        return color_balance(f, strength)
+    med = np.median(np.array(cols, np.float32), axis=0) + 1e-6   # mittlere Sternfarbe (BGR)
+    scale = np.clip(float(med.mean()) / med, 0.4, 2.5).astype(np.float32)
+    out = np.clip(out * scale.reshape(1, 1, 3), 0, None)      # 2) mittleren Stern → neutral
+    log(f"    PCC-lite: {len(cols)} Sterne, Kanal-Skalierung BGR={np.round(scale, 3)}")
+    s = float(min(1.0, max(0.0, strength)))
+    return out if s >= 1.0 else np.clip(src * (1 - s) + out * s, 0, None)
+
+
 def remove_green_cast(f, amount=1.0):
     """SCNR-artige Grün-Entfernung (Average Neutral): Grün wird auf den Schnitt von Rot/Blau
     begrenzt. In der Deep-Sky-Fotografie ist Grün praktisch nie echtes Signal (Nebel sind rot/blau),

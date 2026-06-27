@@ -130,3 +130,83 @@ def refine_mask(mask, guide_img, radius=16, eps=1e-3):
         return cv2.ximgproc.guidedFilter(g, mask.astype(np.float32), radius, eps)
     except Exception:
         return cv2.GaussianBlur(mask.astype(np.float32), (0, 0), 3.0)
+
+
+def _lensfun_auto(f, exif_path, log=print):
+    """Automatische Objektivkorrektur über die lensfun-Datenbank (Vignette + Verzeichnung + TCA),
+    anhand der Kamera-/Objektiv-Angaben aus den EXIF-Daten. Nur aktiv, wenn lensfunpy installiert
+    UND Kamera/Objektiv in der Datenbank gefunden werden. Gibt (korrigiert, True) oder (f, False)."""
+    try:
+        import lensfunpy
+        import subprocess
+        import json
+        meta = json.loads(subprocess.run(
+            ["exiftool", "-j", "-n", "-Make", "-Model", "-LensModel", "-FocalLength",
+             "-FNumber", "-FocusDistance", exif_path], capture_output=True, text=True).stdout)[0]
+        db = lensfunpy.Database()
+        cams = db.find_cameras(meta.get("Make", ""), meta.get("Model", ""))
+        lenses = db.find_lenses(cams[0], None, meta.get("LensModel", "")) if cams else []
+        if not cams or not lenses:
+            log("    Objektivkorrektur: Kamera/Objektiv nicht in lensfun-DB → manuelle Parameter")
+            return f, False
+        h, w = f.shape[:2]
+        mod = lensfunpy.Modifier(lenses[0], cams[0].crop_factor, w, h)
+        mod.initialize(float(meta.get("FocalLength", 0) or 50),
+                       float(meta.get("FNumber", 0) or 8),
+                       float(meta.get("FocusDistance", 0) or 1000))
+        out = f.copy()
+        try:
+            mod.apply_color_modification(out)            # Vignette
+        except Exception:
+            pass
+        coords = mod.apply_geometry_distortion()         # Verzeichnung (+TCA, falls Profil)
+        if coords is not None:
+            out = cv2.remap(out, coords, None, cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_REFLECT)
+        log(f"    Objektivkorrektur (lensfun): {lenses[0].model}")
+        return np.clip(out, 0, 1), True
+    except Exception as e:
+        log(f"    lensfun nicht verfügbar/anwendbar ({e}) → manuelle Parameter")
+        return f, False
+
+
+def lens_correct(img, vignette=0.0, distortion=0.0, ca=0.0, auto=False, exif_path=None, log=print):
+    """Objektivkorrekturen (RawTherapee/darktable-Niveau). Zwei Wege:
+
+      • auto=True + exif_path: automatisch aus der **lensfun-Datenbank** (wenn lensfunpy installiert
+        und das Objektiv bekannt ist) — Vignette, Verzeichnung und Farbquerfehler nach Profil.
+      • manuelle Parameter (immer verfügbar, ohne Datenbank):
+          - vignette   : Randabdunklung ausgleichen (>0 hellt die Ecken auf, ~r²-Modell)
+          - distortion : Verzeichnung (k1; <0 korrigiert Tonnen-, >0 Kissenverzeichnung)
+          - ca         : Farbquerfehler (laterale CA; R/B radial gegen G skalieren)
+
+    Treu/nicht-generativ — nur geometrische/Helligkeits-Korrektur, kein Erfinden von Inhalten."""
+    f, dt, mx = _as_float(img)
+    used_auto = False
+    if auto and exif_path:
+        f, used_auto = _lensfun_auto(f, exif_path, log=log)
+    if not used_auto and (abs(distortion) > 1e-4 or abs(ca) > 1e-4 or abs(vignette) > 1e-4):
+        h, w = f.shape[:2]
+        cx, cy = w / 2.0, h / 2.0
+        nr2 = cx * cx + cy * cy
+        xs, ys = np.meshgrid(np.arange(w, dtype=np.float32), np.arange(h, dtype=np.float32))
+        ux, uy = xs - cx, ys - cy
+        r2 = (ux * ux + uy * uy) / nr2                    # normierter Radius² (0 Mitte … 1 Ecke)
+        if abs(distortion) > 1e-4:
+            fac = 1.0 + float(distortion) * r2
+            f = cv2.remap(f, cx + ux * fac, cy + uy * fac, cv2.INTER_LANCZOS4,
+                          borderMode=cv2.BORDER_REFLECT)
+        if abs(ca) > 1e-4 and f.ndim == 3:
+            for ch, sgn in ((2, 1.0), (0, -1.0)):         # R nach außen, B nach innen (oder umgekehrt)
+                fac = 1.0 + sgn * float(ca) * r2
+                f[..., ch] = cv2.remap(f[..., ch], cx + ux * fac, cy + uy * fac,
+                                       cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_REFLECT)
+        if abs(vignette) > 1e-4:
+            gain = 1.0 + float(vignette) * r2             # Ecken aufhellen
+            f = f * (gain[..., None] if f.ndim == 3 else gain)
+        log(f"    Objektivkorrektur (manuell): vignette={vignette}, distortion={distortion}, ca={ca}")
+    out = np.clip(f, 0, 1)
+    if dt == np.uint16:
+        return (out * 65535.0).astype(np.uint16)
+    if dt == np.uint8:
+        return (out * 255.0).astype(np.uint8)
+    return out
