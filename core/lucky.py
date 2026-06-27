@@ -152,9 +152,9 @@ def _global_shift(ref_g, mov_g):
         return 0.0, 0.0
 
 
-def lucky_stack_map(path, keep_global=0.6, keep_local=0.5, max_load=200,
+def lucky_stack_map(path, keep_global=0.6, keep_local=0.3, max_load=200,
                     ap_step=50, box_half=22, patch_half=34, search_half=12,
-                    log=print, preview_cb=None):
+                    sharpen=1.0, log=print, preview_cb=None):
     """Multi-Point-(MAP)-Lucky-Imaging (AutoStakkert/PlanetarySystemStacker-Prinzip).
 
     1) Frames global nach Schärfe ranken, die besten `keep_global` laden + global ausrichten.
@@ -283,5 +283,15 @@ def lucky_stack_map(path, keep_global=0.6, keep_local=0.5, max_load=200,
     cover = np.clip(wsum / (hann.max() * 1.2), 0, 1).astype(np.float32)
     cover = cv2.GaussianBlur(cover, (0, 0), max(1.0, patch_half * 0.4))[..., None]
     out = res * cover + mean_c * (1.0 - cover)
-    log("    MAP: zusammengeblendet (weich ins Mittelbild)")
+    out = np.clip(out, 0, 255).astype(np.uint8)
+    # WICHTIG (AutoStakkert/RegiStax-Prinzip): Der Stack mittelt → glatt+rauscharm, aber weich.
+    # Erst die Wavelet-Schärfung holt die Auflösung zurück (das eigentliche „Lucky"-Ergebnis).
+    if sharpen and sharpen > 0:
+        try:
+            import wavelet
+            g = (1.0 + 2.2 * sharpen, 1.0 + 1.6 * sharpen, 1.0 + 1.0 * sharpen, 1.0 + 0.5 * sharpen, 1.0)
+            out = wavelet.wavelet_sharpen(out, gains=g, denoise=0.1)
+        except Exception as e:
+            log(f"    MAP: Schärfung übersprungen ({e})")
+    log(f"    MAP: zusammengeblendet + Wavelet-geschärft (sharpen={sharpen})")
     return np.clip(out, 0, 255).astype(np.uint8)

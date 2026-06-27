@@ -1822,19 +1822,17 @@ def run_lucky(input_path, work_dir, args):
         # 2) Multi-Point-(MAP)-Stack — glänzt bei DETAILREICHEN Zielen (Mond-Krater, Jupiter-Bänder);
         #    bei glatten/komprimierten Scheiben kann das Einzelbild schärfer sein. Beide ausgeben.
         try:
+            # Schärfung passiert JETZT in lucky_stack_map selbst (AutoStakkert/RegiStax-Prinzip:
+            # Stack mittelt das Rauschen weg, Wavelet-Schärfung holt die Auflösung zurück) — kein
+            # doppeltes Schärfen mehr. lucky-sharpen 0..100 → interner Faktor (60 ≈ 1.0).
             res = lucky.lucky_stack_map(v, keep_global=0.6,
                                         keep_local=getattr(args, "lucky_keep", 40) / 100.0,
+                                        sharpen=getattr(args, "lucky_sharpen", 60) / 60.0,
                                         preview_cb=_pv)
         except Exception as e:
             print(f"  MAP-Stack übersprungen: {e}", file=sys.stderr)
             res = None
         if res is not None:
-            sa = getattr(args, "lucky_sharpen", 60)
-            if sa and sa > 0:                               # Multi-Skalen-Wavelet-Schärfung (RegiStax-Stil)
-                import wavelet
-                g = 1.0 + sa / 100.0                        # Stärke → Gain der feinsten Ebenen
-                res = wavelet.wavelet_sharpen(res, gains=(g, 1.0 + (g - 1) * 0.7,
-                                                          1.0 + (g - 1) * 0.4, 1.1, 1.0), denoise=0.05)
             out_jpg = os.path.join(stack_dir, f"{args.prefix}{base}_map.jpg")
             cv2.imwrite(out_jpg, res, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
             cv2.imwrite(os.path.join(stack_dir, f"{args.prefix}{base}_map.tif"), res,

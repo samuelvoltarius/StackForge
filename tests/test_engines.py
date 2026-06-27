@@ -1292,6 +1292,36 @@ class TestProToolGaps(TmpCase):
         self.assertGreaterEqual(int(v[:8, :8].mean()), int(img[:8, :8].mean()))  # Ecken aufgehellt
 
 
+
+    def test_lucky_map_sharpen_verbessert(self):
+        import lucky
+        r = _rng(); S = 200
+        gt = np.zeros((S, S), np.float32); cv2.circle(gt, (S // 2, S // 2), 75, 1.0, -1)
+        disk = (gt > 0.5).astype(np.float32)
+        for _ in range(25):
+            x, y = r.randint(70, 130), r.randint(70, 130)
+            cv2.circle(gt, (x, y), r.randint(3, 8), float(r.uniform(0.3, 0.6)), -1)
+        gt = cv2.GaussianBlur(gt, (0, 0), 0.8) * disk
+        vp = os.path.join(self.d, "seeing.mp4")
+        vw = cv2.VideoWriter(vp, cv2.VideoWriter_fourcc(*"mp4v"), 30, (S, S))
+        for i in range(40):
+            gx = cv2.GaussianBlur(r.randn(S, S).astype(np.float32), (0, 0), 25) * 2.5
+            gy = cv2.GaussianBlur(r.randn(S, S).astype(np.float32), (0, 0), 25) * 2.5
+            mx = (np.tile(np.arange(S), (S, 1)) + gx).astype(np.float32)
+            my = (np.tile(np.arange(S).reshape(-1, 1), (1, S)) + gy).astype(np.float32)
+            f = cv2.remap(gt, mx, my, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+            f = cv2.GaussianBlur(f, (0, 0), float(r.uniform(0.5, 2.5)))
+            f = np.clip(f + r.normal(0, 0.10, f.shape), 0, 1)
+            vw.write(cv2.cvtColor((f * 255).astype(np.uint8), cv2.COLOR_GRAY2BGR))
+        vw.release()
+        soft = lucky.lucky_stack_map(vp, sharpen=0.0, log=lambda *a: None)
+        sharp = lucky.lucky_stack_map(vp, sharpen=1.0, log=lambda *a: None)
+        def lap(x):
+            g = cv2.cvtColor(x, cv2.COLOR_BGR2GRAY)
+            return cv2.Laplacian(g, cv2.CV_64F).var()
+        self.assertEqual(sharp.shape[2], 3)
+        self.assertGreater(lap(sharp), lap(soft) * 2.0)   # Schaerfung holt Aufloesung zurueck
+
     def test_auto_sky_mask_trennt_himmel_vordergrund(self):
         import longexp
         r = _rng(); H, W = 180, 240; paths = []
