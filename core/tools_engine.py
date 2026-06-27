@@ -17,6 +17,32 @@ import subprocess
 _MAC = "/Applications"
 
 
+def _ensure_uncompressed_tif(infile):
+    """GraXpert/StarNet (tifffile-basiert) können LZW-komprimierte TIFFs NICHT lesen
+    (`requires imagecodecs`). cv2 schreibt TIFFs per Default LZW-komprimiert → vor dem Aufruf
+    bei Bedarf unkomprimiert umschreiben (cv2 liest LZW). Gibt einen sicher lesbaren Pfad zurück."""
+    if os.path.splitext(infile)[1].lower() not in (".tif", ".tiff"):
+        return infile
+    try:
+        import tifffile
+        with tifffile.TiffFile(infile) as tf:
+            comp = tf.pages[0].compression
+        if int(getattr(comp, "value", comp)) in (1,):           # 1 = keine Kompression
+            return infile
+    except Exception:
+        pass
+    try:
+        import cv2
+        img = cv2.imread(infile, cv2.IMREAD_UNCHANGED)
+        if img is None:
+            return infile
+        safe = os.path.splitext(infile)[0] + "_uc.tif"
+        cv2.imwrite(safe, img, [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
+        return safe
+    except Exception:
+        return infile
+
+
 def find_graxpert(explicit=None):
     """Pfad zur GraXpert-CLI/-App finden (explizit, PATH, gängige Installationsorte)."""
     cands = [explicit] if explicit else []
@@ -65,6 +91,7 @@ def run_graxpert(infile, outfile=None, op="background-extraction", path=None, lo
     if outfile is None:
         b, e = os.path.splitext(infile)
         outfile = f"{b}_graxpert{e or '.tif'}"
+    infile = _ensure_uncompressed_tif(infile)               # gegen LZW-Lesefehler in GraXpert
     cmd = [exe, "-cli", "-cmd", op, infile, "-output", outfile]
     log("  GraXpert: " + " ".join(cmd))
     try:
@@ -90,7 +117,7 @@ def run_starnet(infile, outfile=None, path=None, log=print):
     if not exe:
         raise RuntimeError("StarNet++ nicht gefunden")
     exe = os.path.abspath(exe)
-    infile = os.path.abspath(infile)
+    infile = os.path.abspath(_ensure_uncompressed_tif(infile))   # gegen LZW-Lesefehler
     if outfile is None:
         b, e = os.path.splitext(infile)
         outfile = f"{b}_starless{e or '.tif'}"
