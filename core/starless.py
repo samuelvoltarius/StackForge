@@ -75,6 +75,10 @@ def run(linear_path, palette, work_dir, broadband=False, graxpert_path=None, sta
     log(f"  1/5 Strecken + Palette ({pal or 'Breitband'}) …")
     bgr = astro._read_float(linear_path)
     stretched = astro.autostretch(_palette_view(bgr, pal), strength=strength, saturation=saturation)
+    # Hintergrund EXAKT farbneutral ziehen — der Stretch bläst sonst winzige Kanal-Differenzen zum
+    # Blau-/Grünstich auf (wie in der Haupt-Pipeline). Muss VOR StarNet passieren, damit die
+    # Sternebene aus dem neutralen Bild kommt.
+    stretched = astro.neutralize_background(astro.remove_green_cast(stretched))
 
     # ohne StarNet: hier ist Schluss (nur gestrecktes Bild) — der Starless-Weg braucht StarNet.
     if not tools_engine.find_starnet(starnet_path):
