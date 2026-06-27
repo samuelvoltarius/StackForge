@@ -101,7 +101,7 @@ def align_on_subject(images, ref_idx=None, max_shift_frac=0.25, log=print):
             continue                       # Motiv zu weit verschoben → Frame raus (sonst Geist)
         M = np.float32([[1, 0, dx], [0, 1, dy]])
         out[i] = cv2.warpAffine(images[i], M, (w, h), flags=cv2.INTER_LANCZOS4,
-                                borderMode=cv2.BORDER_REPLICATE)
+                                borderMode=cv2.BORDER_CONSTANT)
         kept += 1
     log(f"    Motiv-Ausrichtung: {kept}/{n} Frames passend (Rest verworfen — Motiv zu weit bewegt)")
     return [x for x in out if x is not None]
@@ -165,9 +165,9 @@ def align_sequential(images, ref_idx=None, sub_mode="rigid", detector="ORB", log
     def warp(img, T):
         if sub_mode == "homography":
             return cv2.warpPerspective(img, T, (w, h), flags=cv2.INTER_LANCZOS4,
-                                       borderMode=cv2.BORDER_REPLICATE)
+                                       borderMode=cv2.BORDER_CONSTANT)
         return cv2.warpAffine(img, T[:2], (w, h), flags=cv2.INTER_LANCZOS4,
-                              borderMode=cv2.BORDER_REPLICATE)
+                              borderMode=cv2.BORDER_CONSTANT)
 
     fail = 0
     cum = np.eye(3, dtype=np.float32)       # nach rechts: i → i-1 → … → ref
@@ -237,12 +237,12 @@ def align_images(images, ref_idx=None, mode="rigid", detector="ORB", log=print):
         if mode == "homography":
             M, _ = cv2.findHomography(src, dst, cv2.RANSAC, 3.0)
             out[i] = cv2.warpPerspective(img, M, (w, h), flags=cv2.INTER_LANCZOS4,
-                                         borderMode=cv2.BORDER_REPLICATE) if M is not None else img
+                                         borderMode=cv2.BORDER_CONSTANT) if M is not None else img
         else:
             M, _ = cv2.estimateAffinePartial2D(src, dst, method=cv2.RANSAC,
                                                ransacReprojThreshold=3.0)
             out[i] = cv2.warpAffine(img, M, (w, h), flags=cv2.INTER_LANCZOS4,
-                                    borderMode=cv2.BORDER_REPLICATE) if M is not None else img
+                                    borderMode=cv2.BORDER_CONSTANT) if M is not None else img
         log(f"    Frame {i + 1}/{n}: ausgerichtet ({len(good)} Treffer)")
     return out
 
@@ -495,6 +495,53 @@ def focus_stack_wavelet(images, levels=5, log=print):
     if images[0].ndim == 3:                                   # echte Farbe aus dem schärfsten Frame
         return color_reassign(images, merged)
     return merged
+
+
+def _largest_rect(mask):
+    """Größtes Rechteck aus 1-en in einer Binärmaske (Histogramm-Methode). Gibt (y0,y1,x0,x1)."""
+    h, w = mask.shape
+    heights = np.zeros(w + 1, np.int32)
+    best = (0, 0, 0, 0, 0)
+    for y in range(h):
+        heights[:w] = np.where(mask[y] > 0, heights[:w] + 1, 0)
+        stack = []
+        for x in range(w + 1):
+            start = x
+            while stack and stack[-1][1] > heights[x]:
+                sx, sh = stack.pop()
+                area = sh * (x - sx)
+                if area > best[0]:
+                    best = (area, y - sh + 1, y + 1, sx, x)
+                start = sx
+            stack.append((start, int(heights[x])))
+    return best[1], best[2], best[3], best[4]
+
+
+def crop_to_overlap(images, thresh=3, log=print):
+    """Auf das **größte voll-überlappte Rechteck** ausgerichteter Frames zuschneiden — entfernt die
+    schwarzen Warp-Ränder UND die gedrehten Frame-Kanten (die „komischen Striche"), sodass jeder
+    Bildpunkt im Ergebnis von ALLEN Frames abgedeckt ist. Gibt die zugeschnittene Liste zurück."""
+    if len(images) < 2:
+        return images
+    h, w = images[0].shape[:2]
+    common = np.ones((h, w), np.uint8)
+    for im in images:
+        g = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY) if im.ndim == 3 else im
+        common &= (g > thresh).astype(np.uint8)
+    if common.sum() < 100:
+        return images
+    # größtes Rechteck auf verkleinerter Maske finden (schnell), dann auf Originalgröße skalieren
+    ds = max(1, max(h, w) // 240)
+    small = cv2.erode(common[::ds, ::ds], np.ones((3, 3), np.uint8))     # Sicherheitsrand
+    if small.sum() < 20:
+        small = common[::ds, ::ds]
+    ry0, ry1, rx0, rx1 = _largest_rect(small)
+    y0, y1, x0, x1 = ry0 * ds, ry1 * ds, rx0 * ds, rx1 * ds
+    if (y1 - y0) < h * 0.2 or (x1 - x0) < w * 0.2:
+        log(f"    (gemeinsames Rechteck nur ~{100*(y1-y0)*(x1-x0)//(h*w)} % — Frames stark versetzt)")
+        if (y1 - y0) < 20 or (x1 - x0) < 20:
+            return images
+    return [im[y0:y1, x0:x1] for im in images]
 
 
 def merge_tree(images, merge_fn, log=print):

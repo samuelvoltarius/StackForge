@@ -262,6 +262,24 @@ class TestStacker(TmpCase):
         res = stacker.focus_stack(imgs, log=lambda *a: None)  # darf nicht crashen
         self.assertEqual(res.shape[:2], (120, 160))
 
+    def test_crop_to_overlap_removes_borders(self):
+        import stacker
+        base = cv2.GaussianBlur((_rng().rand(240, 300, 3) * 255).astype(np.uint8), (0, 0), 1)
+        al = []
+        for k, ang in enumerate((-6, 0, 6)):
+            M = cv2.getRotationMatrix2D((150, 120), ang, 1.0)
+            M[:, 2] += [8 * k - 8, 4 * k - 4]
+            al.append(cv2.warpAffine(base, M, (300, 240), flags=cv2.INTER_LANCZOS4,
+                                     borderMode=cv2.BORDER_CONSTANT))
+
+        def blackfrac(im):
+            return float((cv2.cvtColor(im, cv2.COLOR_BGR2GRAY) <= 3).mean())
+        before = max(blackfrac(c) for c in al)
+        cr = stacker.crop_to_overlap(al)
+        self.assertGreater(before, 0.01)                     # vorher gibt es schwarze Ränder
+        self.assertLess(max(blackfrac(c) for c in cr), 0.01)  # nachher praktisch keine
+        self.assertLess(cr[0].shape[0], 240)                  # wurde zugeschnitten
+
     def test_focus_stack_average_and_wavelet(self):
         import stacker
         # gemeinsames Motiv, je Frame ein anderer scharfer Streifen

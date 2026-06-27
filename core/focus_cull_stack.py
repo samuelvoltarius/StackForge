@@ -897,6 +897,7 @@ def run_own_engine(selected_dir, work_dir, args):
         if not args.no_align:
             print("  Ausrichten …")
             imgs = stacker.align_images(imgs, mode=align_mode, detector=args.detector)
+            imgs = stacker.crop_to_overlap(imgs)        # schwarze Warp-Ränder/Striche entfernen
         _fm = getattr(args, "focus_method", "pyramid")
         _merge1 = {"depthmap": lambda g: stacker.focus_stack_depthmap(g, log=lambda *a: None),
                    "average": lambda g: stacker.focus_stack_average(g, log=lambda *a: None),
