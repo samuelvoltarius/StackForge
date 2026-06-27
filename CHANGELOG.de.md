@@ -6,6 +6,21 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.27.0] – 2026-06-28
+### Siril-Python-Brücke, KI-Super-Resolution, optionaler Remote-GPU — alles lokal-first
+- **Siril-Python-Brücke** (`core/siril_pyscript.py`): treibt Sirils mitgelieferte Python-Skripte
+  **headless** (load → pyscript → save). Eingebaut: **AberrationRemover** (KI-Sternform-Korrektur,
+  optional vor StarNet), **AutoBGE** (Background), **Statistical_Stretch**. SCUNet/DeepSNR sind
+  reine GUI → ehrlich nicht headless.
+- **KI-Super-Resolution** (`--upscale`, `core/superres.py`): Real-ESRGAN 2× (BSD-3, ONNX) über
+  onnxruntime (CoreML/CUDA/CPU) — rein lokal, kein externes Programm, modulübergreifend (Fokus/
+  Panorama …). Graceful, wenn onnxruntime/Modell fehlen. Schärfe 20→134 ohne Artefakte.
+- **GraXpert: optionaler Remote-GPU-Host** (z. B. DGX Spark) per `FORGEPIX_GRAXPERT_REMOTE` —
+  NUR wenn konfiguriert; Default und Fallback sind IMMER lokal (nicht jeder hat einen Spark).
+- **Cosmic-Clarity-Schärfung** etwas milder (weniger plastisch, VLLM-Feedback).
+- Ehrlich offen: GraXpert-CUDA auf der Spark-ARM braucht ein onnxruntime-gpu-Build (pip-CPU-only);
+  lokaler Mac-Weg (CoreML) ist der schnelle Default.
+
 ## [1.26.0] – 2026-06-27
 ### Profi-KI-Tool-Kette (StarNet → GraXpert → Cosmic Clarity), korrekte Reihenfolge, Robustheit
 Externe KI-Tools als optionale Backends voll eingebunden (ForgePix bleibt MIT — Tools werden nur

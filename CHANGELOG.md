@@ -6,6 +6,21 @@ All notable changes to ForgePix. Format based on
 [Keep a Changelog](https://keepachangelog.com/), versioning per
 [SemVer](https://semver.org/).
 
+## [1.27.0] – 2026-06-28
+### Siril Python bridge, AI super-resolution, optional remote GPU — all local-first
+- **Siril Python bridge** (`core/siril_pyscript.py`): runs Siril's bundled Python scripts **headless**
+  (load → pyscript → save). Wired: **AberrationRemover** (AI star-shape correction, optional before
+  StarNet), **AutoBGE** (background), **Statistical_Stretch**. SCUNet/DeepSNR are GUI-only → honestly
+  not headless.
+- **AI super-resolution** (`--upscale`, `core/superres.py`): Real-ESRGAN 2× (BSD-3, ONNX) via
+  onnxruntime (CoreML/CUDA/CPU) — fully local, no external app, across modules. Graceful if
+  onnxruntime/model missing. Sharpness 20→134, no artifacts.
+- **GraXpert: optional remote GPU host** (e.g. DGX Spark) via `FORGEPIX_GRAXPERT_REMOTE` — only when
+  configured; default and fallback are ALWAYS local (not everyone has a Spark).
+- **Cosmic Clarity sharpening** slightly milder (less plastic, from VLLM feedback).
+- Honest open item: GraXpert CUDA on the Spark ARM needs an onnxruntime-gpu build (pip is CPU-only);
+  the local Mac path (CoreML) is the fast default.
+
 ## [1.26.0] – 2026-06-27
 ### Pro AI-tool chain (StarNet → GraXpert → Cosmic Clarity), correct order, robustness
 External AI tools fully wired as optional backends (ForgePix stays MIT — tools are called, not bundled).
