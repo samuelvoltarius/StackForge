@@ -189,9 +189,18 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
             btn = QPushButton("…"); btn.setFixedWidth(36)
             btn.clicked.connect(lambda _=False, e=edit: self._pick_file_into(e))
             gt.addWidget(QLabel(lab), r, 0); gt.addWidget(edit, r, 1); gt.addWidget(btn, r, 2)
+        # Astrometry.net-API-Key (DEIN eigener Key — lokal in den App-Einstellungen gespeichert,
+        # NIE im Code/Repo). Für blindes Online-Plate-Solving im Gaia-PCC-Pfad ohne lokalen Solver.
+        self.astrometry_key = QLineEdit()
+        self.astrometry_key.setEchoMode(QLineEdit.Password)
+        self.astrometry_key.setPlaceholderText(tr("dein Astrometry.net-API-Key (nova.astrometry.net/api)"))
+        gt.addWidget(QLabel("Astrometry.net"), 3, 0); gt.addWidget(self.astrometry_key, 3, 1)
+        gt.addWidget(help_btn("Optionaler API-Key von nova.astrometry.net (My Profile) für blindes "
+                              "Plate-Solving im echten PCC, wenn kein Siril/lokaler Solver da ist. "
+                              "Dein eigener Key — nur lokal gespeichert, nie geteilt/committet."), 3, 3)
         gt.addWidget(help_btn("Pfade zu deinen installierten Tools. Leer lassen = ForgePix sucht "
                               "selbst (PATH + übliche Orte). GraXpert/StarNet → Ein-Klick in der "
-                              "Ergebnis-Leiste; Siril → wählbare Astro-Engine. Alles optional."), 0, 3)
+                              "Ergebnis-Leiste; Siril → wählbare Astro-Engine. Alles optional."), 0, 4)
         self._settings_lay.addWidget(g_tools)
 
         split = QSplitter(Qt.Horizontal)
@@ -1444,6 +1453,8 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                     args += ["--astro-oscsensor", self.astro_oscsensor.text().strip()]
                 if self.astro_narrowband.isChecked():
                     args += ["--astro-narrowband"]
+                if self.astrometry_key.text().strip():
+                    args += ["--astrometry-key", self.astrometry_key.text().strip()]
             if self.astro_filter.currentData() == "dual":
                 args += ["--dualband", "--palette", self.astro_palette.currentData()]
             if not self.astro_auto.isChecked():   # manuelle Aufbereitung statt Auto/KI

@@ -1110,6 +1110,10 @@ def main():
     ap.add_argument("--astro-narrowband", action="store_true",
                     help="Siril-SPCC im Schmalband-Modus (Dual-Band Ha/OIII). Standard aus, da die "
                          "Filter-Wellenlängen exakt stimmen müssen.")
+    ap.add_argument("--astrometry-key", default=None,
+                    help="Astrometry.net-API-Key (nova.astrometry.net) für blindes Online-Plate-Solving "
+                         "im Gaia-PCC-Pfad, wenn kein Siril/lokaler Solver da ist. Alternativ Env-Var "
+                         "ASTROMETRY_API_KEY. Wird nicht gespeichert/geloggt.")
     ap.add_argument("--astro-stretch", action="store_true",
                     help="Astro: Vorschau-JPG asinh-gestreckt (Ergebnis-TIFF bleibt linear)")
     ap.add_argument("--astro-bright", type=float, default=-1.0,
@@ -1552,11 +1556,13 @@ def _astro_write(result, work_dir, paths, args, astro):
             try:
                 import photometric
                 hints = photometric.fits_hints(paths[0]) if paths else {}
+                akey = getattr(args, "astrometry_key", None) or os.environ.get("ASTROMETRY_API_KEY")
                 cal = photometric.run_pcc(res, hints=hints,
                                           prefer=getattr(args, "astro_pcc_backend", "auto"),
                                           oscsensor=getattr(args, "astro_oscsensor", None) or None,
                                           narrowband=getattr(args, "astro_narrowband", False),
-                                          siril_path=getattr(args, "siril_path", None))
+                                          siril_path=getattr(args, "siril_path", None),
+                                          astrometry_key=(akey or None))
             except Exception as e:
                 print(f"  PCC fehlgeschlagen ({e}) → Standard-Farbabgleich", file=sys.stderr)
                 cal = astro.color_balance(res, color_s)

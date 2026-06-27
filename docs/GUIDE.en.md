@@ -87,6 +87,10 @@ are dropped automatically (with reasons).
     → own **astroquery** Gaia path → **lite** (star-based, offline). Backend `auto/siril/gaia/lite`; optional
     OSC sensor name and narrowband mode. Siril needs network or its local Gaia catalog; otherwise it falls
     back gracefully. *(AI is deliberately not used here — PCC is a measurement, not a judgement.)*
+    - **Astrometry.net (optional, bring your own key):** if you have no Siril/local solver, the Gaia path can
+      blind‑solve via nova.astrometry.net. Enter **your own API key** (from *My Profile* on the site) under
+      *Setup → External tools* — it's stored only in local app settings, never in the project. CLI:
+      `--astrometry-key …` or the `ASTROMETRY_API_KEY` env var.
 - **Output:** linear 16-bit TIFF + 32-bit linear + optional FITS — ready for GraXpert/StarNet/PixInsight.
 - **Faster & better (new):** registration runs **in parallel** across all cores; far-dithered
   frames are **recovered via a cluster bridge** instead of dropped. **Binning** (2×/3×) for more

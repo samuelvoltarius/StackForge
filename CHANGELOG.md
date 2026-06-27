@@ -6,6 +6,15 @@ All notable changes to ForgePix. Format based on
 [Keep a Changelog](https://keepachangelog.com/), versioning per
 [SemVer](https://semver.org/).
 
+## [1.22.1] – 2026-06-27
+### Astrometry.net online plate-solving for PCC (bring-your-own key)
+- The Gaia PCC path can now blind-solve via the **nova.astrometry.net online API** when no Siril/local
+  solver is available — solver order is **Siril → Astrometry.net → ASTAP/solve-field**.
+- **Your own API key**, supplied at runtime — **never hardcoded or committed**: GUI field under
+  *Setup → External tools* (password‑masked, stored only in local app settings), `--astrometry-key`, or
+  the `ASTROMETRY_API_KEY` env var. Uploads the luminance, polls the job, downloads the WCS (with the
+  required `Referer` header), then runs the Gaia DR3 match as usual.
+
 ## [1.22.0] – 2026-06-27
 ### Real photometric color calibration (PCC/SPCC) with a three-tier fallback
 PCC was upgraded from the star-based lite version to **real catalog photometry** (`core/photometric.py`),

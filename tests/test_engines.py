@@ -1318,6 +1318,16 @@ class TestPhotometric(TmpCase):
         m = out.reshape(-1, 3).mean(0)
         self.assertLess(float(m.max() - m.min()), 0.03)
 
+
+    def test_astrometry_solver_ohne_key_none(self):
+        import photometric, tempfile, numpy as np
+        gray = (_rng().rand(40, 50)).astype(np.float32)
+        # ohne Key MUSS None zurueckkommen (kein Netzaufruf, kein Crash)
+        self.assertIsNone(photometric._solve_wcs_astrometry(gray, "", tempfile.mkdtemp(),
+                                                             log=lambda *a: None))
+        self.assertIsNone(photometric._solve_wcs_astrometry(gray, None, tempfile.mkdtemp(),
+                                                             log=lambda *a: None))
+
     def test_write_und_read_fits_roundtrip(self):
         import photometric
         bgr = (_rng().rand(20, 24, 3)).astype(np.float32)

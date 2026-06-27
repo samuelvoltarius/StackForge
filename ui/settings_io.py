@@ -44,6 +44,7 @@ class SettingsMixin:
             "graxpert_path": (self.graxpert_path.setText, self.graxpert_path.text),
             "starnet_path": (self.starnet_path.setText, self.starnet_path.text),
             "siril_path": (self.siril_path.setText, self.siril_path.text),
+            "astrometry_key": (self.astrometry_key.setText, self.astrometry_key.text),
         }
 
     def _save_settings(self):

@@ -102,6 +102,10 @@ Viele Aufnahmen desselben Himmelsausschnitts werden ausgerichtet und **gemittelt
     Gaia DR3) → eigener **astroquery**-Gaia-Pfad → **Lite** (stern-basiert, offline). Backend `auto/siril/gaia/lite`;
     optional OSC-Sensorname und Schmalband-Modus. Siril braucht Netz oder den lokalen Gaia-Katalog; sonst
     sauberer Rückfall. *(KI wird hier bewusst nicht genutzt — PCC ist eine Messung, kein Ermessen.)*
+    - **Astrometry.net (optional, eigener Key):** ohne Siril/lokalen Solver kann der Gaia-Pfad über
+      nova.astrometry.net blind plate-solven. **Eigenen API-Key** (von *My Profile* auf der Seite) unter
+      *Setup → Externe Tools* eintragen — wird nur in den lokalen App-Einstellungen gespeichert, nie im Projekt.
+      CLI: `--astrometry-key …` oder Env-Var `ASTROMETRY_API_KEY`.
 - **Ergebnis:** lineares 16-bit-TIFF + 32-bit-Linear + optional FITS — fertig für GraXpert/StarNet/PixInsight.
 - **Schneller & besser (neu):** Registrierung läuft **parallel** über alle Kerne; weit
   weggeditherte Frames werden über eine **Cluster-Brücke zurückgeholt** statt verworfen.

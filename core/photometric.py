@@ -195,25 +195,102 @@ def _solve_wcs_siril(bgr, hints, work, siril_path=None, log=print):
 
 
 def _read_wcs2d(path):
-    """WCS aus einem (oft 3D-RGB-)FITS lesen, auf die 2 Himmelsachsen reduziert (Siril schreibt
-    SIP-Verzeichnung, die astropy nur in 2D akzeptiert). Gibt WCS oder None."""
+    """WCS aus einem FITS-Header lesen, robust auf die 2 Himmelsachsen reduziert (Siril schreibt
+    3D-RGB + SIP, was astropy nur in 2D akzeptiert; astrometry.net liefert header-only 2D). WCS|None."""
     try:
         from astropy.wcs import WCS
         from astropy.io import fits
         import warnings
+        hd = fits.getheader(path)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            w = WCS(fits.getheader(path), naxis=2)
+            try:
+                w = WCS(hd, naxis=2)
+            except Exception:
+                w = WCS(hd)
         return w if w.has_celestial else None
     except Exception:
         return None
 
 
-def gaia_pcc(bgr, hints=None, siril_path=None, log=print):
-    """Eigener Pfad (MIT-konform): Plate-Solve (bevorzugt Siril, sonst ASTAP/astrometry.net) → WCS
-    → Gaia-DR3-Kegelsuche (astroquery) → Katalogsterne über WCS den Bildsternen zuordnen → Kanäle
-    so abgleichen, dass die mittlere Sternfarbe zur Gaia-Photometrie passt. Wirft RuntimeError, wenn
-    astroquery/Solver fehlen oder der Solve/Netz scheitert (Orchestrator fällt auf PCC-lite zurück)."""
+ASTROMETRY_API = "https://nova.astrometry.net/api"
+
+
+def _solve_wcs_astrometry(gray, api_key, work, log=print):
+    """Blindes Plate-Solving über die **Astrometry.net-Online-API** (nova.astrometry.net).
+    Braucht einen API-Key, den der/die NUTZER:IN angibt (nie im Code/Repo). Lädt die Luminanz hoch,
+    pollt Submission+Job und lädt die WCS-Datei herunter. Gibt WCS oder None.
+    Hinweis: kann je nach Auslastung 1–5 min dauern; alles über das eigene Konto des Users."""
+    if not api_key:
+        return None
+    try:
+        import requests
+        import json
+        import time
+    except Exception:
+        return None
+    try:
+        s = requests.Session()
+        r = s.post(ASTROMETRY_API + "/login",
+                   data={"request-json": json.dumps({"apikey": api_key})}, timeout=30)
+        sess = r.json().get("session")
+        if not sess:
+            log("  Astrometry.net: Login fehlgeschlagen (API-Key prüfen)")
+            return None
+        png = os.path.join(work, "anet_upload.png")
+        cv2.imwrite(png, (np.clip(gray, 0, 1) * 255).astype(np.uint8))
+        with open(png, "rb") as fh:
+            req = {"session": sess, "publicly_visible": "n",
+                   "allow_modifications": "n", "allow_commercial_use": "n"}
+            r = s.post(ASTROMETRY_API + "/upload",
+                       data={"request-json": json.dumps(req)},
+                       files={"file": ("image.png", fh, "application/octet-stream")}, timeout=120)
+        subid = r.json().get("subid")
+        if not subid:
+            log("  Astrometry.net: Upload fehlgeschlagen")
+            return None
+        log(f"  Astrometry.net: hochgeladen (subid {subid}), warte auf Lösung …")
+        t0 = time.time()
+        jobid = None
+        while time.time() - t0 < 360:
+            time.sleep(5)
+            jr = s.get(f"{ASTROMETRY_API}/submissions/{subid}", timeout=30).json()
+            jobs = [j for j in (jr.get("jobs") or []) if j]
+            if jobs:
+                jobid = jobs[0]
+                break
+        if not jobid:
+            log("  Astrometry.net: keine Job-ID (Zeitüberschreitung)")
+            return None
+        while time.time() - t0 < 360:
+            st = s.get(f"{ASTROMETRY_API}/jobs/{jobid}", timeout=30).json().get("status")
+            if st == "success":
+                break
+            if st == "failure":
+                log("  Astrometry.net: Solve fehlgeschlagen")
+                return None
+            time.sleep(5)
+        wpath = os.path.join(work, "anet.wcs")
+        # Pflicht-Header laut API-Doku gegen Bot-/Scraper-Sperre beim Datei-Download
+        wr = s.get(f"https://nova.astrometry.net/wcs_file/{jobid}",
+                   headers={"Referer": "https://nova.astrometry.net/api/login"}, timeout=60)
+        with open(wpath, "wb") as fh:
+            fh.write(wr.content)
+        wcs = _read_wcs2d(wpath)
+        if wcs is not None:
+            log("  Astrometry.net: WCS-Lösung erhalten.")
+        return wcs
+    except Exception as e:
+        log(f"  Astrometry.net: Fehler ({e})")
+        return None
+
+
+def gaia_pcc(bgr, hints=None, siril_path=None, astrometry_key=None, log=print):
+    """Eigener Pfad (MIT-konform): Plate-Solve → WCS → Gaia-DR3-Kegelsuche (astroquery) →
+    Katalogsterne über WCS den Bildsternen zuordnen → Kanäle so abgleichen, dass die mittlere
+    Sternfarbe zur Gaia-Photometrie passt. Solver-Reihenfolge: Siril (lokal) → Astrometry.net-Online
+    (wenn API-Key) → ASTAP/astrometry.net-lokal. Wirft RuntimeError, wenn astroquery/Solver fehlen oder
+    der Solve/das Netz scheitert (Orchestrator fällt auf PCC-lite zurück)."""
     try:
         from astroquery.gaia import Gaia
         from astropy.wcs import WCS               # noqa: F401
@@ -224,11 +301,13 @@ def gaia_pcc(bgr, hints=None, siril_path=None, log=print):
     try:
         from astropy.io import fits
         gray = cv2.cvtColor(np.clip(bgr, 0, 1).astype(np.float32), cv2.COLOR_BGR2GRAY)
-        wcs = _solve_wcs_siril(bgr, hints, work, siril_path, log)   # Siril-Solver bevorzugt
+        wcs = _solve_wcs_siril(bgr, hints, work, siril_path, log)   # 1) Siril-Solver bevorzugt
+        if wcs is None and astrometry_key:                         # 2) Astrometry.net-Online (User-Key)
+            wcs = _solve_wcs_astrometry(gray, astrometry_key, work, log)
         if wcs is None:
-            kind, solver = _find_solver()                          # Fallback: lokaler Solver
+            kind, solver = _find_solver()                          # 3) lokaler Solver
             if not solver:
-                raise RuntimeError("kein Plate-Solver (Siril/ASTAP/solve-field) verfügbar")
+                raise RuntimeError("kein Plate-Solver (Siril/Astrometry.net-Key/ASTAP) verfügbar")
             lpath = os.path.join(work, "lum.fits")
             fits.PrimaryHDU((gray * 65535).astype(np.uint16)).writeto(lpath, overwrite=True)
             wcs = _solve_wcs_external(kind, solver, lpath, work, hints or {}, log)
@@ -297,9 +376,11 @@ def _fit_channel_gains(bgr, ipts, cat, wcs, log):
 # ---------------------------------------------------------- Orchestrator ----
 
 def run_pcc(linear_bgr, hints=None, prefer="auto", oscsensor=None, narrowband=False,
-            siril_path=None, log=print):
+            siril_path=None, astrometry_key=None, log=print):
     """Photometrische Farbkalibrierung mit dreistufigem Fallback. Gibt IMMER ein kalibriertes
-    Bild zurück (schlimmstenfalls PCC-lite). prefer: 'auto'|'siril'|'gaia'|'lite'."""
+    Bild zurück (schlimmstenfalls PCC-lite). prefer: 'auto'|'siril'|'gaia'|'lite'.
+    astrometry_key: optionaler Astrometry.net-API-Key (vom User), für blindes Online-Plate-Solving
+    im Gaia-Pfad, wenn kein lokaler Solver/Siril vorhanden ist. Wird NICHT gespeichert/geloggt."""
     import astro
     order = {"siril": ["siril", "lite"], "gaia": ["gaia", "lite"],
              "lite": ["lite"]}.get(prefer, ["siril", "gaia", "lite"])
@@ -309,7 +390,8 @@ def run_pcc(linear_bgr, hints=None, prefer="auto", oscsensor=None, narrowband=Fa
                 return siril_spcc(linear_bgr, hints=hints, oscsensor=oscsensor,
                                   narrowband=narrowband, siril_path=siril_path, log=log)
             if stage == "gaia":
-                return gaia_pcc(linear_bgr, hints=hints, siril_path=siril_path, log=log)
+                return gaia_pcc(linear_bgr, hints=hints, siril_path=siril_path,
+                                astrometry_key=astrometry_key, log=log)
             if stage == "lite":
                 log("  PCC: stern-basierte Lite-Kalibrierung (kein Siril/Gaia-Pfad verfügbar).")
                 return astro.photometric_balance(linear_bgr, 1.0, log=log)

@@ -535,5 +535,7 @@
   "Photometrischer Farbabgleich (PCC)": "Photometric color calibration (PCC)",
   "Schmalband-SPCC (Dual-Band)": "Narrowband SPCC (dual-band)",
   "Siril-SPCC (Gaia DR3)": "Siril SPCC (Gaia DR3)",
-  "optional: OSC-Sensorname wie in Siril (z. B. Sony IMX294)": "optional: OSC sensor name as in Siril (e.g. Sony IMX294)"
+  "optional: OSC-Sensorname wie in Siril (z. B. Sony IMX294)": "optional: OSC sensor name as in Siril (e.g. Sony IMX294)",
+  "Optionaler API-Key von nova.astrometry.net (My Profile) für blindes Plate-Solving im echten PCC, wenn kein Siril/lokaler Solver da ist. Dein eigener Key — nur lokal gespeichert, nie geteilt/committet.": "Optional API key from nova.astrometry.net (My Profile) for blind plate-solving in real PCC, when no Siril/local solver is available. Your own key — stored locally only, never shared/committed.",
+  "dein Astrometry.net-API-Key (nova.astrometry.net/api)": "your Astrometry.net API key (nova.astrometry.net/api)"
 }
