@@ -1291,6 +1291,29 @@ class TestProToolGaps(TmpCase):
         v = develop.lens_correct(img, vignette=0.4, log=lambda *a: None)
         self.assertGreaterEqual(int(v[:8, :8].mean()), int(img[:8, :8].mean()))  # Ecken aufgehellt
 
+
+    def test_auto_sky_mask_trennt_himmel_vordergrund(self):
+        import longexp
+        r = _rng(); H, W = 180, 240; paths = []
+        fg = np.zeros((H, W, 3), np.float32)
+        for _ in range(70):
+            x, y = r.randint(0, W), r.randint(int(H * 0.6), H)
+            cv2.circle(fg, (x, y), r.randint(1, 3), (0.2, 0.25, 0.2), -1)
+        stars = [(r.randint(0, W), r.randint(0, int(H * 0.5))) for _ in range(50)]
+        for i in range(10):
+            f = fg.copy()
+            for (x, y) in stars:
+                cv2.circle(f, (min(W - 1, x + i * 2), y), 1, (0.9, 0.9, 0.95), -1)
+            f = np.clip(f + r.normal(0, 0.01, f.shape), 0, 1)
+            pth = os.path.join(self.d, f"n{i:02d}.tif")
+            cv2.imwrite(pth, (f * 65535).astype(np.uint16), [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
+            paths.append(pth)
+        m = longexp._auto_sky_mask(paths, (H, W), log=lambda *a: None)
+        self.assertIsNotNone(m)
+        m = m[..., 0]
+        self.assertGreater(float(m[int(H * 0.65):].mean()), 0.7)   # Vordergrund eingefroren
+        self.assertLess(float(m[:int(H * 0.45)].mean()), 0.6)      # Himmel langzeitbelichtet
+
     def test_longexp_freeze_und_sigma(self):
         import longexp
         paths = self._star_frames(n=6, jitter=1.0)

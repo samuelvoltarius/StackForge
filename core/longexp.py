@@ -30,9 +30,47 @@ def _gap_fill_dilate(f, k=3):
     return cv2.dilate(f, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
 
 
+def _auto_sky_mask(proc, out_shape, sample=12, log=print):
+    """Himmel/Vordergrund AUTOMATISCH trennen (Sequator-Stil, ohne festen Höhen-Split): nutzt die
+    Physik der Serie — bei nicht nachgeführten Nachtlandschaften BEWEGT sich der Himmel (Sterne/Wolken
+    driften), der VORDERGRUND steht still. Pro Pixel die zeitliche Streuung über die Serie messen →
+    hohe Streuung = Himmel, niedrige = statischer Vordergrund. Gibt eine weiche Vordergrund-Maske
+    (1 = scharf einfrieren, 0 = langzeitbelichten) in out_shape zurück, oder None, wenn keine klare
+    Trennung erkennbar ist (z. B. nachgeführt → Sterne stehen still)."""
+    idx = np.linspace(0, len(proc) - 1, min(sample, len(proc))).astype(int)
+    grays = []
+    for i in idx:
+        f = cv2.imread(proc[int(i)], cv2.IMREAD_REDUCED_GRAYSCALE_4)
+        if f is None:
+            g = astro._read_float(proc[int(i)])
+            f = (cv2.cvtColor(g, cv2.COLOR_BGR2GRAY) if g.ndim == 3 else g)
+            f = cv2.resize(f, (f.shape[1] // 4, f.shape[0] // 4))
+            f = (np.clip(f, 0, 1) * 255).astype(np.uint8)
+        grays.append(f.astype(np.float32))
+    if len(grays) < 3:
+        return None
+    hh = min(g.shape[0] for g in grays); ww = min(g.shape[1] for g in grays)
+    stk = np.stack([g[:hh, :ww] for g in grays])
+    var = stk.std(axis=0)                                    # zeitliche Streuung je Pixel
+    var = cv2.GaussianBlur(var, (0, 0), 2.0)
+    med = float(np.median(var)); mad = float(np.median(np.abs(var - med))) * 1.4826 + 1e-6
+    sky = (var > med + 1.5 * mad).astype(np.float32)         # bewegte Pixel = Himmel
+    sky = cv2.morphologyEx(sky, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    sky = cv2.morphologyEx(sky, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    frac = float(sky.mean())
+    if frac < 0.05 or frac > 0.95:                           # keine klare Trennung (z. B. nachgeführt)
+        log(f"    Auto-Sky: keine klare Himmel/Vordergrund-Trennung ({frac*100:.0f}% bewegt) — übersprungen")
+        return None
+    fg = 1.0 - cv2.GaussianBlur(sky, (0, 0), 3.0)            # Vordergrund = unbewegt
+    fg = cv2.resize(fg, (out_shape[1], out_shape[0]))
+    fg = np.clip(fg, 0, 1)
+    log(f"    Auto-Sky: Himmel {frac*100:.0f}% / Vordergrund {(1-frac)*100:.0f}% automatisch getrennt")
+    return fg[..., None]
+
+
 def combine(paths, mode="smooth", align="none", strength=1.0, work_dir=None, detector="ORB",
             transform="rigid", gap_fill=False, comet_decay=0.9, sigma_clip=False,
-            freeze_below=None, log=print):
+            freeze_below=None, freeze_auto=False, log=print):
     """Serie zu einer Langzeitbelichtung verrechnen. Gibt float32 [0..1] (BGR) zurück.
 
     strength = „virtuelle Belichtungszeit" (0..1): gewichtetes Teil-Mitteln zwischen einem
@@ -102,10 +140,18 @@ def combine(paths, mode="smooth", align="none", strength=1.0, work_dir=None, det
             method = "sigma"
         result = astro.stack(proc, method=method, normalize=False, log=log)
 
-    # 2b) Vordergrund einfrieren (Sequator-Stil): nur der Himmel/obere Teil wird langzeitbelichtet,
-    #     der untere Teil (Landschaft) kommt SCHARF aus einem Einzelbild — gegen Verwischen durch
-    #     Wind/Mini-Drift am Boden. freeze_below = Anteil der Bildhöhe (0..1), der eingefroren wird.
-    if freeze_below and 0.0 < freeze_below < 1.0:
+    # 2b) Vordergrund einfrieren (Sequator-Stil): Himmel langzeitbelichten, Landschaft scharf aus
+    #     einem Einzelbild — gegen Verwischen am Boden. freeze_auto = Himmel/Vordergrund AUTOMATISCH
+    #     trennen (über die Sternbewegung); freeze_below = fester Höhen-Anteil (0..1) als Fallback.
+    sky_m = None
+    if freeze_auto:
+        sharp = astro._read_float(proc[len(proc) // 2])
+        if sharp.shape != result.shape:
+            sharp = cv2.resize(sharp, (result.shape[1], result.shape[0]))
+        sky_m = _auto_sky_mask(proc, result.shape[:2], log=log)
+        if sky_m is not None:
+            result = result * (1.0 - sky_m) + sharp * sky_m
+    if sky_m is None and freeze_below and 0.0 < freeze_below < 1.0:
         sharp = astro._read_float(proc[len(proc) // 2])
         if sharp.shape != result.shape:
             sharp = cv2.resize(sharp, (result.shape[1], result.shape[0]))

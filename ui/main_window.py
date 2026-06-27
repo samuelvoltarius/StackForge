@@ -663,10 +663,14 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "verwirft Ausreißer (Vögel, Satelliten, Hotpixel, Funkeln) sauber."), 6, 3)
         self.longexp_freeze = QDoubleSpinBox(); self.longexp_freeze.setRange(0.0, 0.95)
         self.longexp_freeze.setSingleStep(0.05); self.longexp_freeze.setValue(0.0)
-        lg.addWidget(QLabel(tr("Vordergrund einfrieren")), 7, 0)
-        lg.addWidget(self.longexp_freeze, 7, 1)
-        lg.addWidget(help_btn("Sequator-Stil: unterster Anteil (0..0.95) der Bildhöhe scharf aus einem "
-                              "Einzelbild, nur der Himmel wird langzeitbelichtet. 0 = aus."), 7, 3)
+        self.longexp_freeze_auto = QCheckBox(tr("Vordergrund einfrieren — automatisch (Himmel-Erkennung)"))
+        lg.addWidget(self.longexp_freeze_auto, 7, 0, 1, 3)
+        lg.addWidget(help_btn("Sequator-Stil: nur der Himmel wird langzeitbelichtet, die Landschaft bleibt "
+                              "scharf aus einem Einzelbild. Automatisch = Himmel/Vordergrund über die "
+                              "Sternbewegung trennen. Der Regler unten setzt stattdessen einen festen "
+                              "Höhen-Anteil (0..0.95)."), 7, 3)
+        lg.addWidget(QLabel(tr("…oder fester Höhen-Anteil")), 8, 0)
+        lg.addWidget(self.longexp_freeze, 8, 1)
         # Virtuelle Belichtungszeit (gewichtetes Teil-Mitteln)
         self.longexp_strength = QSlider(Qt.Horizontal)
         self.longexp_strength.setRange(0, 100); self.longexp_strength.setValue(100)
@@ -690,7 +694,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         le_info = QLabel(tr("Empfohlen: Glatt 10–30 · Lichtspuren 30–300+ (lückenlos) · "
                             "Störer entfernen 8–20 · Aufhellen 10–60. Vom Stativ, gleiche Belichtung."))
         le_info.setWordWrap(True); le_info.setStyleSheet("color:#9aa09a;font-size:11px;")
-        lg.addWidget(le_info, 8, 0, 1, 4)
+        lg.addWidget(le_info, 10, 0, 1, 4)
         p1.addWidget(g_le)
 
         # HDR (Belichtungsreihe)
@@ -1535,6 +1539,8 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                 args += ["--longexp-gapfill"]
             if self.longexp_sigma.isChecked():
                 args += ["--longexp-sigma"]
+            if self.longexp_freeze_auto.isChecked():
+                args += ["--longexp-freeze-auto"]
             if self.longexp_freeze.value() > 0.0:
                 args += ["--longexp-freeze", str(self.longexp_freeze.value())]
         if getattr(self, "is_hdr", False):

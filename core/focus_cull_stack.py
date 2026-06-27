@@ -1055,6 +1055,9 @@ def main():
     ap.add_argument("--longexp-freeze", type=float, default=None, metavar="ANTEIL",
                     help="Vordergrund einfrieren (Sequator-Stil): unterste ANTEIL (0..1) der "
                          "Bildhoehe scharf aus einem Einzelbild, nur der Himmel wird langzeitbelichtet")
+    ap.add_argument("--longexp-freeze-auto", action="store_true",
+                    help="Vordergrund einfrieren mit AUTOMATISCHER Himmel/Vordergrund-Trennung "
+                         "(ueber die Sternbewegung) statt festem Hoehen-Anteil")
     ap.add_argument("--longexp-mode", choices=["smooth", "trails", "comet", "declutter", "bright"],
                     default="smooth",
                     help="smooth=Mitteln (Wasser), trails=Aufhellen (Lichtspuren), "
@@ -1721,7 +1724,8 @@ def run_longexp(input_dir, work_dir, args):
                              work_dir=work_dir, detector=args.detector, transform=args.transform,
                              gap_fill=getattr(args, "longexp_gapfill", False),
                              sigma_clip=getattr(args, "longexp_sigma", False),
-                             freeze_below=getattr(args, "longexp_freeze", None))
+                             freeze_below=getattr(args, "longexp_freeze", None),
+                             freeze_auto=getattr(args, "longexp_freeze_auto", False))
 
     stack_dir = os.path.join(work_dir, "stack")
     if os.path.isdir(stack_dir):

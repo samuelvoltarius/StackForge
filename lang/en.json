@@ -551,5 +551,8 @@
   "Dekonvolution (Richardson-Lucy) holt von Seeing/Optik verschmiertes Detail zurück — die PSF wird aus den Sternen geschätzt. Mit Stern-Schutz gegen dunkle Ringe. Mehr Iterationen = schärfer, aber mehr Rauschen.": "Deconvolution (Richardson-Lucy) recovers detail smeared by seeing/optics — the PSF is estimated from the stars. With star protection against dark rings. More iterations = sharper but more noise.",
   "Dekonvolution (Richardson-Lucy, PSF aus Sternen)": "Deconvolution (Richardson-Lucy, PSF from stars)",
   "Iterationen": "Iterations",
-  "Schärfung": "Sharpening"
+  "Schärfung": "Sharpening",
+  "Sequator-Stil: nur der Himmel wird langzeitbelichtet, die Landschaft bleibt scharf aus einem Einzelbild. Automatisch = Himmel/Vordergrund über die Sternbewegung trennen. Der Regler unten setzt stattdessen einen festen Höhen-Anteil (0..0.95).": "Sequator-style: only the sky is long-exposed, the landscape stays sharp from a single frame. Automatic = separate sky/foreground via the star motion. The slider below instead sets a fixed height fraction (0..0.95).",
+  "Vordergrund einfrieren — automatisch (Himmel-Erkennung)": "Freeze foreground — automatic (sky detection)",
+  "…oder fester Höhen-Anteil": "…or fixed height fraction"
 }
