@@ -567,10 +567,43 @@ def bin_image(f, factor=2):
     return f.astype(np.float32)
 
 
-def background_extract(f, strength=0.12):
-    """Klassische Hintergrund-/Gradienten-Entfernung (Lichtverschmutzung, Vignette).
-    Modelliert den glatten Hintergrund (sternunterdrückt + stark geglättet) und zieht ihn ab.
-    Kein KI-Tool wie GraXpert, aber wirksam gegen weiche Gradienten."""
+def background_extract(f, strength=0.12, method="rbf", grid=12, log=print):
+    """Hintergrund-/Gradienten-Entfernung (Lichtverschmutzung, Vignette).
+
+    method='rbf' (Standard, DBE/GraXpert-Prinzip): das Bild kacheln, pro Kachel einen ROBUSTEN
+    Sky-Wert (unteres Perzentil) als Stützpunkt nehmen, Stützpunkte verwerfen, die deutlich über dem
+    Feld-Trend liegen (= echte Großstruktur/Nebel → NICHT mitmodellieren), dann eine glatte
+    Thin-Plate-Spline-Fläche durch die verbliebenen Punkte legen und abziehen. Anders als ein
+    Tiefpass-Blur folgt das NICHT dem ausgedehnten Nebel und frisst ihn daher nicht weg.
+    method='blur': der alte einfache Tiefpass (Fallback, wenn scipy fehlt)."""
+    if method == "rbf":
+        try:
+            from scipy.interpolate import RBFInterpolator
+            g = _gray(f)
+            H, W = g.shape[:2]
+            ys = np.linspace(H * 0.06, H * 0.94, grid)
+            xs = np.linspace(W * 0.06, W * 0.94, grid)
+            pts, vals = [], []
+            bh, bw = int(H / grid / 2), int(W / grid / 2)
+            for y in ys:
+                for x in xs:
+                    yi, xi = int(y), int(x)
+                    tile = g[max(0, yi - bh):yi + bh, max(0, xi - bw):xi + bw]
+                    if tile.size:
+                        pts.append((x, y)); vals.append(float(np.percentile(tile, 25)))
+            pts = np.array(pts, np.float32); vals = np.array(vals, np.float32)
+            med = float(np.median(vals)); mad = float(np.median(np.abs(vals - med))) * 1.4826 + 1e-6
+            keep = vals <= med + 2.5 * mad                  # Nebel-/Struktur-Stützpunkte verwerfen
+            if keep.sum() >= max(8, grid):
+                rbf = RBFInterpolator(pts[keep], vals[keep], kernel="thin_plate_spline", smoothing=1.0)
+                gy, gx = np.mgrid[0:H, 0:W]
+                surf = rbf(np.stack([gx.ravel(), gy.ravel()], 1)).reshape(H, W).astype(np.float32)
+                surf = surf[..., None] if f.ndim == 3 else surf
+                out = f - surf + float(np.median(surf))
+                log(f"    Hintergrund (RBF/DBE-Stil): {int(keep.sum())} Sky-Stützpunkte, Nebel geschützt")
+                return np.clip(out, 0, 1)
+        except Exception as e:
+            log(f"    Hintergrund: RBF nicht verfügbar ({e}) → Tiefpass")
     u16 = (np.clip(f, 0, 1) * 65535).astype(np.uint16)
     star_suppressed = cv2.medianBlur(u16, 5).astype(np.float32) / 65535.0
     sigma = max(8.0, min(f.shape[0], f.shape[1]) * strength / 3.0)
