@@ -137,6 +137,45 @@ def stitch_detail(imgs, projection="spherical", log=print, masks=None):
     return _to8(np.clip(pano, 0, 255))
 
 
+def _autocrop(img, thresh=8):
+    """Schwarze Stitch-Ränder wegschneiden: das GRÖSSTE randvolle Rechteck finden (alle Pixel gültig),
+    über den klassischen „maximal rectangle in a binary matrix"-Algorithmus (histogramm-basiert, O(H·W)).
+    So bekommt das Panorama einen sauberen rechteckigen Rand statt schwarzer Zacken — der häufigste
+    Profi-vs-Amateur-Unterschied. Bei großen Bildern auf der herunterskalierten Maske rechnen."""
+    if img is None or img.ndim != 3:
+        return img
+    H, W = img.shape[:2]
+    valid = (img.max(axis=2) > thresh).astype(np.uint8)
+    scale = min(1.0, 1000.0 / max(H, W))
+    vs = cv2.resize(valid, (max(1, int(W * scale)), max(1, int(H * scale))),
+                    interpolation=cv2.INTER_NEAREST) if scale < 1.0 else valid
+    h, w = vs.shape
+    height = np.zeros(w, np.int32)
+    best = (0, 0, 0, 0, 0)                                  # area, x0, y0, x1, y1
+    for r in range(h):
+        height = np.where(vs[r] > 0, height + 1, 0)
+        hgt = height.tolist() + [0]
+        stack = []
+        for i in range(len(hgt)):
+            while stack and hgt[i] < hgt[stack[-1]]:
+                top = stack.pop()
+                width = i if not stack else i - stack[-1] - 1
+                area = hgt[top] * width
+                if area > best[0]:
+                    x0 = (stack[-1] + 1) if stack else 0
+                    best = (area, x0, r - hgt[top] + 1, i - 1, r)
+            stack.append(i)
+    if best[0] == 0:
+        return img
+    _, x0, y0, x1, y1 = best
+    x0, x1 = int(x0 / scale), int((x1 + 1) / scale)
+    y0, y1 = int(y0 / scale), int((y1 + 1) / scale)
+    crop = img[max(0, y0):min(H, y1), max(0, x0):min(W, x1)]
+    if crop.shape[0] < H * 0.25 or crop.shape[1] < W * 0.25:
+        return img                                         # Crop zu aggressiv → lieber Original lassen
+    return crop
+
+
 def stitch(paths, mode="panorama", projection="spherical", detail=True, log=print):
     """Überlappende Kacheln zu einem Mosaik zusammensetzen.
     detail=True: explizite cv2.detail-Pipeline (Projektion/Belichtungsausgleich/MultiBand-Nähte),
@@ -150,7 +189,7 @@ def stitch(paths, mode="panorama", projection="spherical", detail=True, log=prin
     log(f"  {len(imgs)} Kacheln zusammensetzen ({mode}, {projection}) …")
     if detail and mode != "scans":
         try:
-            return stitch_detail(imgs, projection=projection, log=log), "ok (detail)"
+            return _autocrop(stitch_detail(imgs, projection=projection, log=log)), "ok (detail)"
         except Exception as e:
             log(f"  detail-Pipeline fehlgeschlagen ({e}) → klassischer Stitcher")
     m = cv2.Stitcher_SCANS if mode == "scans" else cv2.Stitcher_PANORAMA
@@ -162,7 +201,7 @@ def stitch(paths, mode="panorama", projection="spherical", detail=True, log=prin
                 3: "Kamera-Parameter-Anpassung fehlgeschlagen"}
         raise RuntimeError(f"Mosaik fehlgeschlagen ({msgs.get(status, status)}). "
                            f"Tipp: mehr Überlappung (~30 %) zwischen den Kacheln.")
-    return pano, "ok"
+    return _autocrop(pano), "ok"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
