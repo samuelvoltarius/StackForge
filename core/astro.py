@@ -825,7 +825,11 @@ def ghs_stretch(f, D=2.5, b=-0.5, SP=0.18, black_clip=None, saturation=1.08,
         med = float(np.median(g))
         mad = float(np.median(np.abs(g - med))) * 1.4826
         bg = med + 0.25 * mad
-    x0 = np.clip((f - bg) / max(1e-6, 1.0 - bg), 0, 1)          # Schwarzpunkt setzen
+    # Schwarzpunkt setzen UND das Signal in den aktiven Bereich der Kurve normieren (wie asinh):
+    # ohne diese Normierung liegt schwaches (lineares) Nebel-Signal nahe 0 und die Kurve hebt es nicht.
+    sub = np.clip(f - bg, 0, None)
+    norm = float(np.quantile(_gray(sub), 0.9997)) + 1e-6
+    x0 = np.clip(sub / norm, 0, 1)
 
     xs = np.linspace(0.0, 1.0, samples, dtype=np.float64)
     k = float(D) * float(D)
