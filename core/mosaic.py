@@ -19,6 +19,44 @@ def _to8(img):
     return img
 
 
+def stitch_from_points(img_a, img_b, pts_a, pts_b, log=print):
+    """MANUELLES Zusammensetzen über Kontrollpunkte (Hugin/PTGui-Prinzip): wenn die automatische
+    Erkennung versagt (wenig Überlappung/Struktur, sich wiederholende Muster), gibt der/die Nutzer:in
+    selbst zusammengehörige Punktpaare an (≥4) — daraus wird die Homographie B→A geschätzt, B in die
+    Ebene von A gewarpt und nahtlos (distanzgewichtet gefedert) eingeblendet. Gibt das Panorama (BGR).
+
+    pts_a/pts_b: Listen von (x, y) in Bild A bzw. B (gleiche Reihenfolge = zusammengehörig)."""
+    a = _to8(img_a); b = _to8(img_b)
+    pa = np.asarray(pts_a, np.float32); pb = np.asarray(pts_b, np.float32)
+    if len(pa) < 4 or len(pa) != len(pb):
+        raise ValueError("mindestens 4 zusammengehörige Punktpaare nötig")
+    H, _ = cv2.findHomography(pb, pa, cv2.RANSAC, 5.0)
+    if H is None:
+        raise ValueError("Homographie aus den Punkten nicht bestimmbar")
+    ha, wa = a.shape[:2]; hb, wb = b.shape[:2]
+    cb = np.float32([[0, 0], [wb, 0], [wb, hb], [0, hb]]).reshape(-1, 1, 2)
+    cbw = cv2.perspectiveTransform(cb, H).reshape(-1, 2)
+    allp = np.vstack([cbw, [[0, 0], [wa, 0], [wa, ha], [0, ha]]])
+    xmin, ymin = np.floor(allp.min(0)).astype(int)
+    xmax, ymax = np.ceil(allp.max(0)).astype(int)
+    T = np.float32([[1, 0, -xmin], [0, 1, -ymin], [0, 0, 1]])
+    W, Hh = int(xmax - xmin), int(ymax - ymin)
+    if W <= 0 or Hh <= 0 or W * Hh > 80_000_000:
+        raise ValueError("ungültige Panorama-Größe (Punkte prüfen)")
+    aw = cv2.warpPerspective(a, T, (W, Hh))
+    bw = cv2.warpPerspective(b, T @ H, (W, Hh))
+    ma = cv2.warpPerspective(np.full((ha, wa), 255, np.uint8), T, (W, Hh))
+    mb = cv2.warpPerspective(np.full((hb, wb), 255, np.uint8), T @ H, (W, Hh))
+    da = cv2.distanceTransform((ma > 0).astype(np.uint8), cv2.DIST_L2, 3)
+    db = cv2.distanceTransform((mb > 0).astype(np.uint8), cv2.DIST_L2, 3)
+    wsum = da + db + 1e-6
+    blend = (aw.astype(np.float32) * da[..., None] + bw.astype(np.float32) * db[..., None]) / wsum[..., None]
+    valid = ((ma > 0) | (mb > 0))[..., None]
+    out = np.where(valid, np.clip(blend, 0, 255), 0).astype(np.uint8)
+    log(f"    Kontrollpunkt-Stitch: {len(pa)} Punktpaare → {W}×{Hh}")
+    return out
+
+
 def stitch_detail(imgs, projection="spherical", log=print):
     """Explizite cv2.detail-Pipeline (statt Black-Box-Stitcher) mit Kontrolle über **Projektion**,
     **Belichtungsausgleich** (BlocksGain) und **MultiBand-Nahtmischung** (enblend-Äquivalent) +

@@ -701,6 +701,110 @@ class RetouchDialog(QDialog):
         QMessageBox.information(self, "Gespeichert", f"Gespeichert:\n{self.save_path}")
 
 
+class ControlPointDialog(QDialog):
+    """Manueller Kontrollpunkt-Editor fürs Panorama (Hugin/PTGui-Prinzip): wenn die Automatik zwei
+    Kacheln nicht zusammensetzt (wenig Überlappung/Struktur), klickt man hier zusammengehörige Punkte
+    in beiden Bildern an (links → rechts, abwechselnd, ≥4 Paare) und drückt „Zusammensetzen“."""
+    def __init__(self, img_a, img_b, save_path, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(tr("Panorama — Kontrollpunkte setzen"))
+        self.a = img_a if img_a.dtype == np.uint8 else np.clip(img_a, 0, 255).astype(np.uint8)
+        self.b = img_b if img_b.dtype == np.uint8 else np.clip(img_b, 0, 255).astype(np.uint8)
+        self.pts_a, self.pts_b = [], []
+        self.save_path = save_path
+        self.result = None
+
+        lay = QVBoxLayout(self)
+        top = QHBoxLayout()
+        self.cv_a = _Canvas(lambda x, y, s: self._click("a", x, y) if s else None)
+        self.cv_b = _Canvas(lambda x, y, s: self._click("b", x, y) if s else None)
+        for cv in (self.cv_a, self.cv_b):
+            sc = QScrollArea(); sc.setWidget(cv); sc.setMinimumWidth(380); top.addWidget(sc, 1)
+        lay.addLayout(top, 1)
+
+        self.status = QLabel("")
+        self.status.setStyleSheet("color:#7bd36a;")
+        lay.addWidget(self.status)
+        row = QHBoxLayout()
+        undo = QPushButton(tr("↶ Letzten Punkt")); undo.clicked.connect(self._undo)
+        self.stitch_btn = QPushButton(tr("🧩 Zusammensetzen")); self.stitch_btn.clicked.connect(self._stitch)
+        self.save_btn = QPushButton(tr("💾 Speichern")); self.save_btn.clicked.connect(self._save)
+        self.save_btn.setEnabled(False)
+        for b in (undo, self.stitch_btn, self.save_btn):
+            row.addWidget(b)
+        lay.addLayout(row)
+        lay.addWidget(QLabel(tr("Klicke ABWECHSELND denselben Punkt links und rechts an "
+                                "(z. B. eine Ecke). Mindestens 4 Paare. Dann „Zusammensetzen“.")))
+        self._redraw()
+        self.resize(1180, 760)
+
+    def _click(self, which, x, y):
+        # erzwingt abwechselnd: erst A, dann B …
+        if which == "a" and len(self.pts_a) <= len(self.pts_b):
+            self.pts_a.append((x, y))
+        elif which == "b" and len(self.pts_b) < len(self.pts_a):
+            self.pts_b.append((x, y))
+        self._redraw()
+
+    def _undo(self):
+        if len(self.pts_b) == len(self.pts_a) and self.pts_b:
+            self.pts_b.pop()
+        elif self.pts_a:
+            self.pts_a.pop()
+        self._redraw()
+
+    def _markers(self, img, pts):
+        out = img.copy()
+        for i, (x, y) in enumerate(pts):
+            cv2.circle(out, (int(x), int(y)), 7, (0, 255, 0), 2)
+            cv2.putText(out, str(i + 1), (int(x) + 8, int(y) - 8),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        return out
+
+    def _redraw(self):
+        self.cv_a.set_image(self._markers(self.a, self.pts_a))
+        self.cv_b.set_image(self._markers(self.b, self.pts_b))
+        n = min(len(self.pts_a), len(self.pts_b))
+        nxt = "rechts" if len(self.pts_a) > len(self.pts_b) else "links"
+        self.status.setText(tr("%d Punktpaar(e) · als Nächstes %s klicken") % (n, nxt))
+        self.stitch_btn.setEnabled(n >= 4)
+
+    def _stitch(self):
+        import sys as _sys
+        _sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "core"))
+        try:
+            import mosaic
+            n = min(len(self.pts_a), len(self.pts_b))
+            self.result = mosaic.stitch_from_points(self.a, self.b, self.pts_a[:n], self.pts_b[:n],
+                                                    log=lambda *a: None)
+            dlg = _ResultPreview(self.result, self)
+            dlg.show()
+            self.save_btn.setEnabled(True)
+        except Exception as e:
+            QMessageBox.warning(self, tr("Zusammensetzen fehlgeschlagen"), str(e))
+
+    def _save(self):
+        if self.result is None:
+            return
+        cv2.imwrite(self.save_path, self.result, [int(cv2.IMWRITE_JPEG_QUALITY), 95]
+                    if self.save_path.lower().endswith((".jpg", ".jpeg"))
+                    else [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
+        QMessageBox.information(self, tr("Gespeichert"), f"{self.save_path}")
+
+
+class _ResultPreview(QDialog):
+    """Kleines Vorschaufenster fürs zusammengesetzte Panorama."""
+    def __init__(self, bgr, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(tr("Panorama — Vorschau"))
+        lay = QVBoxLayout(self)
+        cv = _Canvas(lambda *a: None)
+        sc = QScrollArea(); sc.setWidget(cv)
+        lay.addWidget(sc)
+        cv.set_image(bgr)
+        self.resize(900, 600)
+
+
 def reveal_in_files(path):
     """Datei im Dateimanager zeigen — macOS/Windows/Linux."""
     try:

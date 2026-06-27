@@ -554,5 +554,17 @@
   "Schärfung": "Sharpening",
   "Sequator-Stil: nur der Himmel wird langzeitbelichtet, die Landschaft bleibt scharf aus einem Einzelbild. Automatisch = Himmel/Vordergrund über die Sternbewegung trennen. Der Regler unten setzt stattdessen einen festen Höhen-Anteil (0..0.95).": "Sequator-style: only the sky is long-exposed, the landscape stays sharp from a single frame. Automatic = separate sky/foreground via the star motion. The slider below instead sets a fixed height fraction (0..0.95).",
   "Vordergrund einfrieren — automatisch (Himmel-Erkennung)": "Freeze foreground — automatic (sky detection)",
-  "…oder fester Höhen-Anteil": "…or fixed height fraction"
+  "…oder fester Höhen-Anteil": "…or fixed height fraction",
+  "%d Punktpaar(e) · als Nächstes %s klicken": "%d point pair(s) · click %s next",
+  "Bitte genau zwei überlappende Bilder wählen.": "Please pick exactly two overlapping images.",
+  "Gespeichert": "Saved",
+  "Klicke ABWECHSELND denselben Punkt links und rechts an (z. B. eine Ecke). Mindestens 4 Paare. Dann „Zusammensetzen“.": "Click the SAME point ALTERNATELY on the left and right (e.g. a corner). At least 4 pairs. Then \"Stitch\".",
+  "Panorama — Kontrollpunkte setzen": "Panorama — set control points",
+  "Panorama — Vorschau": "Panorama — preview",
+  "Zusammensetzen fehlgeschlagen": "Stitching failed",
+  "Zwei Bilder": "Two images",
+  "Zwei überlappende Bilder wählen (links, rechts)": "Pick two overlapping images (left, right)",
+  "↶ Letzten Punkt": "↶ Last point",
+  "🧩  Panorama: Kontrollpunkte (manuell)": "🧩  Panorama: control points (manual)",
+  "🧩 Zusammensetzen": "🧩 Stitch"
 }

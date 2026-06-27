@@ -41,7 +41,7 @@ from ui.welcome import WelcomeMixin
 from ui.settings_io import SettingsMixin
 from ui.export import ExportMixin
 from ui.result_view import ResultMixin
-from ui.components import (CompareSlider, AdjustDialog, RetouchDialog,
+from ui.components import (CompareSlider, AdjustDialog, RetouchDialog, ControlPointDialog,
                            help_btn, _row, reveal_in_files, open_path, notify, CollapsibleSection)
 
 
@@ -1036,7 +1036,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
 
         self.tools_btn = QToolButton()
         self.tools_btn.setText(tr("🛠  Werkzeuge  ▾")); self.tools_btn.setPopupMode(QToolButton.InstantPopup)
-        self.tools_btn.setEnabled(False)
+        self.tools_btn.setEnabled(True)   # immer offen — der Kontrollpunkt-Editor braucht kein Ergebnis
         menu = QMenu(self.tools_btn)
 
         def _act(text, fn):
@@ -1053,6 +1053,11 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.starnet_btn = _act(tr("⭐  StarNet (nur Sterne entfernen)"), lambda: self._run_external_tool("starnet"))
         self.reimport_btn = _act(tr("📥  Bearbeitetes reimportieren"), self.reimport_result)
         self.send_btn = _act(tr("📤  Im Dateimanager zeigen"), self.send_to_tool)
+        menu.addSeparator()
+        # Manueller Panorama-Kontrollpunkt-Editor — immer verfügbar (nicht an ein Ergebnis gebunden)
+        cp = QAction(tr("🧩  Panorama: Kontrollpunkte (manuell)"), self)
+        cp.triggered.connect(self.open_controlpoints)
+        menu.addAction(cp)
         self.tools_btn.setMenu(menu)
 
         for b in (self.cmp_btn, self.adjust_btn, self.enhance_btn, self.export_btn, self.tools_btn):
@@ -2489,6 +2494,29 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         dlg.show()
         self._retouch_dlg = dlg
         self._append(f"\n✏️ Retusche-Editor geöffnet ({len(srcs)} Quellfotos).\n")
+
+    def open_controlpoints(self):
+        """Manuellen Panorama-Kontrollpunkt-Editor öffnen: zwei überlappende Kacheln wählen und
+        von Hand zusammensetzen (wenn die Automatik versagt)."""
+        if cv2 is None:
+            return
+        files, _ = QFileDialog.getOpenFileNames(
+            self, tr("Zwei überlappende Bilder wählen (links, rechts)"), self.in_edit.text().strip() or "",
+            "Bilder (*.jpg *.jpeg *.png *.tif *.tiff)")
+        if len(files) != 2:
+            if files:
+                QMessageBox.information(self, tr("Zwei Bilder"),
+                                       tr("Bitte genau zwei überlappende Bilder wählen."))
+            return
+        a = cv2.imread(files[0], cv2.IMREAD_COLOR)
+        b = cv2.imread(files[1], cv2.IMREAD_COLOR)
+        if a is None or b is None:
+            QMessageBox.warning(self, "Fehler", "Bilder konnten nicht geladen werden.")
+            return
+        save_path = os.path.join(os.path.dirname(files[0]), "panorama_kontrollpunkte.jpg")
+        dlg = ControlPointDialog(a, b, save_path, self)
+        dlg.show()
+        self._cp_dlg = dlg
 
     def keyPressEvent(self, e):
         """Foto-Einzeltasten — feuern nur, wenn KEIN Textfeld den Fokus hat

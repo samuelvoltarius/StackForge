@@ -1425,5 +1425,29 @@ class TestPhotometric(TmpCase):
         self.assertLess(float(np.abs(back - bgr).mean()), 0.02)
 
 
+
+class TestControlPointStitch(TmpCase):
+    def test_stitch_from_points_vereint_kacheln(self):
+        import mosaic
+        r = _rng()
+        base = (r.rand(300, 400, 3) * 255).astype(np.uint8)
+        base = cv2.GaussianBlur(base, (0, 0), 1.5)
+        for _ in range(40):
+            cv2.circle(base, (r.randint(0, 400), r.randint(0, 300)), r.randint(5, 15),
+                       tuple(int(c) for c in r.randint(0, 255, 3)), -1)
+        A = base[:, :250].copy(); B = base[:, 150:].copy()
+        gA = [(160, 40), (240, 60), (180, 250), (230, 180)]
+        gB = [(x - 150, y) for (x, y) in gA]
+        out = mosaic.stitch_from_points(A, B, gA, gB, log=lambda *a: None)
+        self.assertGreaterEqual(out.shape[1], 380)     # volle Szene rekonstruiert (nicht nur 250)
+        self.assertEqual(out.shape[2], 3)
+
+    def test_stitch_from_points_braucht_4_paare(self):
+        import mosaic
+        a = np.zeros((50, 50, 3), np.uint8); b = a.copy()
+        with self.assertRaises(ValueError):
+            mosaic.stitch_from_points(a, b, [(1, 1), (2, 2)], [(1, 1), (2, 2)], log=lambda *x: None)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
