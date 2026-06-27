@@ -338,6 +338,22 @@ class TestStacker(TmpCase):
         self.assertLess((g > 250).mean(), (cv2.cvtColor(bright, cv2.COLOR_BGR2GRAY) > 250).mean() + 1e-6)
         self.assertLess((g < 5).mean(), (cv2.cvtColor(dark, cv2.COLOR_BGR2GRAY) < 5).mean() + 1e-6)
 
+    def test_wavelet_sharpen(self):
+        import wavelet
+        sharp = cv2.GaussianBlur((_rng().rand(120, 150, 3) * 255).astype(np.uint8), (0, 0), 0.7)
+        soft = cv2.GaussianBlur(sharp, (0, 0), 1.6)
+        out = wavelet.wavelet_sharpen(soft, gains=(2.5, 1.8, 1.4, 1.1, 1.0), denoise=0.0)
+        self.assertEqual(out.shape, soft.shape)
+        self.assertEqual(out.dtype, np.uint8)
+
+        def lap(im):
+            return cv2.Laplacian(cv2.cvtColor(im, cv2.COLOR_BGR2GRAY), cv2.CV_64F).var()
+        self.assertGreater(lap(out), lap(soft))             # schärft
+        # farbtreu: mittlerer Farbton bleibt nah
+        h0 = cv2.cvtColor(soft, cv2.COLOR_BGR2HSV)[..., 0].astype(float).mean()
+        h1 = cv2.cvtColor(out, cv2.COLOR_BGR2HSV)[..., 0].astype(float).mean()
+        self.assertLess(abs(h0 - h1), 15)
+
     def test_lucky_map_runs(self):
         import lucky
         import tempfile

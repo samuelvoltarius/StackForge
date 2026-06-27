@@ -1645,11 +1645,11 @@ def run_lucky(input_path, work_dir, args):
             res = None
         if res is not None:
             sa = getattr(args, "lucky_sharpen", 60)
-            if sa and sa > 0:
-                a = sa / 100.0
-                blur = cv2.GaussianBlur(res, (0, 0), 1.4)
-                res = np.clip(res.astype(np.float32) * (1 + a) - blur.astype(np.float32) * a,
-                              0, 255).astype(np.uint8)
+            if sa and sa > 0:                               # Multi-Skalen-Wavelet-Schärfung (RegiStax-Stil)
+                import wavelet
+                g = 1.0 + sa / 100.0                        # Stärke → Gain der feinsten Ebenen
+                res = wavelet.wavelet_sharpen(res, gains=(g, 1.0 + (g - 1) * 0.7,
+                                                          1.0 + (g - 1) * 0.4, 1.1, 1.0), denoise=0.05)
             out_jpg = os.path.join(stack_dir, f"{args.prefix}{base}_map.jpg")
             cv2.imwrite(out_jpg, res, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
             cv2.imwrite(os.path.join(stack_dir, f"{args.prefix}{base}_map.tif"), res,
