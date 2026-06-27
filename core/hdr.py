@@ -170,10 +170,15 @@ def tonemap_local(hdr_or_bgr, strength=1.0, base_contrast=3.5, log=print):
         img = cv2.cvtColor(img.astype(np.float32), cv2.COLOR_GRAY2BGR)
     f = img.astype(np.float32)
     # In lineare Radiance bringen: 8/16-bit → [0..1]; echte Radiance-Map bleibt linear.
+    # Bei schon fertigem LDR-Bild (Fusion) merken wir uns die Eingangs-Helligkeit, um sie
+    # zu ERHALTEN — sonst hellt die Perzentil-Normierung die Nachtszene massiv auf (überbelichtet).
+    in_anchor = None
     if img.dtype == np.uint8:
         f = f / 255.0
+        in_anchor = float(np.median(0.114 * f[..., 0] + 0.587 * f[..., 1] + 0.299 * f[..., 2]))
     elif img.dtype == np.uint16:
         f = f / 65535.0
+        in_anchor = float(np.median(0.114 * f[..., 0] + 0.587 * f[..., 1] + 0.299 * f[..., 2]))
     f = np.nan_to_num(f, nan=0.0, posinf=0.0, neginf=0.0)
     f = np.clip(f, 0.0, None)
     # Luminanz (BT.601 auf BGR) als Tonemapping-Träger; Farbe später aus dem Verhältnis zurück.
@@ -206,6 +211,14 @@ def tonemap_local(hdr_or_bgr, strength=1.0, base_contrast=3.5, log=print):
     norm = float(np.percentile(out, 99.5)) + eps
     out = np.clip(out / norm, 0.0, 1.0)
     out = np.power(out, 1.0 / 2.2)
+    # Helligkeit ans Eingangsbild ankern (nur bei LDR-Eingang): lokalen Kontrast umverteilen, aber
+    # die Gesamt-Belichtung NICHT anheben — sonst überstrahlt die Nachtszene (war Median ~147).
+    if in_anchor is not None:
+        out_lum = 0.114 * out[..., 0] + 0.587 * out[..., 1] + 0.299 * out[..., 2]
+        cur = float(np.median(out_lum))
+        if cur > eps:
+            scale = min(1.0, in_anchor / cur)           # nur abdunkeln, nie zusätzlich aufhellen
+            out = np.clip(out * scale, 0.0, 1.0)
     log(f"    HDR: lokales Tonemapping (Durand) — Base-Kompression γ={gamma:.2f}, σ_space={sigma_space:.0f}px")
     return np.clip(out * 255.0, 0, 255).astype(np.uint8)
 
