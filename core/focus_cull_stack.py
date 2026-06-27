@@ -907,20 +907,26 @@ def run_own_engine(selected_dir, work_dir, args):
             imgs = [cv2.resize(im, (w, h)) if im.shape[:2] != (h, w) else im for im in imgs]
         if not args.no_align:
             print("  Ausrichten …")
+            if getattr(args, "focus_breathing", False):   # F2: Focus-Breathing (geglätteter Scale-Verlauf)
+                imgs = stacker.align_images_breathing(imgs, detector=args.detector, log=lambda *a: None)
             imgs = stacker.align_images(imgs, mode=align_mode, detector=args.detector)
             imgs = stacker.crop_to_overlap(imgs)        # schwarze Warp-Ränder/Striche entfernen
         _fm = getattr(args, "focus_method", "pyramid")
         _frad = getattr(args, "focus_radius", -1.0)
         _fsm = getattr(args, "focus_smoothing", -1.0)
+        _reg = getattr(args, "focus_regularize", False)
         _dm_kw = {} if _frad < 0 else {"radius": _frad}
         if _fsm >= 0:
             _dm_kw["smoothing"] = _fsm
+        if _reg:                                          # F4: kantenerhaltende Tiefenkarten-Regularisierung
+            _dm_kw["regularize"] = True
         _avg_kw = {} if _frad < 0 else {"radius": int(round(_frad))}
         if _fsm >= 0:
             _avg_kw["smoothing"] = _fsm
         _merge1 = {"depthmap": lambda g: stacker.focus_stack_depthmap(g, log=lambda *a: None, **_dm_kw),
                    "average": lambda g: stacker.focus_stack_average(g, log=lambda *a: None, **_avg_kw),
                    "halofix": lambda g: stacker.focus_stack_halofix(g, log=lambda *a: None),
+                   "pyramid-consistent": lambda g: stacker.focus_stack_pyramid_consistent(g, log=lambda *a: None),
                    "wavelet": lambda g: stacker.focus_stack_wavelet(g, log=lambda *a: None)}.get(
             _fm, lambda g: stacker.focus_stack(g, deghost=getattr(args, "deghost", False),
                                                log=lambda *a: None))
@@ -1027,6 +1033,13 @@ def main():
                     help="Anteil der schärfsten Frames in %% (Standard 30)")
     ap.add_argument("--lucky-sharpen", type=float, default=60,
                     help="Nachschärfen des Lucky-Ergebnisses in %% (0 = aus)")
+    ap.add_argument("--lucky-drizzle", type=float, choices=[1.0, 1.5, 3.0], default=1.0,
+                    help="Lucky: Drizzle/Super-Resolution (1.5×/3×) — Sub-Pixel-Jitter füllt ein feineres "
+                         "Gitter (AutoStakkert-Prinzip). Braucht echten Jitter (statisches Stativ)")
+    ap.add_argument("--lucky-refine", type=int, default=0,
+                    help="Lucky: zusätzliche MAP-Pässe gegen das geschärfte Ergebnis (iterative Referenz) — 0/1")
+    ap.add_argument("--lucky-adaptive-ap", action="store_true",
+                    help="Lucky: adaptive Alignment-Punkt-Dichte/-Größe (mehr/feinere APs in Detailzonen)")
     ap.add_argument("--hdr", action="store_true",
                     help="HDR aus Belichtungsreihen (AEB) per Exposure Fusion (Mertens) — "
                          "durchgezeichnete Lichter + Schatten. NICHT Fokus-Stacking!")
@@ -1042,7 +1055,10 @@ def main():
     ap.add_argument("--hdr-method", choices=["fusion", "radiance"], default="fusion",
                     help="fusion=Exposure Fusion (Standard, halo-frei); radiance=Radiance-Map + "
                          "Tonemapping (dramatischer lokaler Kontrast)")
-    ap.add_argument("--hdr-tonemap", choices=["reinhard", "mantiuk", "drago"], default="reinhard",
+    ap.add_argument("--hdr-deghost-flow", action="store_true",
+                    help="HDR-Deghosting per Optical-Flow (Belichtungen aufeinander warpen statt nur "
+                         "maskieren — HDR-Vorteil bleibt in Bewegungszonen erhalten)")
+    ap.add_argument("--hdr-tonemap", choices=["reinhard", "mantiuk", "drago", "local"], default="reinhard",
                     help="Tonemapping-Operator für --hdr-method radiance")
     ap.add_argument("--longexp", action="store_true",
                     help="Langzeitbelichtung aus einer Serie (Wasser/Wolken/Lichtspuren) ohne ND-Filter")
@@ -1058,7 +1074,8 @@ def main():
     ap.add_argument("--longexp-freeze-auto", action="store_true",
                     help="Vordergrund einfrieren mit AUTOMATISCHER Himmel/Vordergrund-Trennung "
                          "(ueber die Sternbewegung) statt festem Hoehen-Anteil")
-    ap.add_argument("--longexp-mode", choices=["smooth", "trails", "comet", "declutter", "bright"],
+    ap.add_argument("--longexp-mode",
+                    choices=["smooth", "trails", "comet", "declutter", "bright", "stars"],
                     default="smooth",
                     help="smooth=Mitteln (Wasser), trails=Aufhellen (Lichtspuren), "
                          "declutter=Median (Störer weg), bright=additiv (dunkel aufhellen)")
@@ -1103,6 +1120,15 @@ def main():
     ap.add_argument("--astro-tps", action="store_true",
                     help="TPS-Feinregistrierung: korrigiert nach der globalen Ausrichtung die lokale "
                          "Restverzeichnung (Feldkrümmung bei Weitwinkel/Refraktor) per Thin-Plate-Spline")
+    ap.add_argument("--astro-weight", action="store_true",
+                    help="Astro-Integration: Frames nach SNR gewichten (1/σ_bg²) — dünne/verrauschte "
+                         "Subs zählen weniger (bessere Gesamt-SNR bei gemischter Transparenz)")
+    ap.add_argument("--astro-deconv-regularize", type=float, default=0.0,
+                    help="Dekonvolution: TV-/Wavelet-Regularisierung pro Iteration (0=aus, ~0.01–0.1) "
+                         "— dämpft Rausch-/Ring-Verstärkung")
+    ap.add_argument("--astro-starless-classic", action="store_true",
+                    help="Astro: zusätzlich ein klassisch sternloses Nebelbild erzeugen (morphologisch, "
+                         "ohne StarNet) — für getrennte Nebel-Bearbeitung")
     ap.add_argument("--astro-pcc-backend", choices=["auto", "siril", "gaia", "lite"], default="auto",
                     help="PCC-Backend: auto=Siril-SPCC→eigener Gaia-Pfad→Lite (Fallback-Kette); "
                          "siril=nur Siril-SPCC (Gaia DR3); gaia=eigener astroquery-Gaia-Pfad; "
@@ -1175,7 +1201,13 @@ def main():
     ap.add_argument("--focus-smoothing", type=float, default=-1.0,
                     help="Fokus (depthmap/average): Weichheit der Übergänge zwischen Quellbildern "
                          "(Helicon-Smoothing; Feathering gegen harte Nähte). -1/0 = aus")
-    ap.add_argument("--focus-method", choices=["pyramid", "depthmap", "average", "halofix", "wavelet"],
+    ap.add_argument("--focus-breathing", action="store_true",
+                    help="Fokus: Focus-Breathing korrigieren (Vergroesserungsdrift ueber den Stack als "
+                         "geglaetteter Scale-Verlauf) — gegen Stacking-Mush bei tiefen High-Mag-Stacks")
+    ap.add_argument("--focus-regularize", action="store_true",
+                    help="Fokus (depthmap): Tiefenkarte kantenerhaltend regularisieren (gegen Mottling)")
+    ap.add_argument("--focus-method",
+                    choices=["pyramid", "depthmap", "average", "halofix", "pyramid-consistent", "wavelet"],
                     default="pyramid",
                     help="Verschmelzungs-Methode: pyramid=Laplace-Pyramide (Standard, scharf, "
                          "gut für feine/weiche Strukturen wie Blüten); depthmap=Tiefenkarten-Auswahl "
@@ -1475,7 +1507,8 @@ def run_astro(input_dir, work_dir, args):
                                            tps=getattr(args, "astro_tps", False))
         print(f"  Stacken ({args.astro_method}, kappa={args.astro_kappa}) …")
         result = astro.stack(aligned, method=args.astro_method, kappa=args.astro_kappa, normalize=True,
-                             local_norm=getattr(args, "astro_local_norm", False), preview_cb=_preview_cb)
+                             local_norm=getattr(args, "astro_local_norm", False),
+                             weight=getattr(args, "astro_weight", False), preview_cb=_preview_cb)
     binf = int(getattr(args, "astro_bin", 1) or 1)
     if binf > 1:
         result = astro.bin_image(result, binf)
@@ -1528,7 +1561,8 @@ def _astro_write(result, work_dir, paths, args, astro):
     if getattr(args, "astro_deconv", False):
         print("  Dekonvolution (Richardson-Lucy, PSF aus Sternen) …")
         result = astro.deconvolve(result, iterations=getattr(args, "astro_deconv_iter", 15),
-                                  star_protect=getattr(args, "astro_deconv_protect", 0.85))
+                                  star_protect=getattr(args, "astro_deconv_protect", 0.85),
+                                  regularize=getattr(args, "astro_deconv_regularize", 0.0))
     _dn = float(getattr(args, "astro_denoise", 0.0) or 0.0)
     if _dn > 0:
         # Luminanz-Rauschreduktion auf den LINEAREN Daten (vor dem Strecken — PixInsight-MMT-Prinzip):
@@ -1544,6 +1578,15 @@ def _astro_write(result, work_dir, paths, args, astro):
     lin = np.clip(result * 65535, 0, 65535).astype(np.uint16)
     cv2.imwrite(os.path.join(stack_dir, f"{args.prefix}{base}_astro_linear.tif"),
                 lin, [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
+    if getattr(args, "astro_starless_classic", False):     # A6: klassisch sternloses Nebelbild
+        try:
+            print("  Klassisches Star-Removal (morphologisch) …")
+            starless, _smask = astro.remove_stars(result)
+            sv = astro.autostretch(astro.remove_green_cast(astro.color_balance(starless, 1.0)))
+            cv2.imwrite(os.path.join(stack_dir, f"{args.prefix}{base}_starless_classic.jpg"),
+                        np.clip(sv * 255, 0, 255).astype(np.uint8), [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+        except Exception as e:
+            print(f"  (Star-Removal übersprungen: {e})", file=sys.stderr)
     try:
         import tifffile
         out32 = os.path.join(stack_dir, f"{args.prefix}{base}_astro_linear_32bit.tif")
@@ -1731,12 +1774,18 @@ def run_longexp(input_dir, work_dir, args):
     strength = max(0, min(100, getattr(args, "longexp_strength", 100))) / 100.0
     print(f"== Langzeitbelichtung: {len(paths)} Aufnahmen, Modus={mode}, "
           f"Ausrichten={args.longexp_align}, virtuelle Belichtung={int(strength*100)} % ==")
-    result = longexp.combine(paths, mode=mode, align=args.longexp_align, strength=strength,
-                             work_dir=work_dir, detector=args.detector, transform=args.transform,
-                             gap_fill=getattr(args, "longexp_gapfill", False),
-                             sigma_clip=getattr(args, "longexp_sigma", False),
-                             freeze_below=getattr(args, "longexp_freeze", None),
-                             freeze_auto=getattr(args, "longexp_freeze_auto", False))
+    if mode == "stars":
+        # H1: Punkt-Stern-Stacking mit Feldrotations-Ausgleich (Sequator-Stil) — Sterne werden NICHT
+        # zu Strichspuren, sondern punktförmig gestackt (Rauschgewinn √N).
+        result = longexp.stack_stars_point(paths, work_dir=work_dir, align="auto",
+                                           sigma_clip=getattr(args, "longexp_sigma", False))
+    else:
+        result = longexp.combine(paths, mode=mode, align=args.longexp_align, strength=strength,
+                                 work_dir=work_dir, detector=args.detector, transform=args.transform,
+                                 gap_fill=getattr(args, "longexp_gapfill", False),
+                                 sigma_clip=getattr(args, "longexp_sigma", False),
+                                 freeze_below=getattr(args, "longexp_freeze", None),
+                                 freeze_auto=getattr(args, "longexp_freeze_auto", False))
 
     stack_dir = os.path.join(work_dir, "stack")
     if os.path.isdir(stack_dir):
@@ -1839,6 +1888,9 @@ def run_lucky(input_path, work_dir, args):
             res = lucky.lucky_stack_map(v, keep_global=0.6,
                                         keep_local=getattr(args, "lucky_keep", 40) / 100.0,
                                         sharpen=getattr(args, "lucky_sharpen", 60) / 60.0,
+                                        drizzle=getattr(args, "lucky_drizzle", 1.0),
+                                        refine_passes=getattr(args, "lucky_refine", 0),
+                                        adaptive_ap=getattr(args, "lucky_adaptive_ap", False),
                                         preview_cb=_pv)
         except Exception as e:
             print(f"  MAP-Stack übersprungen: {e}", file=sys.stderr)
@@ -1887,11 +1939,15 @@ def run_hdr(input_dir, work_dir, args):
         if len(imgs) < 2:
             print("    (übersprungen — zu wenige lesbare Bilder)")
             continue
+        _tm = getattr(args, "hdr_tonemap", "reinhard")
         if getattr(args, "hdr_method", "fusion") == "radiance":
-            result = hdr.merge_radiance(imgs, tonemap=getattr(args, "hdr_tonemap", "reinhard"))
+            result = hdr.merge_radiance(imgs, tonemap=("reinhard" if _tm == "local" else _tm))
+            if _tm == "local":                            # H2: Durand-Lokal-Tonemapping nachschalten
+                result = hdr.tonemap_local(result, strength=1.0)
         else:
             result = hdr.merge_exposures(imgs, align=not getattr(args, "no_align", False),
-                                         deghost=getattr(args, "hdr_deghost", "off"))
+                                         deghost=getattr(args, "hdr_deghost", "off"),
+                                         flow=getattr(args, "hdr_deghost_flow", False))
         result = hdr.apply_look(result, getattr(args, "hdr_look", "natural"))
         base = os.path.splitext(os.path.basename(grp[len(grp) // 2]))[0]
         out_jpg = os.path.join(stack_dir, f"{args.prefix}{base}_hdr.jpg")
