@@ -34,7 +34,7 @@ def available(path=None):
     return find_cli(path) is not None
 
 
-def sharpen(bgr01, mode="Non-Stellar Only", nonstellar_strength=3.0, nonstellar_amount=0.9,
+def sharpen(bgr01, mode="Non-Stellar Only", nonstellar_strength=2.0, nonstellar_amount=0.7,
             stellar_amount=0.9, auto_psf=False, gpu=True, path=None, timeout=1800, log=print):
     """BGR-Float (0..1) mit Cosmic Clarity schärfen (KI-Dekonvolution) und Ergebnis zurückgeben.
     mode: 'Non-Stellar Only' (Nebel — für sternenlose Bilder!), 'Stellar Only', 'Both'."""
