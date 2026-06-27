@@ -527,5 +527,13 @@
   "Verzeichnung / CA": "Distortion / CA",
   "Vignette": "Vignette",
   "Vordergrund einfrieren": "Freeze foreground",
-  "Wie die scharfen Bereiche verschmolzen werden. „pyramid“ = Laplace-Pyramide (Standard): sehr scharf, ideal für feine/weiche Strukturen wie Blüten und Fell. „depthmap“ = Tiefenkarten-Auswahl: wählt pro Bildpunkt das schärfste Foto — stark bei harten Tiefenkanten (Insekten, Münzen, Platinen). „halofix“ = Dual-Output-Halo-Retusche (Schärfe ohne Halos). „wavelet“ = à-trous-Detailfusion.": "How the sharp regions are merged. \"pyramid\" = Laplacian pyramid (default): very sharp, ideal for fine/soft structures like flowers and fur. \"depthmap\" = depth-map selection: picks the sharpest photo per pixel — strong on hard depth edges (insects, coins, circuit boards). \"halofix\" = dual-output halo retouch (sharpness without halos). \"wavelet\" = à-trous detail fusion."
+  "Wie die scharfen Bereiche verschmolzen werden. „pyramid“ = Laplace-Pyramide (Standard): sehr scharf, ideal für feine/weiche Strukturen wie Blüten und Fell. „depthmap“ = Tiefenkarten-Auswahl: wählt pro Bildpunkt das schärfste Foto — stark bei harten Tiefenkanten (Insekten, Münzen, Platinen). „halofix“ = Dual-Output-Halo-Retusche (Schärfe ohne Halos). „wavelet“ = à-trous-Detailfusion.": "How the sharp regions are merged. \"pyramid\" = Laplacian pyramid (default): very sharp, ideal for fine/soft structures like flowers and fur. \"depthmap\" = depth-map selection: picks the sharpest photo per pixel — strong on hard depth edges (insects, coins, circuit boards). \"halofix\" = dual-output halo retouch (sharpness without halos). \"wavelet\" = à-trous detail fusion.",
+  "Auto (Siril → Gaia → Lite)": "Auto (Siril → Gaia → Lite)",
+  "Echte photometrische Farbkalibrierung. Auto: Siril-SPCC (Plate-Solve + Gaia DR3) → eigener Gaia-Pfad (astroquery) → Lite (stern-basiert, offline). Siril braucht Netz/Gaia-Katalog; Lite läuft immer.": "Real photometric color calibration. Auto: Siril SPCC (plate-solve + Gaia DR3) → own Gaia path (astroquery) → Lite (star-based, offline). Siril needs network/Gaia catalog; Lite always runs.",
+  "Eigener Gaia-Pfad (astroquery)": "Own Gaia path (astroquery)",
+  "Lite (stern-basiert, offline)": "Lite (star-based, offline)",
+  "Photometrischer Farbabgleich (PCC)": "Photometric color calibration (PCC)",
+  "Schmalband-SPCC (Dual-Band)": "Narrowband SPCC (dual-band)",
+  "Siril-SPCC (Gaia DR3)": "Siril SPCC (Gaia DR3)",
+  "optional: OSC-Sensorname wie in Siril (z. B. Sony IMX294)": "optional: OSC sensor name as in Siril (e.g. Sony IMX294)"
 }

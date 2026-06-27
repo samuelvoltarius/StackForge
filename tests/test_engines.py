@@ -1279,5 +1279,54 @@ class TestProToolGaps(TmpCase):
         self.assertTrue(0.0 <= float(out.min()) and float(out.max()) <= 1.0)
 
 
+
+class TestPhotometric(TmpCase):
+    """Echtes PCC (Siril-SPCC / eigener Gaia-Pfad / Lite-Fallback) - ohne Netz/Siril testbar."""
+
+    def test_find_siril_gibt_pfad_oder_none(self):
+        import photometric
+        r = photometric.find_siril()
+        self.assertTrue(r is None or os.path.isfile(r))
+        self.assertIsInstance(photometric.siril_available(), bool)
+
+    def test_fits_hints_liest_header(self):
+        import photometric
+        from astropy.io import fits
+        p = os.path.join(self.d, "h.fits")
+        hdu = fits.PrimaryHDU(np.zeros((8, 8), np.float32))
+        hdu.header["RA"] = 328.6; hdu.header["DEC"] = 47.4
+        hdu.header["FOCALLEN"] = 1101.0; hdu.header["XPIXSZ"] = 4.63
+        hdu.header["INSTRUME"] = "ZWO ASI294MC Pro"
+        hdu.writeto(p, overwrite=True)
+        h = photometric.fits_hints(p)
+        self.assertAlmostEqual(h["ra"], 328.6, places=2)
+        self.assertAlmostEqual(h["focal"], 1101.0, places=1)
+        self.assertEqual(h["instrument"], "ZWO ASI294MC Pro")
+
+    def test_run_pcc_lite_gibt_immer_ergebnis(self):
+        import photometric
+        r = _rng()
+        img = np.full((140, 180, 3), 0.04, np.float32)
+        img[..., 2] *= 2.0
+        for _ in range(50):
+            x, y = r.randint(6, 174), r.randint(6, 134)
+            c = r.uniform(0.3, 0.8)
+            cv2.circle(img, (x, y), 2, (c, c, c), -1)
+        out = photometric.run_pcc(cv2.GaussianBlur(img, (0, 0), 0.7), prefer="lite",
+                                  log=lambda *a: None)
+        self.assertEqual(out.shape, img.shape)
+        m = out.reshape(-1, 3).mean(0)
+        self.assertLess(float(m.max() - m.min()), 0.03)
+
+    def test_write_und_read_fits_roundtrip(self):
+        import photometric
+        bgr = (_rng().rand(20, 24, 3)).astype(np.float32)
+        p = os.path.join(self.d, "lin.fit")
+        photometric._write_linear_fits(bgr, p, {"ra": 10.0, "dec": 20.0, "focal": 500, "pixelsize": 3.8})
+        back = photometric._read_fits_bgr(p)
+        self.assertEqual(back.shape, bgr.shape)
+        self.assertLess(float(np.abs(back - bgr).mean()), 0.02)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

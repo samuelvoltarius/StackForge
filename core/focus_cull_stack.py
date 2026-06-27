@@ -1100,6 +1100,16 @@ def main():
     ap.add_argument("--astro-tps", action="store_true",
                     help="TPS-Feinregistrierung: korrigiert nach der globalen Ausrichtung die lokale "
                          "Restverzeichnung (Feldkrümmung bei Weitwinkel/Refraktor) per Thin-Plate-Spline")
+    ap.add_argument("--astro-pcc-backend", choices=["auto", "siril", "gaia", "lite"], default="auto",
+                    help="PCC-Backend: auto=Siril-SPCC→eigener Gaia-Pfad→Lite (Fallback-Kette); "
+                         "siril=nur Siril-SPCC (Gaia DR3); gaia=eigener astroquery-Gaia-Pfad; "
+                         "lite=stern-basiert ohne Katalog (immer offline). Nur mit --astro-pcc.")
+    ap.add_argument("--astro-oscsensor", default=None,
+                    help="OSC-Sensorname EXAKT wie in Sirils SPCC-Liste (z. B. 'Sony IMX294') — "
+                         "verbessert die Siril-SPCC-Genauigkeit. Optional.")
+    ap.add_argument("--astro-narrowband", action="store_true",
+                    help="Siril-SPCC im Schmalband-Modus (Dual-Band Ha/OIII). Standard aus, da die "
+                         "Filter-Wellenlängen exakt stimmen müssen.")
     ap.add_argument("--astro-stretch", action="store_true",
                     help="Astro: Vorschau-JPG asinh-gestreckt (Ergebnis-TIFF bleibt linear)")
     ap.add_argument("--astro-bright", type=float, default=-1.0,
@@ -1536,9 +1546,22 @@ def _astro_write(result, work_dir, paths, args, astro):
     protect = True
 
     def _broadband(res):
-        # Breitband-Farbe: optional PCC-lite (stern-photometrisch) statt einfachem Farbabgleich, + SCNR
-        cal = (astro.photometric_balance(res, color_s) if getattr(args, "astro_pcc", False)
-               else astro.color_balance(res, color_s))
+        # Breitband-Farbe: optional echtes PCC (Siril-SPCC/Gaia/Lite-Fallback) statt einfachem
+        # Farbabgleich, + SCNR. PCC arbeitet auf den LINEAREN Daten (richtig vor dem Strecken).
+        if getattr(args, "astro_pcc", False):
+            try:
+                import photometric
+                hints = photometric.fits_hints(paths[0]) if paths else {}
+                cal = photometric.run_pcc(res, hints=hints,
+                                          prefer=getattr(args, "astro_pcc_backend", "auto"),
+                                          oscsensor=getattr(args, "astro_oscsensor", None) or None,
+                                          narrowband=getattr(args, "astro_narrowband", False),
+                                          siril_path=getattr(args, "siril_path", None))
+            except Exception as e:
+                print(f"  PCC fehlgeschlagen ({e}) → Standard-Farbabgleich", file=sys.stderr)
+                cal = astro.color_balance(res, color_s)
+        else:
+            cal = astro.color_balance(res, color_s)
         return astro.remove_green_cast(cal)
 
     if args.astro_stretch:

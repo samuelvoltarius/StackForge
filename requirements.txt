@@ -11,6 +11,9 @@ requests>=2.28          # nur für optionalen KI-Server (OpenAI-kompatibel)
 ExifRead>=3.0           # EXIF lesen ohne exiftool (Brennweite/Blende/ISO/Belichtung; JPEG + RAW)
 piexif>=1.1             # EXIF auf JPEG-Ausgaben übernehmen ohne exiftool (eingebaut, mitgeliefert)
 astropy>=5.3            # optional: FITS lesen/schreiben (Astro). Ohne astropy laufen JPG/TIFF/RAW normal.
+astroquery>=0.4.7       # optional: eigener Gaia-DR3-Pfad für PCC (Farbkalibrierung). Ohne -> Siril-SPCC/Lite.
+scipy>=1.10             # optional: TPS-Feinregistrierung (Thin-Plate-Spline). Ohne -> globale Ausrichtung.
+lensfunpy>=1.10         # optional: automatische Objektivkorrektur (lensfun-DB). Ohne -> manuelle Regler.
 
 # macOS: echtes Dock-Icon (optional)
 pyobjc-framework-Cocoa; sys_platform == "darwin"

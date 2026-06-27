@@ -6,6 +6,23 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.22.0] – 2026-06-27
+### Echte photometrische Farbkalibrierung (PCC/SPCC) mit dreistufigem Fallback
+PCC wurde von der stern-basierten Lite-Version auf **echte Katalog-Photometrie** aufgewertet
+(`core/photometric.py`), mit sauberem Abstieg, sodass es nie hart scheitert:
+1. **Siril-SPCC** (bevorzugt): steuert ein installiertes Siril headless — Plate-Solve +
+   Spektrophotometrische Farbkalibrierung gegen den **Gaia-DR3**-Katalog. Keine weiteren Python-Abhängigkeiten.
+2. **Eigener Gaia-Pfad** (MIT): Plate-Solve (nutzt Sirils Solver, sonst ASTAP / astrometry.net) →
+   Gaia-DR3-Kegelsuche via `astroquery` → Katalogsterne über WCS den Bildsternen zuordnen → Kanal-Abgleich.
+3. **PCC-lite** (immer verfügbar): stern-basierter neutraler Weißabgleich aus dem Bild selbst — kein
+   Katalog, kein Netz.
+- `--astro-pcc-backend {auto,siril,gaia,lite}`, `--astro-oscsensor`, `--astro-narrowband`; GUI-Combo +
+  Sensorfeld + Schmalband-Schalter; an echten IC5146-Subs verifiziert (Plate-Solve + WCS bestätigt; die
+  Katalog-Abfrage braucht Netz/Gaia-Zugang, den die Sandbox blockierte — die Kette fällt dort auf Lite zurück).
+- Hinweis: KI/LLMs werden für die Photometrie bewusst **nicht** genutzt — PCC ist eine Messung
+  (Sternfarben gegen Katalog), kein Ermessen.
+- `astroquery`/`scipy`/`lensfunpy` als optionale Abhängigkeiten dokumentiert. +4 Tests (97 gesamt, grün).
+
 ## [1.21.0] – 2026-06-27
 ### Profi-Tool-Lücken-Welle — alle restlichen 🟡/❌ aus dem Vergleich eingebaut
 Schließt die letzten Teil- und offenen Punkte aus dem Profi-Tool-Vergleich (Helicon/Zerene,

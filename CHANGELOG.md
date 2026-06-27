@@ -6,6 +6,23 @@ All notable changes to ForgePix. Format based on
 [Keep a Changelog](https://keepachangelog.com/), versioning per
 [SemVer](https://semver.org/).
 
+## [1.22.0] – 2026-06-27
+### Real photometric color calibration (PCC/SPCC) with a three-tier fallback
+PCC was upgraded from the star-based lite version to **real catalog photometry** (`core/photometric.py`),
+with graceful degradation so it never hard-fails:
+1. **Siril SPCC** (preferred): drives an installed Siril headless — plate-solve + Spectrophotometric
+   Color Calibration against the **Gaia DR3** catalog. No extra Python deps.
+2. **Own Gaia path** (MIT): plate-solve (reuses Siril's solver, or ASTAP / astrometry.net) →
+   Gaia DR3 cone search via `astroquery` → match catalog stars to image stars via WCS → per-channel fit.
+3. **PCC-lite** (always available): star-based neutral white balance from the image itself — no catalog,
+   no network.
+- `--astro-pcc-backend {auto,siril,gaia,lite}`, `--astro-oscsensor`, `--astro-narrowband`; GUI combo +
+  sensor field + narrowband toggle; verified on real IC5146 subs (plate-solve + WCS confirmed; the catalog
+  query needs network/Gaia access, which the sandbox blocked — the chain degrades to lite there).
+- Note: AI/LLMs are deliberately **not** used for the photometry — PCC is a measurement (star colors vs
+  catalog), not a judgement.
+- `astroquery`/`scipy`/`lensfunpy` documented as optional deps. +4 tests (97 total, green).
+
 ## [1.21.0] – 2026-06-27
 ### Pro-tool gap-closing wave — every remaining 🟡/❌ scorecard item built in
 Closes the last partials and open items from the pro-tool comparison (Helicon/Zerene, Siril/PixInsight/APP,

@@ -402,7 +402,15 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         # Neue Pro-Optionen (v1.21): echtes Drizzle, TPS-Feinregistrierung, PCC, GHS-Regler
         self.astro_drizzle_true = QCheckBox(tr("Echtes Drizzle (pixfrac-Drop statt nur Hochskalieren)"))
         self.astro_tps = QCheckBox(tr("TPS-Feinregistrierung (lokale Restverzeichnung korrigieren)"))
-        self.astro_pcc = QCheckBox(tr("Photometrischer Farbabgleich (PCC, stern-basiert)"))
+        self.astro_pcc = QCheckBox(tr("Photometrischer Farbabgleich (PCC)"))
+        self.astro_pcc_backend = QComboBox()
+        self.astro_pcc_backend.addItem(tr("Auto (Siril → Gaia → Lite)"), "auto")
+        self.astro_pcc_backend.addItem(tr("Siril-SPCC (Gaia DR3)"), "siril")
+        self.astro_pcc_backend.addItem(tr("Eigener Gaia-Pfad (astroquery)"), "gaia")
+        self.astro_pcc_backend.addItem(tr("Lite (stern-basiert, offline)"), "lite")
+        self.astro_oscsensor = QLineEdit()
+        self.astro_oscsensor.setPlaceholderText(tr("optional: OSC-Sensorname wie in Siril (z. B. Sony IMX294)"))
+        self.astro_narrowband = QCheckBox(tr("Schmalband-SPCC (Dual-Band)"))
         self.astro_ghs_d = QDoubleSpinBox(); self.astro_ghs_d.setRange(0.1, 10.0)
         self.astro_ghs_d.setSingleStep(0.5); self.astro_ghs_d.setValue(2.5)
         self.astro_ghs_b = QDoubleSpinBox(); self.astro_ghs_b.setRange(-2.0, 0.0)
@@ -516,10 +524,13 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         ag.addWidget(help_btn("Thin-Plate-Spline-Feinregistrierung: korrigiert nach der globalen "
                               "Ausrichtung die RESTVERZEICHNUNG (Feldkrümmung bei Weitwinkel/Refraktor) "
                               "→ runde Sterne über das ganze Feld."), 7, 3)
-        ag.addWidget(self.astro_pcc, 8, 0, 1, 3)
-        ag.addWidget(help_btn("Photometrischer Farbabgleich (PCC-lite): neutralisiert die mittlere "
-                              "Farbe vieler ungesättigter Sterne (robuster als der Quantil-Weißpunkt). "
-                              "Kein Online-Katalog nötig."), 8, 3)
+        ag.addWidget(self.astro_pcc, 8, 0, 1, 2)
+        ag.addWidget(self.astro_pcc_backend, 8, 2, 1, 1)
+        ag.addWidget(help_btn("Echte photometrische Farbkalibrierung. Auto: Siril-SPCC (Plate-Solve + "
+                              "Gaia DR3) → eigener Gaia-Pfad (astroquery) → Lite (stern-basiert, offline). "
+                              "Siril braucht Netz/Gaia-Katalog; Lite läuft immer."), 8, 3)
+        ag.addWidget(self.astro_oscsensor, 10, 0, 1, 3)
+        ag.addWidget(self.astro_narrowband, 10, 3)
         ag.addWidget(QLabel(tr("GHS D / b / SP")), 9, 0)
         ag.addWidget(self.astro_ghs_d, 9, 1); ag.addWidget(self.astro_ghs_b, 9, 2)
         ag.addWidget(self.astro_ghs_sp, 9, 3)
@@ -1428,7 +1439,11 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
             if self.astro_tps.isChecked():
                 args += ["--astro-tps"]
             if self.astro_pcc.isChecked():
-                args += ["--astro-pcc"]
+                args += ["--astro-pcc", "--astro-pcc-backend", self.astro_pcc_backend.currentData()]
+                if self.astro_oscsensor.text().strip():
+                    args += ["--astro-oscsensor", self.astro_oscsensor.text().strip()]
+                if self.astro_narrowband.isChecked():
+                    args += ["--astro-narrowband"]
             if self.astro_filter.currentData() == "dual":
                 args += ["--dualband", "--palette", self.astro_palette.currentData()]
             if not self.astro_auto.isChecked():   # manuelle Aufbereitung statt Auto/KI
