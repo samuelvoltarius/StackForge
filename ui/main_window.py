@@ -2431,7 +2431,9 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                         return srcs, [f"Foto {i + 1}" for i in range(len(srcs))]
                 except Exception:
                     pass
-        # Fallback: behaltene Frames aus dem Report (ggf. nicht ausgerichtet)
+        # Fallback: behaltene Frames aus dem Report — werden ON-THE-FLY aufs Ergebnis ausgerichtet
+        # (sonst säße die übermalte Stelle daneben). So funktioniert Paint-from-Frame auch ohne
+        # aktivierte Ebenen-Datei.
         report = os.path.join(os.path.dirname(os.path.dirname(self.result_path)), "cull_report.json")
         srcs, names = [], []
         if os.path.isfile(report):
@@ -2442,8 +2444,25 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                         im = cv2.imread(fr["path"], cv2.IMREAD_UNCHANGED)
                         if im is not None:
                             srcs.append(im); names.append(fr.get("name", f"Foto {len(srcs)}"))
+                    if len(srcs) >= 16:                 # für die Retusche reicht eine Auswahl
+                        break
             except Exception:
                 pass
+        if len(srcs) >= 2:
+            try:
+                import sys as _sys
+                _sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "core"))
+                import stacker
+                res = cv2.imread(self.result_path, cv2.IMREAD_UNCHANGED)
+                if res is not None:
+                    h, w = res.shape[:2]
+                    norm = [cv2.resize(s, (w, h)) if s.shape[:2] != (h, w) else s for s in srcs]
+                    aligned = stacker.align_images([res] + norm, ref_idx=0, mode="rigid",
+                                                   log=lambda *a: None)
+                    srcs = aligned[1:]                  # auf das Ergebnis registrierte Quellen
+                    self._append("\n✏️ Quellfotos für die Retusche aufs Ergebnis ausgerichtet.\n")
+            except Exception:
+                pass                                     # zur Not unausgerichtet (besser als nichts)
         return srcs, names
 
     def open_retouch(self):
