@@ -426,6 +426,8 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.astro_deconv = QCheckBox(tr("Dekonvolution (Richardson-Lucy, PSF aus Sternen)"))
         self.astro_deconv_iter = QSpinBox(); self.astro_deconv_iter.setRange(3, 50)
         self.astro_deconv_iter.setValue(15)
+        self.astro_denoise = QDoubleSpinBox(); self.astro_denoise.setRange(0.0, 2.0)
+        self.astro_denoise.setSingleStep(0.25); self.astro_denoise.setValue(0.0)
         self.astro_ghs_d = QDoubleSpinBox(); self.astro_ghs_d.setRange(0.1, 10.0)
         self.astro_ghs_d.setSingleStep(0.5); self.astro_ghs_d.setValue(2.5)
         self.astro_ghs_b = QDoubleSpinBox(); self.astro_ghs_b.setRange(-2.0, 0.0)
@@ -572,13 +574,17 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "Siril braucht Netz/Gaia-Katalog; Lite läuft immer."), 14, 3)
         ag.addWidget(self.astro_oscsensor, 15, 0, 1, 3)
         ag.addWidget(self.astro_narrowband, 15, 3)
-        # — Schärfung —
-        _subhead(tr("Schärfung"), 16)
+        # — Schärfung & Rauschen —
+        _subhead(tr("Schärfung & Rauschen"), 16)
         ag.addWidget(self.astro_deconv, 17, 0, 1, 2)
         ag.addWidget(QLabel(tr("Iterationen")), 17, 2); ag.addWidget(self.astro_deconv_iter, 17, 3)
         ag.addWidget(help_btn("Dekonvolution (Richardson-Lucy) holt von Seeing/Optik verschmiertes "
                               "Detail zurück — die PSF wird aus den Sternen geschätzt. Mit Stern-Schutz "
                               "gegen dunkle Ringe. Mehr Iterationen = schärfer, aber mehr Rauschen."), 16, 3)
+        ag.addWidget(QLabel(tr("Rauschreduktion")), 18, 0, 1, 2); ag.addWidget(self.astro_denoise, 18, 2)
+        ag.addWidget(help_btn("Multi-Skalen-Wavelet-Rauschreduktion auf den LINEAREN Daten (vor dem "
+                              "Strecken) — sonst zieht der Stretch das Hintergrundrauschen hoch. "
+                              "0 = aus, 0.5–1.5 sinnvoll."), 18, 3)
         ar.addWidget(adv, 22, 0, 1, 4)
         # Vorschau-Aufbereitung: Auto (KI/Standard) oder manuelle Regler
         ar.addWidget(self.astro_auto, 14, 0, 1, 3)
@@ -1502,6 +1508,8 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                 args += ["--bg-extract"]
             if self.astro_deconv.isChecked():
                 args += ["--astro-deconv", "--astro-deconv-iter", str(self.astro_deconv_iter.value())]
+            if self.astro_denoise.value() > 0:
+                args += ["--astro-denoise", str(self.astro_denoise.value())]
             if self.astro_fits.isChecked():
                 args += ["--fits-out"]
             args += ["--astro-align", self.astro_align.currentData()]

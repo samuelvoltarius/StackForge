@@ -1142,6 +1142,10 @@ def main():
     ap.add_argument("--astro-deconv-protect", type=float, default=0.85,
                     help="Dekonvolution: Stern-Schutz-Schwelle 0..1 (hellere Bereiche werden weich "
                          "geschützt; niedriger = mehr Schutz)")
+    ap.add_argument("--astro-denoise", type=float, default=0.0,
+                    help="Astro: Multi-Skalen-Wavelet-Rauschreduktion auf den LINEAREN Daten vor dem "
+                         "Strecken (0=aus, 0.5–1.5 sinnvoll) — gegen Hintergrundrauschen, das der Stretch "
+                         "sonst hochzieht")
     ap.add_argument("--fits-out", action="store_true",
                     help="Astro: Ergebnis zusätzlich als 32-bit-FITS speichern (PixInsight/Siril)")
     ap.add_argument("--no-astro-qc", action="store_true",
@@ -1525,6 +1529,13 @@ def _astro_write(result, work_dir, paths, args, astro):
         print("  Dekonvolution (Richardson-Lucy, PSF aus Sternen) …")
         result = astro.deconvolve(result, iterations=getattr(args, "astro_deconv_iter", 15),
                                   star_protect=getattr(args, "astro_deconv_protect", 0.85))
+    _dn = float(getattr(args, "astro_denoise", 0.0) or 0.0)
+    if _dn > 0:
+        # Luminanz-Rauschreduktion auf den LINEAREN Daten (vor dem Strecken — PixInsight-MMT-Prinzip):
+        # Multi-Skalen-Soft-Threshold; sonst zieht der Stretch das Hintergrundrauschen ungebremst hoch.
+        print(f"  Rauschreduktion (Multi-Skalen-Wavelet, Stärke {_dn:.2f}) …")
+        import wavelet
+        result = wavelet.wavelet_denoise(result.astype(np.float32), strength=_dn)
     stack_dir = os.path.join(work_dir, "stack")
     if os.path.isdir(stack_dir):
         shutil.rmtree(stack_dir)

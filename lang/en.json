@@ -566,5 +566,7 @@
   "Zwei überlappende Bilder wählen (links, rechts)": "Pick two overlapping images (left, right)",
   "↶ Letzten Punkt": "↶ Last point",
   "🧩  Panorama: Kontrollpunkte (manuell)": "🧩  Panorama: control points (manual)",
-  "🧩 Zusammensetzen": "🧩 Stitch"
+  "🧩 Zusammensetzen": "🧩 Stitch",
+  "Schärfung & Rauschen": "Sharpening & noise",
+  "Multi-Skalen-Wavelet-Rauschreduktion auf den LINEAREN Daten (vor dem Strecken) — sonst zieht der Stretch das Hintergrundrauschen hoch. 0 = aus, 0.5–1.5 sinnvoll.": "Multi-scale wavelet noise reduction on the LINEAR data (before stretching) — otherwise the stretch pulls up the background noise. 0 = off, 0.5–1.5 sensible."
 }
