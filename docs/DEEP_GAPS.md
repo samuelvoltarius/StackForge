@@ -1,5 +1,12 @@
 # ForgePix — Deep Algorithmic Gap Analysis vs Pro Tools (v1.23)
 
+> **v1.25 status: every gap below is now BUILT** (engine algorithms, OpenCV/NumPy/scipy, +55 tests).
+> Focus F1–F5 · Astro A1–A6 · Lucky L1–L4 · HDR/Long H1–H5 · Panorama P1–P5 · RAW R1–R6 (minus the
+> GPL/ML-only items: AMaZE/RCD demosaic, BlurX/NoiseX/StarXTerminator, Jupiter derotation). Each module
+> has its own `tests/test_<module>_gaps.py`. CLI flags + GUI wired for the user-facing ones; the heavy
+> solvers (panorama distortion BA, RAW color-management pipeline) are engine-ready and partially wired.
+
+
 Not a feature checklist — this is an **algorithm-level** audit of where ForgePix is genuinely weaker than
 the leading tools, why, and what would close the gap. Researched per module (pro-tool algorithms + ForgePix
 source). Honest: it also says where ForgePix is already on par.

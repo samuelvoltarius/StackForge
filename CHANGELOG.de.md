@@ -6,6 +6,30 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.25.0] – 2026-06-27
+### Alle restlichen tiefen Lücken gebaut — 6 parallele Modul-Agenten + Integration
+Der komplette `DEEP_GAPS.md`-Backlog als echte Engine-Algorithmen umgesetzt (ein Subagent je Modul,
+dann Verifikation + Fixes + CLI/GUI-Verdrahtung). Reines OpenCV/NumPy/scipy. +55 Tests (161 gesamt, grün).
+- **Fokus:** Focus-Breathing-Korrektur (`--focus-breathing`), cross-scale-konsistenter Pyramiden-Merge
+  (`--focus-method pyramid-consistent`), kantenerhaltende Tiefenkarten-Regularisierung (`--focus-regularize`),
+  Fenster-Energie-Selektor + Schärfster-Frame-Deghost.
+- **Astro:** Dreiecks-/Asterismus-Stern-Matching (rotations-/spiegel-invariant), Per-Frame-SNR-Gewichtung +
+  iteratives Sigma (`--astro-weight`), regularisierte+Deringing+Tiled-PSF-Dekonvolution
+  (`--astro-deconv-regularize`), klassisches morphologisches Star-Removal (`--astro-starless-classic`).
+- **Lucky:** Drizzle/Super-Resolution 1.5×/3× (`--lucky-drizzle`), iterativ verfeinerte Referenz
+  (`--lucky-refine`), adaptive Alignment-Punkt-Dichte (`--lucky-adaptive-ap`).
+- **HDR/Langzeit:** Punkt-Stern-Stacking mit Feldrotations-Ausgleich (`--longexp-mode stars`), lokales
+  Durand-Tonemapping (`--hdr-tonemap local`), Gradient/adaptives + Optical-Flow-Deghosting
+  (`--hdr-deghost-flow`), räumlich beschränkte Sky-Maske.
+- **Panorama:** eigener scipy-Bündelausgleich mit Linsen-Verzeichnungs-Selbstkalibrierung (a/b/c),
+  photometrische Vignette+Belichtungs-Optimierung, manuelle N-Bild-Kontrollpunkte, Include/Exclude-Masken.
+- **RAW:** echtes Farb-Management (Kamera-Matrix → Rec2020/ProPhoto/sRGB-Arbeitsraum + Bradford),
+  szenenbezogenes filmic-Tonemapping (hue-erhaltend), getrenntes Luma/Chroma-Denoise (16-bit-treu),
+  parametrische Masken (nach Luminanz/Hue/Sättigung).
+- Ehrlich nicht machbar: Jupiter-Derotation (Ephemeriden), AMaZE/RCD-Demosaic (GPL-LibRaw), ML-Tools.
+  Panorama-Verzeichnungs-BA und RAW-Farb-Management sind engine-fertig; die Default-Verdrahtung des
+  Farb-Managements in die Haupt-Pipeline ist ein Folgeschritt.
+
 ## [1.24.0] – 2026-06-27
 ### Tiefe Lücken geschlossen — Algorithmus-Fixes aus dem Profi-Tool-Audit (`docs/DEEP_GAPS.md`)
 Ein Modul-für-Modul-**Algorithmus**-Audit (keine Feature-Häkchen) fand substanzielle Lücken; die Quick-Wins:

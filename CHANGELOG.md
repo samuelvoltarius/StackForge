@@ -6,6 +6,30 @@ All notable changes to ForgePix. Format based on
 [Keep a Changelog](https://keepachangelog.com/), versioning per
 [SemVer](https://semver.org/).
 
+## [1.25.0] – 2026-06-27
+### Every remaining deep gap built — 6 parallel module agents + integration
+The full `DEEP_GAPS.md` backlog implemented as real engine algorithms (one subagent per module, then
+verification + fixes + CLI/GUI wiring). Pure OpenCV/NumPy/scipy. +55 tests (161 total, all green).
+- **Focus:** focus-breathing correction (smoothed scale, `--focus-breathing`), cross-scale-consistent
+  pyramid merge (`--focus-method pyramid-consistent`), edge-aware depth-map regularization
+  (`--focus-regularize`), window-energy selector + sharpest-frame deghost.
+- **Astro:** triangle/asterism star matching (rotation/mirror invariant), per-frame SNR weighting +
+  iterative sigma (`--astro-weight`), regularized + deringing + tiled-PSF deconvolution
+  (`--astro-deconv-regularize`), classic morphological star removal (`--astro-starless-classic`).
+- **Lucky:** drizzle / super-resolution 1.5×/3× (`--lucky-drizzle`), iteratively-refined reference
+  (`--lucky-refine`), adaptive alignment-point density (`--lucky-adaptive-ap`).
+- **HDR / long exposure:** point-star stacking with field-rotation compensation (`--longexp-mode stars`),
+  local Durand tonemapping (`--hdr-tonemap local`), gradient/adaptive + optical-flow deghosting
+  (`--hdr-deghost-flow`), spatially-constrained sky mask.
+- **Panorama:** own scipy bundle adjuster that self-calibrates lens distortion a/b/c, photometric
+  vignette+exposure optimization, manual N-image control points, per-image include/exclude masks.
+- **RAW:** real color management (camera matrix → Rec2020/ProPhoto/sRGB working space + Bradford),
+  scene-referred filmic tonemapping (hue-preserving highlight rolloff), separated luma/chroma denoise
+  (16-bit-faithful), parametric masks (by luminance/hue/saturation).
+- Honestly not feasible: Jupiter derotation (ephemerides), AMaZE/RCD demosaic (GPL LibRaw build),
+  the ML tools (BlurX/NoiseX/StarXTerminator). Panorama distortion BA and RAW color management are
+  engine-ready; full pipeline-default wiring of color management is a follow-up.
+
 ## [1.24.0] – 2026-06-27
 ### Deep gap-closing — algorithm-level fixes from the pro-tool audit (`docs/DEEP_GAPS.md`)
 A module-by-module **algorithm** audit (not feature checkboxes) found substantive gaps; the quick-wins:
