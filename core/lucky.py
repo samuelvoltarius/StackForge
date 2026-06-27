@@ -131,3 +131,157 @@ def lucky_stack(path, keep_pct=0.30, max_frames=3000, align=True, sharpen_amount
         out = np.clip(out.astype(np.float32) * (1 + a) - blur.astype(np.float32) * a, 0, 255).astype(np.uint8)
         log(f"    Nachgeschärft (Unsharp {sharpen_amount} %)")
     return out
+
+
+def _local_quality(patch):
+    """Lokales Struktur-/Schärfemaß: Minimum der mittleren Gradientenbeträge in x und y.
+    Das min(…) erzwingt echte 2-D-Struktur (eine reine 1-D-Kante zählt nicht)."""
+    if patch.size < 9:
+        return 0.0
+    gx = np.abs(np.diff(patch.astype(np.float32), axis=1)).mean()
+    gy = np.abs(np.diff(patch.astype(np.float32), axis=0)).mean()
+    return float(min(gx, gy))
+
+
+def _global_shift(ref_g, mov_g):
+    """Grobe globale Subpixel-Translation (mov→ref) per Phasenkorrelation."""
+    try:
+        (dx, dy), _ = cv2.phaseCorrelate(ref_g, mov_g)
+        return dx, dy
+    except cv2.error:
+        return 0.0, 0.0
+
+
+def lucky_stack_map(path, keep_global=0.6, keep_local=0.5, max_load=200,
+                    ap_step=50, box_half=22, patch_half=34, search_half=12,
+                    log=print, preview_cb=None):
+    """Multi-Point-(MAP)-Lucky-Imaging (AutoStakkert/PlanetarySystemStacker-Prinzip).
+
+    1) Frames global nach Schärfe ranken, die besten `keep_global` laden + global ausrichten.
+    2) Mittelbild als Referenz-Leinwand.
+    3) Alignment-Punkt-Raster (nur APs mit echter Struktur).
+    4) PRO AP: alle geladenen Frames nach LOKALEM Kontrast ranken → die besten `keep_local`.
+    5) PRO AP+Frame: lokalen Subpixel-Versatz (matchTemplate + Parabel) bestimmen.
+    6) Patches je AP mitteln (lokal ausgerichtet → scharf + entrauscht).
+    7) Hann-gewichtet nahtlos zusammenblenden; Lücken = Mittelbild.
+
+    Korrigiert das LOKALE Seeing, das die globale Mittelung nicht kann. Gibt 8-bit-BGR zurück."""
+    scores, (total, w, h) = grade_video(path, max_frames=max(max_load * 3, 1500), log=log)
+    if not scores:
+        raise ValueError("keine lesbaren Frames")
+    n_load = max(8, min(max_load, int(len(scores) * keep_global)))
+    load_idx = sorted(s[1] for s in scores[:n_load])
+    log(f"    MAP: lade {len(load_idx)} der schärfsten Frames")
+
+    cap = cv2.VideoCapture(path)
+    frames, grays = [], []
+    for fi in load_idx:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, fi)
+        ok, fr = cap.read()
+        if not ok or fr is None:
+            continue
+        if fr.ndim == 2:
+            fr = cv2.cvtColor(fr, cv2.COLOR_GRAY2BGR)
+        frames.append(fr)
+        grays.append(cv2.cvtColor(fr, cv2.COLOR_BGR2GRAY).astype(np.float32))
+    cap.release()
+    if len(frames) < 3:
+        raise ValueError("zu wenige ladbare Frames")
+    h, w = grays[0].shape
+
+    # (1b) global ausrichten: strukturreichstes geladenes Frame = Referenz, Rest per Phasenkorrelation
+    ref_i = int(np.argmax([_local_quality(g) for g in grays]))
+    refg = grays[ref_i]
+    for i in range(len(frames)):
+        if i == ref_i:
+            continue
+        dx, dy = _global_shift(refg, grays[i])
+        M = np.float32([[1, 0, dx], [0, 1, dy]])
+        frames[i] = cv2.warpAffine(frames[i], M, (w, h), flags=cv2.INTER_LANCZOS4,
+                                   borderMode=cv2.BORDER_REPLICATE)
+        grays[i] = cv2.warpAffine(grays[i], M, (w, h), flags=cv2.INTER_LANCZOS4,
+                                  borderMode=cv2.BORDER_REPLICATE)
+    log("    MAP: global ausgerichtet")
+
+    # (2) Mittelbild
+    mean_c = np.mean(np.stack([f.astype(np.float32) for f in frames]), axis=0)
+    mean_g = cv2.cvtColor(mean_c.astype(np.uint8), cv2.COLOR_BGR2GRAY).astype(np.float32)
+
+    # (3) AP-Raster, nur wo Struktur
+    pad = patch_half + search_half + 2
+    ys = list(range(pad, h - pad, ap_step))
+    xs = list(range(pad, w - pad, ap_step))
+    # Hell/Dunkel-Schwelle: APs sollen NICHT über den Scheibenrand/Hintergrund liegen
+    bg = float(np.percentile(mean_g, 20))
+    peak = float(np.percentile(mean_g, 97))
+    disk_floor = bg + 0.18 * (peak - bg)
+    cand, qmax = [], 0.0
+    for yi, y in enumerate(ys):
+        for x in xs:
+            xx = x + (ap_step // 2 if yi % 2 else 0)            # versetztes Raster
+            if xx >= w - pad:
+                continue
+            box = mean_g[y - box_half:y + box_half, xx - box_half:xx + box_half]
+            if float(box.min()) < disk_floor:                  # Box berührt Rand/Hintergrund → raus
+                continue
+            q = _local_quality(box)
+            qmax = max(qmax, q)
+            cand.append((y, xx, q))
+    thr = qmax * 0.12
+    aps = [(y, x) for (y, x, q) in cand if q >= thr]
+    if not aps:
+        log("    MAP: keine Struktur-APs — Fallback auf globalen Mittel-Stack")
+        return np.clip(mean_c, 0, 255).astype(np.uint8)
+    log(f"    MAP: {len(aps)} Alignment-Punkte mit Struktur")
+
+    # (4-7) pro AP
+    acc = np.zeros((h, w, 3), np.float64)
+    wsum = np.zeros((h, w), np.float64)
+    wy = np.hanning(2 * patch_half)
+    hann = (np.outer(wy, wy) + 1e-3).astype(np.float32)
+    keep_n = max(3, int(len(frames) * keep_local))
+    for k, (y, x) in enumerate(aps):
+        box_q = [(_local_quality(g[y - box_half:y + box_half, x - box_half:x + box_half]), i)
+                 for i, g in enumerate(grays)]
+        box_q.sort(key=lambda t: -t[0])
+        sel = [i for _, i in box_q[:keep_n]]
+        tpl = mean_g[y - box_half:y + box_half, x - box_half:x + box_half]
+        patch_acc = np.zeros((2 * patch_half, 2 * patch_half, 3), np.float64)
+        cnt = 0
+        for i in sel:
+            sr = grays[i][y - box_half - search_half:y + box_half + search_half,
+                          x - box_half - search_half:x + box_half + search_half]
+            if sr.shape[0] < tpl.shape[0] or sr.shape[1] < tpl.shape[1]:
+                continue
+            res = cv2.matchTemplate(sr, tpl, cv2.TM_CCOEFF_NORMED)
+            _, _, _, mx = cv2.minMaxLoc(res)
+            px, py = mx
+            dx, dy = px - search_half, py - search_half
+            if 0 < px < res.shape[1] - 1:
+                d = res[py, px - 1] - 2 * res[py, px] + res[py, px + 1]
+                if abs(d) > 1e-9:
+                    dx += 0.5 * (res[py, px - 1] - res[py, px + 1]) / d
+            if 0 < py < res.shape[0] - 1:
+                d = res[py - 1, px] - 2 * res[py, px] + res[py + 1, px]
+                if abs(d) > 1e-9:
+                    dy += 0.5 * (res[py - 1, px] - res[py + 1, px]) / d
+            patch = cv2.getRectSubPix(frames[i], (2 * patch_half, 2 * patch_half),
+                                      (float(x + dx), float(y + dy)))
+            patch_acc += patch.astype(np.float64)
+            cnt += 1
+        if cnt == 0:
+            continue
+        patch_avg = (patch_acc / cnt).astype(np.float32)
+        acc[y - patch_half:y + patch_half, x - patch_half:x + patch_half] += hann[..., None] * patch_avg
+        wsum[y - patch_half:y + patch_half, x - patch_half:x + patch_half] += hann
+        if k % 100 == 0:
+            log(f"    MAP: AP {k}/{len(aps)}")
+    nz = wsum > 0
+    res = np.array(acc)
+    res[nz] /= wsum[nz, None]
+    # weich ins Mittelbild überblenden: volle MAP-Abdeckung → MAP, dünne Ränder → Mittelbild
+    cover = np.clip(wsum / (hann.max() * 1.2), 0, 1).astype(np.float32)
+    cover = cv2.GaussianBlur(cover, (0, 0), max(1.0, patch_half * 0.4))[..., None]
+    out = res * cover + mean_c * (1.0 - cover)
+    log("    MAP: zusammengeblendet (weich ins Mittelbild)")
+    return np.clip(out, 0, 255).astype(np.uint8)

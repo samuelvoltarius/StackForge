@@ -338,6 +338,28 @@ class TestStacker(TmpCase):
         self.assertLess((g > 250).mean(), (cv2.cvtColor(bright, cv2.COLOR_BGR2GRAY) > 250).mean() + 1e-6)
         self.assertLess((g < 5).mean(), (cv2.cvtColor(dark, cv2.COLOR_BGR2GRAY) < 5).mean() + 1e-6)
 
+    def test_lucky_map_runs(self):
+        import lucky
+        import tempfile
+        # winziges synthetisches Video: texturierte Scheibe + leichter Per-Frame-Versatz
+        base = np.zeros((120, 140, 3), np.uint8)
+        cv2.circle(base, (70, 60), 40, (60, 120, 200), -1)
+        base[20:100, 30:110] = cv2.add(base[20:100, 30:110],
+                                        (_rng().rand(80, 80, 3) * 40).astype(np.uint8))
+        d = tempfile.mkdtemp()
+        vp = os.path.join(d, "syn.avi")
+        vw = cv2.VideoWriter(vp, cv2.VideoWriter_fourcc(*"MJPG"), 20, (140, 120))
+        for k in range(40):
+            M = np.float32([[1, 0, (k % 3) - 1], [0, 1, (k % 2) - 0.5]])
+            vw.write(cv2.warpAffine(base, M, (140, 120), borderMode=cv2.BORDER_REFLECT))
+        vw.release()
+        out = lucky.lucky_stack_map(vp, keep_global=0.8, keep_local=0.5, max_load=30,
+                                    ap_step=20, box_half=10, patch_half=18, search_half=6,
+                                    log=lambda *a: None)
+        self.assertEqual(out.shape, base.shape)
+        self.assertEqual(out.dtype, np.uint8)
+        self.assertEqual(lucky._local_quality(np.zeros((10, 10), np.float32)), 0.0)
+
     def test_hdr_apply_look(self):
         import hdr
         flat = (np.full((80, 100, 3), 128, np.uint8))

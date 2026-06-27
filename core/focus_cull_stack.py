@@ -1619,22 +1619,45 @@ def run_lucky(input_path, work_dir, args):
 
     made = []
     for v in vids:
-        print(f"== Lucky-Imaging: {os.path.basename(v)} "
-              f"(behalte schärfste {getattr(args, 'lucky_keep', 30):.0f} %) ==")
-        try:
-            res = lucky.lucky_stack(v, keep_pct=getattr(args, "lucky_keep", 30) / 100.0,
-                                    sharpen_amount=getattr(args, "lucky_sharpen", 60),
-                                    align=not getattr(args, "no_align", False), preview_cb=_pv)
-        except Exception as e:
-            print(f"  Fehler: {e}", file=sys.stderr)
-            continue
+        print(f"== Lucky-Imaging: {os.path.basename(v)} ==")
         base = os.path.splitext(os.path.basename(v))[0]
-        out_jpg = os.path.join(stack_dir, f"{args.prefix}{base}_lucky.jpg")
-        cv2.imwrite(out_jpg, res, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
-        cv2.imwrite(os.path.join(stack_dir, f"{args.prefix}{base}_lucky.tif"), res,
-                    [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
-        made.append(out_jpg)
-        print(f"  geschrieben: {out_jpg}")
+        # 1) IMMER: das schärfste Einzelbild herausziehen (zuverlässig, schlägt den Stack bei
+        #    strukturarmen/niedrig aufgelösten Zielen wie einer glatten Sonnenscheibe).
+        try:
+            sc, _ = lucky.grade_video(v, max_frames=2000, log=_pv and (lambda *a: None) or print)
+            cap0 = cv2.VideoCapture(v); cap0.set(cv2.CAP_PROP_POS_FRAMES, sc[0][1])
+            ok0, bf = cap0.read(); cap0.release()
+            if ok0 and bf is not None:
+                bf_jpg = os.path.join(stack_dir, f"{args.prefix}{base}_bestframe.jpg")
+                cv2.imwrite(bf_jpg, bf, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+                made.append(bf_jpg)
+                print(f"  schärfstes Einzelbild: {bf_jpg}")
+        except Exception as e:
+            print(f"  (Bestframe übersprungen: {e})", file=sys.stderr)
+        # 2) Multi-Point-(MAP)-Stack — glänzt bei DETAILREICHEN Zielen (Mond-Krater, Jupiter-Bänder);
+        #    bei glatten/komprimierten Scheiben kann das Einzelbild schärfer sein. Beide ausgeben.
+        try:
+            res = lucky.lucky_stack_map(v, keep_global=0.6,
+                                        keep_local=getattr(args, "lucky_keep", 40) / 100.0,
+                                        preview_cb=_pv)
+        except Exception as e:
+            print(f"  MAP-Stack übersprungen: {e}", file=sys.stderr)
+            res = None
+        if res is not None:
+            sa = getattr(args, "lucky_sharpen", 60)
+            if sa and sa > 0:
+                a = sa / 100.0
+                blur = cv2.GaussianBlur(res, (0, 0), 1.4)
+                res = np.clip(res.astype(np.float32) * (1 + a) - blur.astype(np.float32) * a,
+                              0, 255).astype(np.uint8)
+            out_jpg = os.path.join(stack_dir, f"{args.prefix}{base}_map.jpg")
+            cv2.imwrite(out_jpg, res, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+            cv2.imwrite(os.path.join(stack_dir, f"{args.prefix}{base}_map.tif"), res,
+                        [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
+            made.append(out_jpg)
+            print(f"  Multi-Point-Stack: {out_jpg}")
+        print("  Tipp: Bei detailreichen Zielen (Mond/Planeten) gewinnt meist der MAP-Stack, "
+              "bei glatten Scheiben das Einzelbild — vergleiche beide.")
     if not made:
         return None
     if getattr(args, "web_jpg", False):
