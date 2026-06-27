@@ -1,4 +1,11 @@
-# ForgePix vs. Pro Tools — Honest Scorecard (v1.22.1)
+# ForgePix vs. Pro Tools — Honest Scorecard (v1.23.0)
+
+> **v1.23 update:** the items previously listed as remaining are now built — astro **deconvolution**,
+> long-exposure **auto sky-mask**, **paint-from-frame** retouch (aligned fallback), the **lucky-imaging
+> fix** (wavelet-sharpen inside MAP → now beats the single frame on realistic noise), a RAW **local-contrast
+> equalizer**, and a **manual panorama control-point editor**. Still genuinely open: the full N-image Hugin
+> control-point optimizer, and a real-telescope validation of lucky imaging (synthetic-seeing validated).
+
 
 Status after the parity wave (v1.20) and the gap-closing waves (v1.21–v1.22). Honest:
 ✅ = at/near parity for the core job · 🟡 = works but a real refinement is missing · ❌ = not built.
@@ -41,9 +48,10 @@ not per-pixel source-frame painting. → 🟡 (rarely needed thanks to halofix).
 | Dual-band palettes (HOO/SHO/Foraxx/Bicolor) | PI scripts | ✓ | ✅ |
 | Binning, multi-session, live preview | mixed | ✓ | ✅ |
 
-**Remaining:** **deconvolution / PSF sharpening** (PixInsight Deconvolution, BlurXTerminator) — ForgePix
-has wavelet sharpening but no PSF-based deconvolution. No PixelMath scripting engine. Comet-mode stacking
-(align on the comet) not in the astro path. → 🟡 (deconvolution is the one genuine technique gap).
+| Deconvolution / PSF sharpening | PixInsight | **Richardson-Lucy** (`--astro-deconv`, PSF from stars) | ✅ |
+
+**Remaining:** no PixelMath scripting engine; comet-mode stacking (align on the comet) not in the astro
+path. The core stack→calibrate→deconvolve→stretch→color chain is complete. → ✅.
 
 ## 📷 HDR — vs Photomatix / Lightroom HDR
 
@@ -102,13 +110,15 @@ local contrast equalizer. ForgePix is a faithful developer + editor, not a full 
 
 | Capability | Pro tool | ForgePix | |
 |---|---|---|---|
-| Multi-point (MAP) alignment | ✓ | experimental `lucky_stack_map` | 🟡 |
-| Per-AP quality sort + stack | ✓ | partial | 🟡 |
-| Wavelet sharpening | RegiStax | à-trous | ✅ |
+| Multi-point (MAP) alignment | ✓ | `lucky_stack_map` (AP grid + local sub-pixel) | ✅ |
+| Per-AP quality sort + stack | ✓ | sharpest fraction per AP | ✅ |
+| Wavelet sharpening after stack | RegiStax | à-trous, **now inside MAP** | ✅ |
 
-**Remaining — the weakest module.** On featureless/low-res discs the single best frame can still beat
-the MAP stack. Needs a good Moon/planet **video** to validate and tune (the dev set was a Seestar RAW
-`.avi` that cv2 mis-decodes — use `.mp4`). → 🟡/❌ honest.
+**Fixed in v1.23.** The MAP stack was over-smoothed because it never sharpened — added wavelet sharpening
+inside `lucky_stack_map` (the stack averages noise; sharpening restores resolution). On realistic noise,
+MAP+sharpen now beats the single best frame (validated against synthetic-seeing ground truth).
+**Honest caveat:** needs a real telescope capture (static target + atmospheric seeing, `.mp4` — not a
+RAW `.avi` that cv2 mis-decodes, and not a panning flythrough) for a real-world confirmation. → ✅ algorithm.
 
 ---
 
@@ -116,16 +126,19 @@ the MAP stack. Needs a good Moon/planet **video** to validate and tune (the dev 
 
 | Module | Verdict |
 |---|---|
-| Focus stacking | ✅ parity (minus paint-from-frame retouch) |
-| Astro stacking | ✅ parity (minus deconvolution) |
+| Focus stacking | ✅ parity (incl. paint-from-frame retouch) |
+| Astro stacking | ✅ parity (incl. deconvolution) |
 | HDR | ✅ parity |
-| Long exposure | ✅ parity (minus auto sky-mask) |
-| Panorama | 🟡 auto ✅, manual control-point UI ❌ |
-| RAW develop | 🟡 essentials ✅, not a full RT/darktable |
-| Lucky imaging | 🟡 experimental — the one to fix next |
+| Long exposure | ✅ parity (incl. auto sky-mask) |
+| Panorama | ✅ auto + manual control points (2-image); full N-image optimizer open |
+| RAW develop | 🟡 strong essentials (incl. local-contrast equalizer), not a full RT/darktable graph |
+| Lucky imaging | ✅ algorithm fixed (beats single frame on noisy data); needs real-telescope validation |
 
 **Top remaining items, honestly ranked:**
-1. **Lucky-imaging MAP** — needs a real Moon/planet video to fix properly.
-2. **Panorama control-point UI** — a sizeable standalone GUI feature.
-3. **Astro deconvolution (PSF)** — the one missing pro *technique* in an otherwise complete astro chain.
-4. Sky-segmentation auto-mask for freeze-foreground; paint-from-frame focus retouch (both nice-to-have).
+1. **Lucky imaging — real-telescope validation:** the algorithm is fixed and validated against
+   synthetic-seeing ground truth; a genuine static-target capture with atmospheric seeing (`.mp4`) would
+   confirm it on real data.
+2. **Panorama — full N-image control-point optimizer:** the manual 2-image stitch exists; a Hugin-style
+   N-image bundle-adjusting CP editor is a larger standalone project.
+3. **RAW — full module-graph editor:** ForgePix is a faithful developer + editor with the key modules,
+   not a darktable clone; that's a deliberate scope choice, not a bug.

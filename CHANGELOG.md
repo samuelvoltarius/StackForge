@@ -6,6 +6,28 @@ All notable changes to ForgePix. Format based on
 [Keep a Changelog](https://keepachangelog.com/), versioning per
 [SemVer](https://semver.org/).
 
+## [1.23.0] – 2026-06-27
+### Closing the last comparison gaps — deconvolution, sky-mask, lucky fix, control points
+The remaining 🟡/❌ items from the pro-tool scorecard, built and tested:
+- **Astro — deconvolution** (`--astro-deconv`): Richardson-Lucy with a PSF estimated from the stars,
+  applied to the linear master, with soft star-protection against ringing. The one missing astro
+  *technique* — verified on IC5146 (tighter stars, no overshoot).
+- **Long exposure — automatic sky mask** (`--longexp-freeze-auto`): separates sky (moving stars) from
+  the static foreground via temporal pixel variance, instead of a fixed height split (Sequator-style).
+- **Focus — paint-from-frame retouch:** the retouch editor already painted from a chosen source frame;
+  the fallback now aligns those frames to the result on-the-fly, so it works without the layered file.
+- **Lucky imaging — the real fix:** the MAP stack was over-smoothed because it never sharpened. Now it
+  wavelet-sharpens inside `lucky_stack_map` (AutoStakkert/RegiStax principle: stack averages noise,
+  sharpening restores resolution) and stacks fewer frames per point. On realistic noise, MAP+sharpen now
+  **beats the single best frame** (validated against synthetic-seeing ground truth). *(Honest: needs a real
+  telescope capture — static target + seeing — to shine; a panning flythrough isn't a lucky scenario.)*
+- **RAW — local-contrast equalizer:** the "Clarity" slider now uses a multi-scale (halo-arm) local
+  contrast equalizer (darktable/RawTherapee module) instead of a single-radius unsharp.
+- **Panorama — manual control points:** `mosaic.stitch_from_points` + a `ControlPointDialog` (Tools menu)
+  to stitch two tiles by hand when auto-stitch fails (homography from ≥4 user point pairs, feathered blend).
+  First version for a pair; the full N-image Hugin optimizer remains a larger project.
+- +6 engine tests (104 total, green).
+
 ## [1.22.1] – 2026-06-27
 ### Astrometry.net online plate-solving for PCC (bring-your-own key)
 - The Gaia PCC path can now blind-solve via the **nova.astrometry.net online API** when no Siril/local

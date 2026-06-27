@@ -2,12 +2,13 @@
 
 *[🇩🇪 Deutsche Version](ROADMAP.de.md)*
 
-> **Status (v1.22):** the parity wave (v1.20) and the gap-closing wave (v1.21–v1.22) are **done**.
-> Every 🟡/❌ from the scorecard is built: focus Radius/Smoothing + halo retouch; astro full **GHS**,
-> **linear-fit clipping**, **TPS** registration, **true drizzle**, real **PCC/SPCC** (Siril Gaia DR3 /
-> own astroquery / lite); HDR **radiance tonemapping**; long-exposure **sigma-clip** + **freeze
-> foreground**; RAW **lens corrections** (lensfun/manual) + AMaZE. Still open: lucky-imaging MAP
-> (needs a good Moon/planet video) and the panorama control-point UI (a separate large GUI project).
+> **Status (v1.23):** the parity wave (v1.20) and the gap-closing waves (v1.21–v1.23) are **done**.
+> Every 🟡/❌ from the scorecard is built — including astro **GHS** / **linear-fit** / **TPS** / **true
+> drizzle** / real **PCC/SPCC** / **deconvolution**, HDR **radiance tonemapping**, long-exposure
+> **sigma-clip** + **auto sky-mask freeze**, focus **halofix** + **paint-from-frame**, RAW **lens
+> corrections** + **local-contrast equalizer**, the **lucky-imaging fix** (sharpen inside MAP), and a
+> **manual panorama control-point editor**. See `COMPARISON.md`. Genuinely open: the full N-image Hugin
+> CP optimizer, and a real-telescope validation of lucky imaging (synthetic-seeing validated).
 
 Audit of every ForgePix module against the leading professional tools, with a concrete, prioritized
 rebuild plan. Researched from Helicon/Zerene/PetteriAimonen (focus), AutoStakkert/PlanetarySystemStacker

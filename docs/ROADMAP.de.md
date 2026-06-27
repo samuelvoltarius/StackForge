@@ -2,12 +2,13 @@
 
 *[🇬🇧 English version](ROADMAP.md)*
 
-> **Status (v1.22):** die Parity-Welle (v1.20) und die Lücken-Welle (v1.21–v1.22) sind **fertig**.
-> Jeder 🟡/❌-Punkt der Scorecard ist gebaut: Fokus Radius/Smoothing + Halo-Retusche; Astro volles **GHS**,
-> **Linear-Fit-Clipping**, **TPS**-Registrierung, **echtes Drizzle**, echtes **PCC/SPCC** (Siril Gaia DR3 /
-> eigener astroquery-Pfad / Lite); HDR **Radiance-Tonemapping**; Langzeit **Sigma-Clip** + **Vordergrund
-> einfrieren**; RAW **Objektivkorrekturen** (lensfun/manuell) + AMaZE. Noch offen: Lucky-Imaging-MAP
-> (braucht ein gutes Mond-/Planeten-Video) und die Panorama-Kontrollpunkt-UI (eigenes großes GUI-Projekt).
+> **Status (v1.23):** die Parity-Welle (v1.20) und die Lücken-Wellen (v1.21–v1.23) sind **fertig**.
+> Jeder 🟡/❌-Punkt der Scorecard ist gebaut — u. a. Astro **GHS** / **Linear-Fit** / **TPS** / **echtes
+> Drizzle** / echtes **PCC/SPCC** / **Dekonvolution**, HDR **Radiance-Tonemapping**, Langzeit **Sigma-Clip**
+> + **Auto-Sky-Maske**, Fokus **halofix** + **Paint-from-Frame**, RAW **Objektivkorrekturen** + **lokaler
+> Kontrast-Equalizer**, der **Lucky-Imaging-Fix** (Schärfung in MAP) und ein **manueller Panorama-
+> Kontrollpunkt-Editor**. Siehe `COMPARISON.md`. Wirklich offen: voller N-Bild-Hugin-CP-Optimierer und
+> eine Echt-Teleskop-Validierung von Lucky (synthetisch validiert).
 
 Audit jedes ForgePix-Moduls gegen die führenden Profi-Tools, mit konkretem, priorisiertem Nachbau-Plan.
 Recherchiert aus Helicon/Zerene/PetteriAimonen (Fokus), AutoStakkert/PlanetarySystemStacker

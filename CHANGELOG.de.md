@@ -6,6 +6,29 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.23.0] – 2026-06-27
+### Die letzten Vergleichs-Lücken geschlossen — Dekonvolution, Sky-Maske, Lucky-Fix, Kontrollpunkte
+Die restlichen 🟡/❌ aus der Profi-Tool-Scorecard, gebaut und getestet:
+- **Astro — Dekonvolution** (`--astro-deconv`): Richardson-Lucy mit aus den Sternen geschätzter PSF,
+  auf dem linearen Master, mit weichem Stern-Schutz gegen Ringe. Die eine fehlende Astro-*Technik* —
+  an IC5146 verifiziert (engere Sterne, kein Overshoot).
+- **Langzeit — automatische Himmel-Maske** (`--longexp-freeze-auto`): trennt Himmel (bewegte Sterne)
+  vom statischen Vordergrund über die zeitliche Pixel-Streuung statt festem Höhen-Split (Sequator-Stil).
+- **Fokus — Paint-from-Frame-Retusche:** der Retusche-Editor malte schon aus einem gewählten Quell-Frame;
+  der Fallback richtet diese Frames jetzt on-the-fly aufs Ergebnis aus → funktioniert auch ohne Ebenen-Datei.
+- **Lucky-Imaging — der echte Fix:** der MAP-Stack war zu weich, weil er nie geschärft hat. Jetzt
+  Wavelet-Schärfung INNERHALB `lucky_stack_map` (AutoStakkert/RegiStax-Prinzip: Stack mittelt Rauschen,
+  Schärfung holt die Auflösung zurück), weniger Frames je Punkt. Bei realistischem Rauschen schlägt
+  MAP+Schärfung jetzt das beste Einzelbild (gegen synthetisches Seeing mit Ground-Truth validiert).
+  *(Ehrlich: braucht eine echte Teleskop-Aufnahme — statisches Ziel + Seeing; ein Schwenk-Flythrough ist
+  kein Lucky-Szenario.)*
+- **RAW — lokaler Kontrast-Equalizer:** der „Klarheit"-Regler nutzt jetzt einen multiskaligen (halo-armen)
+  lokalen Kontrast-Equalizer (darktable/RawTherapee-Modul) statt Einzel-Radius-Unsharp.
+- **Panorama — manuelle Kontrollpunkte:** `mosaic.stitch_from_points` + ein `ControlPointDialog`
+  (Werkzeuge-Menü), um zwei Kacheln von Hand zusammenzusetzen, wenn die Automatik versagt (Homographie
+  aus ≥4 Nutzer-Punktpaaren, gefederte Blende). Erstversion für ein Paar; voller N-Bild-Hugin-Optimierer offen.
+- +6 Engine-Tests (104 gesamt, grün).
+
 ## [1.22.1] – 2026-06-27
 ### Astrometry.net-Online-Plate-Solving für PCC (eigener Key)
 - Der Gaia-PCC-Pfad kann jetzt über die **nova.astrometry.net-Online-API** blind plate-solven, wenn kein
