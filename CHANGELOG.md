@@ -6,6 +6,36 @@ All notable changes to ForgePix. Format based on
 [Keep a Changelog](https://keepachangelog.com/), versioning per
 [SemVer](https://semver.org/).
 
+## [1.21.0] – 2026-06-27
+### Pro-tool gap-closing wave — every remaining 🟡/❌ scorecard item built in
+Closes the last partials and open items from the pro-tool comparison (Helicon/Zerene, Siril/PixInsight/APP,
+Photomatix/Lightroom, Sequator/StarStaX, Hugin/PTGui, RawTherapee/darktable). Pure OpenCV/NumPy(/scipy).
+- **GraXpert/StarNet now run automatically:** fixed the LZW-TIFF bug (cv2 writes LZW by default, which
+  GraXpert/StarNet's `tifffile` can't read) — inputs are rewritten uncompressed transparently, so the
+  starless/gradient steps just work.
+- **Astro — full GHS stretch** (`--astro-stretch-mode ghs`, `--astro-ghs-d/-b/-sp`): fully parametric
+  Generalised Hyperbolic Stretch (intensity D, character b, symmetry point SP), built by numerical
+  integration → guaranteed monotonic, maps [0,1]→[0,1].
+- **Astro — linear-fit clipping** (`--astro-method linearfit`): PixInsight-style per-pixel line fit +
+  residual rejection — better than sigma-clipping with few subs.
+- **Astro — TPS local registration** (`--astro-tps`): thin-plate-spline against residual field
+  distortion (wide-angle/refractor field curvature) → round stars across the whole field.
+- **Astro — true drizzle** (`--astro-drizzle-true`, `--astro-pixfrac`): real variable-pixel linear
+  reconstruction (inverse point-kernel with pixfrac, flux+weight accumulation) → resolution recovery
+  from dithered subs, not just upscaling.
+- **Astro — photometric color calibration** (`--astro-pcc`): star-based neutral white balance from many
+  unsaturated stars (PCC-lite, no online catalog needed).
+- **HDR — radiance-map tonemapping** (`--hdr-method radiance`, `--hdr-tonemap reinhard|mantiuk|drago`):
+  Debevec radiance map + tonemapping as a dramatic alternative to Exposure Fusion.
+- **Long exposure — sigma-clipping** (`--longexp-sigma`) and **freeze foreground** (`--longexp-freeze`,
+  Sequator-style: sky long-exposed, ground sharp from a single frame).
+- **Focus — Helicon-style Radius/Smoothing** (`--focus-radius`, `--focus-smoothing`) for depthmap/average,
+  and **halo retouch** (`--focus-method halofix`): dual-output — PMax sharpness clamped to the per-pixel
+  source envelope → sharpness without halo over/undershoot.
+- **RAW — lens corrections** (`--lens-auto` via lensfun if installed, else `--lens-vignette/-distortion/-ca`)
+  and AMaZE demosaic attempt with graceful fallback.
+- All wired into CLI + GUI + i18n; +9 engine tests (93 total, green).
+
 ## [1.20.0] – 2026-07-13
 ### Pro-tool parity wave — every module upgraded (researched against Helicon/Zerene, AutoStakkert/PSS, Siril/PixInsight, Photomatix/Sequator/Hugin, RawTherapee/darktable)
 The recurring cross-cutting insight — **local (non-rigid) alignment** — plus the highest-impact

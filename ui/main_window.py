@@ -302,10 +302,19 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.raw_auto_bright = QCheckBox(tr("Auto-Helligkeit (sonst treu)"))
         self.raw_half = QCheckBox(tr("Halbe Auflösung (schneller)"))
         self.raw_demosaic = QComboBox()
-        self.raw_demosaic.addItems(["auto", "dht", "dcb", "vng", "ahd"])
+        self.raw_demosaic.addItems(["auto", "dht", "dcb", "vng", "ahd", "amaze"])
         self.raw_highlights = QCheckBox(tr("Ausgebrannte Lichter rekonstruieren"))
+        # Objektivkorrekturen (lensfun-Auto wenn installiert, sonst manuelle Parameter)
+        self.lens_auto = QCheckBox(tr("Objektivkorrektur automatisch (lensfun, wenn installiert)"))
+        self.lens_vignette = QDoubleSpinBox(); self.lens_vignette.setRange(0.0, 1.0)
+        self.lens_vignette.setSingleStep(0.05); self.lens_vignette.setValue(0.0)
+        self.lens_distortion = QDoubleSpinBox(); self.lens_distortion.setRange(-0.5, 0.5)
+        self.lens_distortion.setSingleStep(0.02); self.lens_distortion.setValue(0.0)
+        self.lens_ca = QDoubleSpinBox(); self.lens_ca.setRange(-0.02, 0.02)
+        self.lens_ca.setDecimals(3); self.lens_ca.setSingleStep(0.001); self.lens_ca.setValue(0.0)
         for w in (self.raw_wb, self.raw_bps, self.raw_auto_bright, self.raw_half,
-                  self.raw_demosaic, self.raw_highlights):
+                  self.raw_demosaic, self.raw_highlights, self.lens_auto,
+                  self.lens_vignette, self.lens_distortion, self.lens_ca):
             self.raw_dev.toggled.connect(w.setEnabled)
         rg.addWidget(self.raw_dev, 0, 0, 1, 2)
         rg.addWidget(help_btn("RAW-Dateien (ARW/NEF/CR2/DNG …) werden zuerst schonend in ein "
@@ -328,6 +337,15 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         rg.addWidget(self.raw_half, 4, 0, 1, 2)
         rg.addWidget(help_btn("Entwickelt RAW in halber Größe — schneller, weniger Details. "
                               "Gut zum schnellen Ausprobieren."), 4, 2)
+        rg.addWidget(self.lens_auto, 6, 0, 1, 2)
+        rg.addWidget(help_btn("Korrigiert Vignette, Verzeichnung und Farbquerfehler automatisch aus der "
+                              "lensfun-Datenbank (wenn lensfunpy installiert und das Objektiv bekannt "
+                              "ist). Sonst die manuellen Regler unten nutzen."), 6, 2)
+        rg.addWidget(QLabel(tr("Vignette")), 7, 0); rg.addWidget(self.lens_vignette, 7, 1)
+        rg.addWidget(help_btn("Manuelle Randabdunklungs-Korrektur (>0 hellt die Ecken auf)."), 7, 2)
+        rg.addWidget(QLabel(tr("Verzeichnung / CA")), 8, 0)
+        rg.addWidget(self.lens_distortion, 8, 1)
+        rg.addWidget(self.lens_ca, 8, 2)
         self.g_raw = g_raw
         p1.addWidget(g_raw)
 
@@ -337,7 +355,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.astro_group = g_astro
         ar = QGridLayout(g_astro)
         self.astro_method = QComboBox()
-        self.astro_method.addItems(["sigma", "winsor", "average", "median", "max"])
+        self.astro_method.addItems(["sigma", "winsor", "linearfit", "average", "median", "max"])
         self.astro_kappa = QDoubleSpinBox(); self.astro_kappa.setRange(1.0, 5.0)
         self.astro_kappa.setSingleStep(0.1); self.astro_kappa.setValue(2.5)
         self.astro_register = QCheckBox(tr("Sterne ausrichten")); self.astro_register.setChecked(True)
@@ -346,6 +364,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.astro_stretch_mode = QComboBox()
         self.astro_stretch_mode.addItem(tr("asinh (Standard)"), "asinh")
         self.astro_stretch_mode.addItem(tr("MTF / Histogramm (reversibel)"), "mtf")
+        self.astro_stretch_mode.addItem(tr("GHS (Generalised Hyperbolic)"), "ghs")
         self.astro_local_norm = QCheckBox(tr("Lokale Normalisierung (gegen Gradienten/Mehrfach-Sessions)"))
         self.astro_bg = QCheckBox(tr("Hintergrund/Gradient entfernen"))
         self.astro_fits = QCheckBox(tr("Auch als FITS speichern"))
@@ -380,6 +399,16 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         self.astro_drizzle = QComboBox()
         self.astro_drizzle.addItem(tr("Aus"), 1)
         self.astro_drizzle.addItem(tr("2× (feineres Sampling)"), 2)
+        # Neue Pro-Optionen (v1.21): echtes Drizzle, TPS-Feinregistrierung, PCC, GHS-Regler
+        self.astro_drizzle_true = QCheckBox(tr("Echtes Drizzle (pixfrac-Drop statt nur Hochskalieren)"))
+        self.astro_tps = QCheckBox(tr("TPS-Feinregistrierung (lokale Restverzeichnung korrigieren)"))
+        self.astro_pcc = QCheckBox(tr("Photometrischer Farbabgleich (PCC, stern-basiert)"))
+        self.astro_ghs_d = QDoubleSpinBox(); self.astro_ghs_d.setRange(0.1, 10.0)
+        self.astro_ghs_d.setSingleStep(0.5); self.astro_ghs_d.setValue(2.5)
+        self.astro_ghs_b = QDoubleSpinBox(); self.astro_ghs_b.setRange(-2.0, 0.0)
+        self.astro_ghs_b.setSingleStep(0.1); self.astro_ghs_b.setValue(-0.5)
+        self.astro_ghs_sp = QDoubleSpinBox(); self.astro_ghs_sp.setRange(0.0, 1.0)
+        self.astro_ghs_sp.setSingleStep(0.02); self.astro_ghs_sp.setValue(0.18)
         # Binning: höheres SNR / rundere Sterne bei überabgetasteten Daten
         self.astro_bin = QComboBox()
         self.astro_bin.addItem(tr("Aus"), 1)
@@ -478,6 +507,22 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "direkt eingelesen."), 2, 3)
         ag.addWidget(self.astro_cosmetic, 3, 0, 1, 2)
         ag.addWidget(QLabel(tr("Drizzle")), 3, 2); ag.addWidget(self.astro_drizzle, 3, 3)
+        ag.addWidget(self.astro_drizzle_true, 6, 0, 1, 3)
+        ag.addWidget(help_btn("Echtes Drizzle (Variable-Pixel Linear Reconstruction): tropft jeden "
+                              "Sub mit geschrumpftem Drop (pixfrac) flusserhaltend aufs feine Gitter "
+                              "→ echte Auflösungsrückgewinnung aus geditherten Subs. Braucht Drizzle 2× "
+                              "und gediterte Aufnahmen."), 6, 3)
+        ag.addWidget(self.astro_tps, 7, 0, 1, 3)
+        ag.addWidget(help_btn("Thin-Plate-Spline-Feinregistrierung: korrigiert nach der globalen "
+                              "Ausrichtung die RESTVERZEICHNUNG (Feldkrümmung bei Weitwinkel/Refraktor) "
+                              "→ runde Sterne über das ganze Feld."), 7, 3)
+        ag.addWidget(self.astro_pcc, 8, 0, 1, 3)
+        ag.addWidget(help_btn("Photometrischer Farbabgleich (PCC-lite): neutralisiert die mittlere "
+                              "Farbe vieler ungesättigter Sterne (robuster als der Quantil-Weißpunkt). "
+                              "Kein Online-Katalog nötig."), 8, 3)
+        ag.addWidget(QLabel(tr("GHS D / b / SP")), 9, 0)
+        ag.addWidget(self.astro_ghs_d, 9, 1); ag.addWidget(self.astro_ghs_b, 9, 2)
+        ag.addWidget(self.astro_ghs_sp, 9, 3)
         ag.addWidget(QLabel(tr("Binning")), 4, 0); ag.addWidget(self.astro_bin, 4, 1, 1, 2)
         ag.addWidget(help_btn("Software-Binning fasst 2×2 (bzw. 3×3) Pixel zusammen: weniger "
                               "Rauschen, rundere/kleinere Sterne, halbe Auflösung. Gut bei "
@@ -564,6 +609,16 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         lg.addWidget(help_btn("Überbrückt Lücken in Strichspuren (durch Schreibpausen zwischen den "
                               "Aufnahmen) — aus gestrichelten werden durchgehende Spuren. Für "
                               "Lichtspuren/Komet."), 5, 3)
+        self.longexp_sigma = QCheckBox(tr("Sigma-Clipping (Ausreißer verwerfen)"))
+        lg.addWidget(self.longexp_sigma, 6, 0, 1, 2)
+        lg.addWidget(help_btn("Bei Glatt/Störer-entfernen: Sigma-Clipping statt rohem Mittel/Median — "
+                              "verwirft Ausreißer (Vögel, Satelliten, Hotpixel, Funkeln) sauber."), 6, 3)
+        self.longexp_freeze = QDoubleSpinBox(); self.longexp_freeze.setRange(0.0, 0.95)
+        self.longexp_freeze.setSingleStep(0.05); self.longexp_freeze.setValue(0.0)
+        lg.addWidget(QLabel(tr("Vordergrund einfrieren")), 7, 0)
+        lg.addWidget(self.longexp_freeze, 7, 1)
+        lg.addWidget(help_btn("Sequator-Stil: unterster Anteil (0..0.95) der Bildhöhe scharf aus einem "
+                              "Einzelbild, nur der Himmel wird langzeitbelichtet. 0 = aus."), 7, 3)
         # Virtuelle Belichtungszeit (gewichtetes Teil-Mitteln)
         self.longexp_strength = QSlider(Qt.Horizontal)
         self.longexp_strength.setRange(0, 100); self.longexp_strength.setValue(100)
@@ -617,6 +672,16 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         hg.addWidget(help_btn("Entfernt Bewegungsgeister (wackelnde Blätter, Personen, Autos): in "
                               "Bewegungszonen wird nur das best-belichtete Bild genommen statt der "
                               "Fusion. Auto = dezent, Stark = empfindlicher."), 2, 2)
+        self.hdr_method = QComboBox()
+        self.hdr_method.addItem(tr("Exposure Fusion (Standard, halo-frei)"), "fusion")
+        self.hdr_method.addItem(tr("Radiance-Map + Tonemapping (dramatisch)"), "radiance")
+        hg.addWidget(QLabel(tr("Methode")), 4, 0); hg.addWidget(self.hdr_method, 4, 1)
+        hg.addWidget(help_btn("Fusion = Mertens (Standard, robust, halo-frei). Radiance = echte "
+                              "Radiance-Map (Debevec) + Tonemapping → dramatischer lokaler Kontrast."), 4, 2)
+        self.hdr_tonemap = QComboBox()
+        self.hdr_tonemap.addItems(["reinhard", "mantiuk", "drago"])
+        hg.addWidget(QLabel(tr("Tonemapping")), 5, 0); hg.addWidget(self.hdr_tonemap, 5, 1)
+        hg.addWidget(help_btn("Tonemapping-Operator für die Radiance-Methode."), 5, 2)
         hdr_info = QLabel(tr("Verrechnet Belichtungsreihen (Lichter + Schatten durchgezeichnet, "
                              "Exposure Fusion). Das ist NICHT Fokus-Stacking. Freihand wird "
                              "automatisch ausgerichtet."))
@@ -755,13 +820,24 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         kg.addWidget(self.nostack, 9, 0, 1, 2)
         kg.addWidget(help_btn("Nur Fotos auswählen, noch nicht verrechnen — zum Prüfen der Auswahl."), 9, 2)
         self.focus_method = QComboBox()
-        self.focus_method.addItems(["pyramid", "depthmap", "average", "wavelet"])
+        self.focus_method.addItems(["pyramid", "depthmap", "average", "halofix", "wavelet"])
         kg.addWidget(QLabel(tr("Verschmelzungs-Methode")), 10, 0); kg.addWidget(self.focus_method, 10, 1)
         kg.addWidget(help_btn("Wie die scharfen Bereiche verschmolzen werden. „pyramid“ = Laplace-"
                               "Pyramide (Standard): sehr scharf, ideal für feine/weiche Strukturen wie "
                               "Blüten und Fell. „depthmap“ = Tiefenkarten-Auswahl: wählt pro Bildpunkt "
                               "das schärfste Foto — stark bei harten Tiefenkanten (Insekten, Münzen, "
-                              "Platinen), bei weichen Motiven aber oft weicher als die Pyramide."), 10, 2)
+                              "Platinen). „halofix“ = Dual-Output-Halo-Retusche (Schärfe ohne Halos). "
+                              "„wavelet“ = à-trous-Detailfusion."), 10, 2)
+        self.focus_radius = QDoubleSpinBox(); self.focus_radius.setRange(-1.0, 50.0)
+        self.focus_radius.setSingleStep(1.0); self.focus_radius.setValue(-1.0)
+        self.focus_smoothing = QDoubleSpinBox(); self.focus_smoothing.setRange(-1.0, 20.0)
+        self.focus_smoothing.setSingleStep(1.0); self.focus_smoothing.setValue(-1.0)
+        kg.addWidget(QLabel(tr("Radius / Smoothing")), 12, 0)
+        kg.addWidget(self.focus_radius, 12, 1); kg.addWidget(self.focus_smoothing, 12, 2)
+        kg.addWidget(help_btn("Helicon-Regler für depthmap/average: Radius = Struktur-/Fenstergröße des "
+                              "Schärfemaßes (größer = ruhiger, weniger Feindetail). Smoothing = Weichheit "
+                              "der Übergänge zwischen Quellbildern (Feathering gegen harte Nähte). "
+                              "-1 = Standard/aus."), 12, 3)
         self.merge_tree = QCheckBox(tr("Baum-Merge (paarweise, gutmütiger bei vielen Fotos)"))
         kg.addWidget(self.merge_tree, 11, 0, 1, 2)
         kg.addWidget(help_btn("Verschmilzt hierarchisch je zwei Fotos (1+2, 3+4, …) und dann die "
@@ -1309,6 +1385,14 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                 args += ["--raw-half"]
             if self.raw_highlights.isChecked():
                 args += ["--raw-highlights"]
+            if self.lens_auto.isChecked():
+                args += ["--lens-auto"]
+            if self.lens_vignette.value() != 0.0:
+                args += ["--lens-vignette", str(self.lens_vignette.value())]
+            if self.lens_distortion.value() != 0.0:
+                args += ["--lens-distortion", str(self.lens_distortion.value())]
+            if self.lens_ca.value() != 0.0:
+                args += ["--lens-ca", str(self.lens_ca.value())]
         else:
             args += ["--no-raw-develop"]
         if self.batch.isChecked():
@@ -1335,8 +1419,16 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
             if self.astro_stretch.isChecked():
                 args += ["--astro-stretch"]
             args += ["--astro-stretch-mode", self.astro_stretch_mode.currentData()]
+            if self.astro_stretch_mode.currentData() == "ghs":
+                args += ["--astro-ghs-d", str(self.astro_ghs_d.value()),
+                         "--astro-ghs-b", str(self.astro_ghs_b.value()),
+                         "--astro-ghs-sp", str(self.astro_ghs_sp.value())]
             if self.astro_local_norm.isChecked():
                 args += ["--astro-local-norm"]
+            if self.astro_tps.isChecked():
+                args += ["--astro-tps"]
+            if self.astro_pcc.isChecked():
+                args += ["--astro-pcc"]
             if self.astro_filter.currentData() == "dual":
                 args += ["--dualband", "--palette", self.astro_palette.currentData()]
             if not self.astro_auto.isChecked():   # manuelle Aufbereitung statt Auto/KI
@@ -1352,6 +1444,8 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                 args += ["--astro-cosmetic"]
             if self.astro_drizzle.currentData() and int(self.astro_drizzle.currentData()) > 1:
                 args += ["--astro-drizzle", str(self.astro_drizzle.currentData())]
+                if self.astro_drizzle_true.isChecked():
+                    args += ["--astro-drizzle-true"]
             if self.astro_bin.currentData() and int(self.astro_bin.currentData()) > 1:
                 args += ["--bin", str(self.astro_bin.currentData())]
             if not self.astro_autocalib.isChecked():
@@ -1383,10 +1477,16 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                      "--longexp-strength", str(self.longexp_strength.value())]
             if self.longexp_gapfill.isChecked():
                 args += ["--longexp-gapfill"]
+            if self.longexp_sigma.isChecked():
+                args += ["--longexp-sigma"]
+            if self.longexp_freeze.value() > 0.0:
+                args += ["--longexp-freeze", str(self.longexp_freeze.value())]
         if getattr(self, "is_hdr", False):
             args += ["--hdr", "--hdr-bracket", str(self.hdr_bracket.value()),
                      "--hdr-look", self.hdr_look.currentData(),
-                     "--hdr-deghost", self.hdr_deghost.currentData()]
+                     "--hdr-deghost", self.hdr_deghost.currentData(),
+                     "--hdr-method", self.hdr_method.currentData(),
+                     "--hdr-tonemap", self.hdr_tonemap.currentText()]
         return args
 
     def _build_args(self, auto):
@@ -1395,6 +1495,10 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         # Verschmelzungs-Methode, Motiv-/Paar-Ausrichtung & Merge gelten in Auto- wie Handbetrieb
         if self.focus_method.currentText() != "pyramid":
             args += ["--focus-method", self.focus_method.currentText()]
+        if self.focus_radius.value() >= 0:
+            args += ["--focus-radius", str(self.focus_radius.value())]
+        if self.focus_smoothing.value() >= 0:
+            args += ["--focus-smoothing", str(self.focus_smoothing.value())]
         if self.moving_subject.isChecked():
             args += ["--moving-subject"]
         if self.align_sequential.isChecked():

@@ -1163,5 +1163,121 @@ class TestToolsEngine(unittest.TestCase):
             tools_engine.find_graxpert = orig
 
 
+class TestProToolGaps(TmpCase):
+    """Neue Pro-Tool-Lücken (v1.21): GHS, Linear-Fit, Drizzle, PCC, Halo-Retusche, Radiance, Objektiv."""
+
+    def _star_frames(self, n=8, jitter=3.0, size=(120, 160)):
+        h, w = size
+        base = np.zeros((h, w, 3), np.float32)
+        r = _rng()
+        for _ in range(40):
+            x, y = r.randint(10, w - 10), r.randint(10, h - 10)
+            c = r.uniform(0.3, 0.85)
+            cv2.circle(base, (x, y), 2, (c, c, c), -1)
+        base = cv2.GaussianBlur(base, (0, 0), 0.8) + 0.04
+        paths = []
+        for i in range(n):
+            dx, dy = r.uniform(-jitter, jitter, 2)
+            M = np.float32([[1, 0, dx], [0, 1, dy]])
+            f = cv2.warpAffine(base, M, (w, h), borderMode=cv2.BORDER_REFLECT)
+            p = os.path.join(self.d, f"s{i:03d}.tif")
+            cv2.imwrite(p, (np.clip(f, 0, 1) * 65535).astype(np.uint16),
+                        [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
+            paths.append(p)
+        return paths
+
+    def test_ghs_stretch_monoton_und_endpunkte(self):
+        import astro
+        x = np.linspace(0, 1, 21).reshape(1, 21, 1).repeat(3, 2).astype(np.float32)
+        out = astro.ghs_stretch(x, D=2.5, b=-0.5, SP=0.18, black_clip=0.0,
+                                denoise_chroma=False, saturation=1.0)[0, :, 0]
+        self.assertAlmostEqual(float(out[0]), 0.0, places=3)
+        self.assertAlmostEqual(float(out[-1]), 1.0, places=3)
+        self.assertTrue(np.all(np.diff(out) >= -1e-5))            # monoton
+        # stärker negatives b hebt schwaches Signal stärker
+        soft = astro.ghs_stretch(x, D=2.5, b=-0.3, SP=0.18, black_clip=0.0,
+                                 denoise_chroma=False, saturation=1.0)[0, 10, 0]
+        hard = astro.ghs_stretch(x, D=2.5, b=-0.8, SP=0.18, black_clip=0.0,
+                                 denoise_chroma=False, saturation=1.0)[0, 10, 0]
+        self.assertGreater(float(hard), float(soft))
+
+    def test_linearfit_rejection(self):
+        import astro
+        paths = self._star_frames()
+        out = astro.stack(paths, method="linearfit", normalize=False, log=lambda *a: None)
+        self.assertEqual(out.shape[2], 3)
+        self.assertTrue(0.0 <= float(out.min()) and float(out.max()) <= 1.0)
+
+    def test_drizzle_verdoppelt_und_schaerfer(self):
+        import astro
+        paths = self._star_frames()
+        dz = astro.drizzle_stack(paths, scale=2, pixfrac=0.7, log=lambda *a: None)
+        self.assertEqual(dz.shape[0], 120 * 2)
+        self.assertEqual(dz.shape[1], 160 * 2)
+        self.assertTrue(0.0 <= float(dz.min()) and float(dz.max()) <= 1.0)
+
+    def test_photometric_balance_neutralisiert_hintergrund(self):
+        import astro
+        r = _rng()
+        img = np.full((180, 220, 3), 0.04, np.float32)
+        img[..., 2] *= 2.2                                        # Rotstich
+        for _ in range(60):
+            x, y = r.randint(8, 212), r.randint(8, 172)
+            c = r.uniform(0.3, 0.8)
+            cv2.circle(img, (x, y), 2, (c, c, c), -1)
+        out = astro.photometric_balance(cv2.GaussianBlur(img, (0, 0), 0.7), 1.0, log=lambda *a: None)
+        m = out.reshape(-1, 3).mean(0)
+        self.assertLess(float(m.max() - m.min()), 0.02)          # Kanäle ~ausgeglichen
+
+    def test_halofix_kappt_ueberschwinger(self):
+        import stacker
+        h, w = 160, 160
+        f0 = np.full((h, w, 3), 128, np.uint8)
+        for x in range(0, w, 4):
+            col = (255, 255, 255) if (x // 4) % 2 == 0 else (0, 0, 0)
+            cv2.rectangle(f0, (x, 0), (x + 2, h), col, -1)
+        f1 = np.full((h, w, 3), 128, np.uint8)
+        cv2.circle(f1, (80, 80), 30, (60, 60, 60), -1)
+        imgs = [f0, f1]
+        py = stacker.focus_stack(imgs, log=lambda *a: None).astype(float)
+        hf = stacker.focus_stack_halofix(imgs, log=lambda *a: None).astype(float)
+        smax = np.maximum(f0, f1).astype(float)
+        self.assertLess(float((hf - smax).max()), float((py - smax).max()))   # weniger Überschwinger
+
+    def test_focus_radius_smoothing_laeuft(self):
+        import stacker
+        h, w = 120, 160
+        a = (_rng().rand(h, w, 3) * 255).astype(np.uint8)
+        b = cv2.GaussianBlur(a, (0, 0), 4)
+        for fn, kw in ((stacker.focus_stack_depthmap, dict(radius=6, smoothing=3)),
+                       (stacker.focus_stack_average, dict(radius=11, smoothing=2))):
+            out = fn([a, b], log=lambda *a: None, **kw)
+            self.assertEqual(out.shape, a.shape)
+
+    def test_hdr_radiance_tonemapping(self):
+        import hdr
+        base = (_rng().rand(100, 120, 3) * 255).astype(np.uint8)
+        dark = np.clip(base * 0.4, 0, 255).astype(np.uint8)
+        bright = np.clip(base * 1.8, 0, 255).astype(np.uint8)
+        out = hdr.merge_radiance([dark, base, bright], tonemap="reinhard", log=lambda *a: None)
+        self.assertEqual(out.shape[:2], (100, 120))
+        self.assertEqual(out.dtype, np.uint8)
+
+    def test_lens_correct_noop_und_vignette(self):
+        import develop
+        img = np.full((120, 120, 3), 80, np.uint8)
+        self.assertTrue(np.array_equal(develop.lens_correct(img), img))       # ohne Parameter = identisch
+        v = develop.lens_correct(img, vignette=0.4, log=lambda *a: None)
+        self.assertGreaterEqual(int(v[:8, :8].mean()), int(img[:8, :8].mean()))  # Ecken aufgehellt
+
+    def test_longexp_freeze_und_sigma(self):
+        import longexp
+        paths = self._star_frames(n=6, jitter=1.0)
+        out = longexp.combine(paths, mode="smooth", align="none", sigma_clip=True,
+                              freeze_below=0.5, work_dir=self.d, log=lambda *a: None)
+        self.assertEqual(out.shape[2], 3)
+        self.assertTrue(0.0 <= float(out.min()) and float(out.max()) <= 1.0)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -6,6 +6,37 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.21.0] – 2026-06-27
+### Profi-Tool-Lücken-Welle — alle restlichen 🟡/❌ aus dem Vergleich eingebaut
+Schließt die letzten Teil- und offenen Punkte aus dem Profi-Tool-Vergleich (Helicon/Zerene,
+Siril/PixInsight/APP, Photomatix/Lightroom, Sequator/StarStaX, Hugin/PTGui, RawTherapee/darktable).
+Reines OpenCV/NumPy(/scipy).
+- **GraXpert/StarNet laufen jetzt automatisch:** LZW-TIFF-Bug behoben (cv2 schreibt TIFFs per Default
+  LZW-komprimiert, was GraXpert/StarNet via `tifffile` nicht lesen können) — Eingaben werden transparent
+  unkomprimiert umgeschrieben, der Starless-/Gradienten-Schritt greift jetzt von selbst.
+- **Astro — volles GHS-Strecken** (`--astro-stretch-mode ghs`, `--astro-ghs-d/-b/-sp`): voll parametrischer
+  Generalised Hyperbolic Stretch (Intensität D, Charakter b, Symmetriepunkt SP), numerisch integriert →
+  garantiert monoton, bildet [0,1]→[0,1].
+- **Astro — Linear-Fit-Clipping** (`--astro-method linearfit`): PixInsight-artiger Geraden-Fit je Pixel +
+  Residuen-Verwerfung — besser als Sigma-Clipping bei wenigen Subs.
+- **Astro — TPS-Feinregistrierung** (`--astro-tps`): Thin-Plate-Spline gegen Restverzeichnung
+  (Feldkrümmung bei Weitwinkel/Refraktor) → runde Sterne über das ganze Feld.
+- **Astro — echtes Drizzle** (`--astro-drizzle-true`, `--astro-pixfrac`): echte Variable-Pixel Linear
+  Reconstruction (inverser Punktkernel mit pixfrac, Fluss+Gewicht) → Auflösungsrückgewinnung aus
+  geditherten Subs statt nur Hochskalieren.
+- **Astro — photometrischer Farbabgleich** (`--astro-pcc`): stern-basierter neutraler Weißabgleich aus
+  vielen ungesättigten Sternen (PCC-lite, kein Online-Katalog nötig).
+- **HDR — Radiance-Tonemapping** (`--hdr-method radiance`, `--hdr-tonemap reinhard|mantiuk|drago`):
+  Debevec-Radiance-Map + Tonemapping als dramatische Alternative zur Exposure Fusion.
+- **Langzeit — Sigma-Clipping** (`--longexp-sigma`) und **Vordergrund einfrieren** (`--longexp-freeze`,
+  Sequator-Stil: Himmel langzeitbelichtet, Boden scharf aus einem Einzelbild).
+- **Fokus — Helicon-Regler Radius/Smoothing** (`--focus-radius`, `--focus-smoothing`) für depthmap/average
+  und **Halo-Retusche** (`--focus-method halofix`): Dual-Output — PMax-Schärfe auf die Pixel-Hülle der
+  Quellen begrenzt → Schärfe ohne Halo-Über/Unterschwinger.
+- **RAW — Objektivkorrekturen** (`--lens-auto` via lensfun wenn installiert, sonst
+  `--lens-vignette/-distortion/-ca`) und AMaZE-Demosaic-Versuch mit sauberem Fallback.
+- Alles in CLI + GUI + i18n verdrahtet; +9 Engine-Tests (93 gesamt, grün).
+
 ## [1.20.0] – 2026-07-13
 ### Profi-Tool-Welle — jedes Modul aufgewertet (recherchiert gegen Helicon/Zerene, AutoStakkert/PSS, Siril/PixInsight, Photomatix/Sequator/Hugin, RawTherapee/darktable)
 Die modulübergreifende Erkenntnis — **lokale (nicht-rigide) Ausrichtung** — plus die wirkungsvollste
