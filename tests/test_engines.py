@@ -304,6 +304,25 @@ class TestStacker(TmpCase):
         after = np.abs(out[0].astype(np.float32) - ref).mean()
         self.assertLess(after, before)
 
+    def test_align_local_ecc_and_flow(self):
+        import align_local as al
+        base = cv2.GaussianBlur((_rng().rand(160, 200, 3) * 255).astype(np.uint8), (0, 0), 1.2)
+
+        def err(a, b):
+            return float(np.abs(a.astype(np.float32) - b.astype(np.float32)).mean())
+        # ECC: subpixel-Verschiebung muss deutlich reduziert werden
+        M = np.float32([[1, 0, 3.0], [0, 1, -2.0]])
+        shifted = cv2.warpAffine(base, M, (200, 160), borderMode=cv2.BORDER_REFLECT)
+        out, cc = al.align_pair(base, shifted, motion="translation")
+        self.assertLess(err(base, out), err(base, shifted) * 0.5)
+        # Flow: lokale Verzerrung muss reduziert werden
+        gy, gx = np.mgrid[0:160, 0:200].astype(np.float32)
+        dx = (gx + 4 * np.sin(gy / 25)).astype(np.float32)
+        dy = (gy + 4 * np.cos(gx / 25)).astype(np.float32)
+        distort = cv2.remap(base, dx, dy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+        fixed = al.flow_warp(base, distort, cap_px=8)
+        self.assertLess(err(base, fixed), err(base, distort) * 0.7)
+
     def test_hdr_exposure_fusion(self):
         import hdr
         # Drei „Belichtungen" derselben Szene: dunkel / mittel / hell
