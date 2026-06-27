@@ -999,9 +999,15 @@ def main():
                     default="natural",
                     help="Tonlook fürs HDR (Exposure Fusion ist flach): neutral=aus, "
                          "natural=dezenter Pop (Standard), vivid=kräftig, dramatic=starker lokaler Kontrast")
+    ap.add_argument("--hdr-deghost", choices=["off", "auto", "aggressive"], default="off",
+                    help="HDR-Deghosting: in Bewegungszonen (Blätter/Personen/Autos) nur das "
+                         "best-belichtete Referenzbild statt der Fusion — gegen Doppelbilder")
     ap.add_argument("--longexp", action="store_true",
                     help="Langzeitbelichtung aus einer Serie (Wasser/Wolken/Lichtspuren) ohne ND-Filter")
-    ap.add_argument("--longexp-mode", choices=["smooth", "trails", "declutter", "bright"],
+    ap.add_argument("--longexp-gapfill", action="store_true",
+                    help="Langzeit/Spuren: Lücken in Strichspuren ueberbruecken (gegen gestrichelte "
+                         "Spuren durch Schreibpausen zwischen den Frames)")
+    ap.add_argument("--longexp-mode", choices=["smooth", "trails", "comet", "declutter", "bright"],
                     default="smooth",
                     help="smooth=Mitteln (Wasser), trails=Aufhellen (Lichtspuren), "
                          "declutter=Median (Störer weg), bright=additiv (dunkel aufhellen)")
@@ -1549,7 +1555,8 @@ def run_longexp(input_dir, work_dir, args):
     print(f"== Langzeitbelichtung: {len(paths)} Aufnahmen, Modus={mode}, "
           f"Ausrichten={args.longexp_align}, virtuelle Belichtung={int(strength*100)} % ==")
     result = longexp.combine(paths, mode=mode, align=args.longexp_align, strength=strength,
-                             work_dir=work_dir, detector=args.detector, transform=args.transform)
+                             work_dir=work_dir, detector=args.detector, transform=args.transform,
+                             gap_fill=getattr(args, "longexp_gapfill", False))
 
     stack_dir = os.path.join(work_dir, "stack")
     if os.path.isdir(stack_dir):
@@ -1702,7 +1709,8 @@ def run_hdr(input_dir, work_dir, args):
         if len(imgs) < 2:
             print("    (übersprungen — zu wenige lesbare Bilder)")
             continue
-        result = hdr.merge_exposures(imgs, align=not getattr(args, "no_align", False))
+        result = hdr.merge_exposures(imgs, align=not getattr(args, "no_align", False),
+                                     deghost=getattr(args, "hdr_deghost", "off"))
         result = hdr.apply_look(result, getattr(args, "hdr_look", "natural"))
         base = os.path.splitext(os.path.basename(grp[len(grp) // 2]))[0]
         out_jpg = os.path.join(stack_dir, f"{args.prefix}{base}_hdr.jpg")

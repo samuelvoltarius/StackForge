@@ -19,13 +19,19 @@ import numpy as np
 import cv2
 import astro
 
-MODES = ("smooth", "trails", "declutter", "bright")
-# Modus -> Kombinationsmethode in astro.stack (bright wird hier separat additiv gerechnet)
+MODES = ("smooth", "trails", "comet", "declutter", "bright")
+# Modus -> Kombinationsmethode in astro.stack (bright/comet werden hier separat gerechnet)
 _METHOD = {"smooth": "average", "trails": "max", "declutter": "median"}
 
 
+def _gap_fill_dilate(f, k=3):
+    """Spuren-Lücken (durch Schreibpausen zwischen Frames) überbrücken: leichtes Aufweiten der
+    hellen Strukturen vor dem Lighten-Stack → aus „Perlen an der Schnur" werden durchgehende Spuren."""
+    return cv2.dilate(f, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+
+
 def combine(paths, mode="smooth", align="none", strength=1.0, work_dir=None, detector="ORB",
-            transform="rigid", log=print):
+            transform="rigid", gap_fill=False, comet_decay=0.9, log=print):
     """Serie zu einer Langzeitbelichtung verrechnen. Gibt float32 [0..1] (BGR) zurück.
 
     strength = „virtuelle Belichtungszeit" (0..1): gewichtetes Teil-Mitteln zwischen einem
@@ -70,6 +76,22 @@ def combine(paths, mode="smooth", align="none", strength=1.0, work_dir=None, det
             acc = f if acc is None else acc + f
             log(f"    additiv {i + 1}/{len(proc)}")
         result = acc / max(1.0, float(acc.max()))   # auf 0..1 normieren (Licht einsammeln)
+    elif mode == "comet":
+        # abklingendes Lighten: ältere Spuren werden dunkler → heller Kopf, verblassender Schweif
+        result = None
+        for i, p in enumerate(proc):
+            f = astro._read_float(p)
+            if gap_fill:
+                f = _gap_fill_dilate(f)
+            result = f if result is None else np.maximum(result * comet_decay, f)
+            log(f"    Komet {i + 1}/{len(proc)}")
+    elif mode == "trails" and gap_fill:
+        # Lighten mit Lückenfüllung: jedes Frame leicht aufgeweitet, dann Maximum
+        result = None
+        for i, p in enumerate(proc):
+            f = _gap_fill_dilate(astro._read_float(p))
+            result = f if result is None else np.maximum(result, f)
+            log(f"    Spur+Lückenfüllung {i + 1}/{len(proc)}")
     else:
         # smooth/trails/declutter -> astro.stack (average/max/median), ohne Helligkeits-Normierung
         result = astro.stack(proc, method=_METHOD[mode], normalize=False, log=log)

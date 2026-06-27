@@ -413,6 +413,39 @@ class TestStacker(TmpCase):
         gv = cv2.cvtColor(hdr.apply_look(flat, "vivid"), cv2.COLOR_BGR2GRAY).std()
         self.assertGreater(gv, g0)
 
+    def test_hdr_deghost(self):
+        import hdr
+        # 3 Belichtungen derselben Szene + ein bewegtes helles Objekt an wechselnder Stelle
+        scene = (_rng().rand(100, 120, 3) * 180 + 30).astype(np.uint8)
+        brs = []
+        for k, ev in enumerate((0.6, 1.0, 1.6)):
+            im = np.clip(scene.astype(np.float32) * ev, 0, 255).astype(np.uint8)
+            cv2.circle(im, (20 + k * 35, 50), 8, (255, 255, 255), -1)   # „Geist": wandert
+            brs.append(im)
+        plain = hdr.merge_exposures(brs, align=False, deghost="off")
+        deg = hdr.merge_exposures(brs, align=False, deghost="auto")
+        self.assertEqual(deg.shape, plain.shape)
+        self.assertEqual(deg.dtype, np.uint8)               # läuft + plausibel
+
+    def test_longexp_comet_and_gapfill(self):
+        import longexp
+        import tempfile
+        d = tempfile.mkdtemp()
+        paths = []
+        for k in range(6):
+            im = np.zeros((80, 100, 3), np.uint8)
+            cv2.circle(im, (10 + k * 14, 40), 3, (255, 255, 255), -1)    # wandernder heller Punkt
+            p = os.path.join(d, f"f{k}.png"); cv2.imwrite(p, im); paths.append(p)
+        comet = longexp.combine(paths, mode="comet", align="none", comet_decay=0.8,
+                                gap_fill=True, log=lambda *a: None)
+        trails = longexp.combine(paths, mode="trails", align="none", gap_fill=True,
+                                 log=lambda *a: None)
+        self.assertEqual(comet.shape[2], 3)
+        # Komet: der zuletzt gezeichnete Punkt (Kopf) ist heller als der erste (Schweif)
+        head = float(comet[40, 10 + 5 * 14].mean())
+        tail = float(comet[40, 10].mean())
+        self.assertGreater(head, tail)
+
     def test_hdr_split_brackets_fixed(self):
         import hdr
         paths = [f"f{i}.arw" for i in range(9)]

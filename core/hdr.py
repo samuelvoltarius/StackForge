@@ -24,10 +24,13 @@ def _to8(img):
     return img
 
 
-def merge_exposures(images, align=True, log=print):
+def merge_exposures(images, align=True, deghost="off", log=print):
     """Eine Belichtungsreihe (Liste BGR-Bilder mit unterschiedlicher Belichtung) zu einem
     durchgezeichneten 8-bit-Bild verschmelzen (Mertens Exposure Fusion).
-    align=True richtet freihändige Reihen vorher per MTB (Median-Threshold-Bitmap) aus."""
+    align=True richtet freihändige Reihen vorher rigide aus.
+    deghost: 'off' | 'auto' | 'aggressive' — entfernt **Bewegungsgeister** (Blätter, Personen,
+             Autos): in Bewegungszonen wird nur das best-belichtete Referenzbild genommen statt
+             der Fusion (verhindert Doppelbilder bewegter Objekte)."""
     if not images:
         raise ValueError("keine Bilder")
     imgs = [_to8(im) for im in images]
@@ -52,7 +55,36 @@ def merge_exposures(images, align=True, log=print):
     fused = cv2.createMergeMertens().process(imgs)      # float 0..1
     out = np.clip(fused * 255.0, 0, 255).astype(np.uint8)
     log(f"    HDR: {len(imgs)} Belichtungen verschmolzen (Exposure Fusion)")
+    if deghost != "off" and len(imgs) >= 2:
+        out = _deghost(imgs, out, aggressive=(deghost == "aggressive"), log=log)
     return out
+
+
+def _deghost(imgs, fused, aggressive=False, log=print):
+    """In Bewegungszonen die Fusion durch das best-belichtete Referenzbild ersetzen.
+    Referenz = Frame mit den meisten gut belichteten Pixeln. Bewegung = wo ein helligkeits-
+    angeglichener Frame stark vom Referenzbild abweicht (bewegtes Objekt). Maske gefeathert."""
+    grays = [cv2.cvtColor(im, cv2.COLOR_BGR2GRAY) for im in imgs]
+    well = [float(((g > 13) & (g < 242)).mean()) for g in grays]
+    ri = int(np.argmax(well))
+    ref = imgs[ri].astype(np.float32)
+    refg = grays[ri].astype(np.float32) + 1e-3
+    thr = (28.0 if aggressive else 45.0)
+    motion = np.zeros(fused.shape[:2], np.float32)
+    for i, im in enumerate(imgs):
+        if i == ri:
+            continue
+        g = grays[i].astype(np.float32) + 1e-3
+        gain = float(np.median(refg)) / float(np.median(g))     # Helligkeit an Referenz angleichen
+        matched = np.clip(im.astype(np.float32) * gain, 0, 255)
+        dev = np.abs(matched - ref).mean(axis=2)                 # Restabweichung = Bewegung
+        motion = np.maximum(motion, (dev > thr).astype(np.float32))
+    motion = cv2.morphologyEx(motion, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    motion = cv2.GaussianBlur(motion, (0, 0), 4.0)[..., None]
+    frac = float(motion.mean())
+    log(f"    HDR: Deghosting — {frac*100:.1f}% Bewegungszone → Referenzbild")
+    res = fused.astype(np.float32) * (1 - motion) + ref * motion
+    return np.clip(res, 0, 255).astype(np.uint8)
 
 
 def apply_look(bgr, preset="natural"):
