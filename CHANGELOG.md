@@ -1,650 +1,634 @@
 # Changelog
 
-Alle nennenswerten Änderungen an ForgePix. Format orientiert an
-[Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
-[SemVer](https://semver.org/lang/de/).
+*[🇩🇪 Deutsche Version](CHANGELOG.de.md)*
+
+All notable changes to ForgePix. Format based on
+[Keep a Changelog](https://keepachangelog.com/), versioning per
+[SemVer](https://semver.org/).
 
 ## [1.19.3] – 2026-07-12
-### Fokus-Map liest sich besser (nur scharfe Bereiche färben)
-- Die Fokus-Herkunfts-Karte zeigte in **strukturlosen/unscharfen Flächen** (z. B. Bokeh-Hintergrund)
-  buntes **Zufallsrauschen** — dort gibt es keinen echten „schärfsten" Frame. Jetzt werden solche
-  Flächen **neutral-grau** gelassen (Konfidenz aus der absoluten Kachel-Schärfe); gefärbt wird nur,
-  wo wirklich **scharfe Kanten/Details** liegen. Die Form des Motivs ist sofort lesbar.
-  (`focus_analysis.focus_map(mask_flat=True)`, Standard an)
+### Focus map reads better (only colour the sharp areas)
+- The focus-origin map used to show colourful **random noise** in **flat/out-of-focus areas**
+  (e.g. bokeh background) — there is no real "sharpest" frame there. Such areas are now left
+  **neutral grey** (confidence from the absolute tile sharpness); only areas with real **sharp
+  edges/detail** get coloured. The subject's shape is readable at a glance.
+  (`focus_analysis.focus_map(mask_flat=True)`, on by default)
 
 ## [1.19.2] – 2026-07-11
-### Camera-Raw-Editor überall + HDR korrekt
-- **„Bearbeiten" (Camera-Raw) funktioniert jetzt überall:** ist immer aktiv und öffnet ohne Lauf-
-  Ergebnis einen Datei-Dialog für **jedes beliebige Bild — auch RAW** (wird treu entwickelt). HDR-
-  Ergebnisse landen wie alle anderen im `stack/`-Ordner und sind damit direkt im Editor bearbeitbar.
-- **HDR-Modus korrekt eingestuft:** `is_hdr` wird nicht mehr fälschlich als „Makro" behandelt —
-  Fokus-Map und Retusche (beides fürs Fokus-Stacking) tauchen im HDR-Modus nicht mehr auf.
+### Camera-Raw editor everywhere + HDR classified correctly
+- **"Edit" (Camera Raw) now works everywhere:** always enabled, and with no run result it opens a
+  file dialog for **any image — including RAW** (developed faithfully). HDR results land in the
+  `stack/` folder like everything else, so they are directly editable.
+- **HDR mode classified correctly:** `is_hdr` is no longer mistaken for "macro" — the focus map and
+  retouch tools (both for focus stacking) no longer appear in HDR mode.
 
 ## [1.19.1] – 2026-07-11
-### HDR-Looks (Presets gegen den flachen Fusion-Look)
-- Exposure Fusion (Mertens) wirkt von Natur aus **flach** — neue **Tonlook-Presets** geben Pop, treu
-  (nur Tonwerte, keine erfundenen Inhalte): `--hdr-look {neutral,natural,vivid,dramatic}` bzw.
-  GUI-Auswahl „Look" im HDR-Modus. **Standard = `natural`** (dezenter Kontrast/Pop), damit HDRs nicht
-  mehr flach rauskommen. `vivid` kräftiger, `dramatic` mit starkem lokalem Kontrast (CLAHE, Wolken/
-  Struktur), `neutral` lässt das reine Fusion-Ergebnis. Umgesetzt im LAB-Raum: Schwarzpunkt,
-  Kontrast-S-Kurve (Sigmoid), Clarity (lokaler Kontrast), Sättigung. (`hdr.apply_look`)
+### HDR looks (presets against the flat fusion look)
+- Exposure Fusion (Mertens) looks **flat** by nature — new **tone-look presets** add pop, faithfully
+  (tones only, no invented content): `--hdr-look {neutral,natural,vivid,dramatic}` or the GUI "Look"
+  selector in HDR mode. **Default = `natural`** (subtle contrast/pop) so HDRs no longer come out flat.
+  `vivid` is stronger, `dramatic` adds strong local contrast (CLAHE, clouds/structure), `neutral`
+  leaves the raw fusion result. Done in LAB space: black point, contrast S-curve (sigmoid), clarity
+  (local contrast), saturation. (`hdr.apply_look`)
 
 ## [1.19.0] – 2026-07-10
-### Neu — 📸 HDR-Modul (Exposure Fusion) + robustere Fokus-Ausrichtung
-- **HDR aus Belichtungsreihen (`core/hdr.py`, Modus „📸 HDR"/`--hdr`):** Verrechnet AEB-Reihen
-  (z. B. −1/0/+1 EV) per **Mertens Exposure Fusion** zu einem durchgezeichneten Bild — Lichter aus
-  den dunkleren, Schatten aus den helleren Aufnahmen, ohne Tonemapping-Artefakte und ohne bekannte
-  Belichtungszeiten. **Mehrere Reihen** in einem Ordner werden automatisch erkannt (`--hdr-bracket`
-  für feste Gruppengröße) und einzeln verrechnet. **Freihand-Reihen werden vor der Fusion
-  feature-basiert (rigide) ausgerichtet** → kein Ghosting. Klarstellung in der UI: HDR ≠ Fokus-Stacking.
-- **Paarweise/sequenzielle Ausrichtung (`--align-sequential`, GUI „Paarweise ausrichten"):** Richtet
-  jedes Frame an seinem **direkten Nachbarn** aus (2→1, 3→2, …) und kettet die Transformationen auf —
-  statt alle auf ein globales Referenzbild. Benachbarte Frames sind fast identisch → sehr robuste
-  Schätzung. Macht bei tiefen Stativ-Reihen mit großem Fokusbereich den Unterschied zwischen „hält"
-  und „bricht".
-- **Hierarchischer Baum-Merge (`--merge tree`, GUI „Baum-Merge"):** Verschmilzt paarweise
-  (1+2, 3+4, …) und die Ergebnisse weiter — bei vielen Frames oft sauberer als alles flach auf einmal.
+### New — 📸 HDR module (Exposure Fusion) + more robust focus alignment
+- **HDR from exposure brackets (`core/hdr.py`, mode "📸 HDR"/`--hdr`):** Merges AEB brackets
+  (e.g. −1/0/+1 EV) via **Mertens Exposure Fusion** into a well-balanced image — highlights from the
+  darker, shadows from the brighter frames, with no tonemapping artefacts and without needing exposure
+  times. **Multiple brackets** in one folder are detected automatically (`--hdr-bracket` for a fixed
+  group size) and merged individually. **Handheld brackets are feature-aligned (rigid) before fusion**
+  → no ghosting. Made clear in the UI: HDR ≠ focus stacking.
+- **Pairwise/sequential alignment (`--align-sequential`, GUI "Pairwise align"):** Aligns each frame to
+  its **direct neighbour** (2→1, 3→2, …) and accumulates the transforms — instead of all to one global
+  reference. Neighbouring frames are nearly identical → very robust estimate. For deep tripod series
+  with a large focus range, it makes the difference between "holds" and "breaks".
+- **Hierarchical tree merge (`--merge tree`, GUI "Tree merge"):** Merges pairwise (1+2, 3+4, …) and the
+  results onward — often cleaner than merging everything flat at once with many frames.
 
 ## [1.18.8] – 2026-07-09
-### Makro: bewegtes Motiv + Depth-Map-Methode
-- **Bewegtes Motiv (Motiv-Ausrichtung):** Neue Option „Bewegtes Motiv (auf das Motiv ausrichten)"
-  (Ausrichtung-Gruppe) bzw. `--moving-subject`. Bei Motiven, die während der Schärfereihe leicht
-  wandern (Blüte im Wind, Insekt), werden die Fotos **am Motiv** ausgerichtet statt am ganzen Bild;
-  Aufnahmen, in denen sich das Motiv zu weit bewegt hat, werden **verworfen** — gegen Doppelkonturen.
-  Die **Automatik erkennt** bewegte Motive selbst (Schwerpunkt-Wanderung der Farbsättigung) und
-  schaltet die Motiv-Ausrichtung mit Anfänger-Klartext-Hinweis (Stativ/windstill) automatisch ein.
-  Die Konfidenz-Anzeige wertet die (gewollt) verschobene, unscharfe Hintergrund-Zone nicht mehr
-  fälschlich als Ghosting.
-- **Depth-Map-Verschmelzung (Helicon „DMap"-Stil):** Neue Auswahl „Verschmelzungs-Methode" bzw.
-  `--focus-method {pyramid,depthmap}`. `depthmap` wählt pro Bildpunkt das **schärfste Foto**
-  (potenzgewichtet, lochfrei) — stark bei **harten Tiefenkanten** (Insekten, Münzen, Platinen).
-  Standard bleibt die **Laplace-Pyramide**, die bei feinen/weichen Strukturen (Blüten, Fell) in
-  Tests klar schärfer ist; die Methode ist ehrlich beschriftet, damit man je Motiv das Richtige wählt.
+### Macro: moving subject + depth-map method
+- **Moving subject (subject alignment):** New option "Moving subject (align on the subject)"
+  (Alignment group) or `--moving-subject`. For subjects that drift slightly during the focus series
+  (a flower in the wind, an insect), the photos are aligned **on the subject** instead of the whole
+  frame; shots where the subject moved too far are **discarded** — preventing double edges. **Auto mode
+  detects** moving subjects on its own (centroid drift of colour saturation) and switches on subject
+  alignment with a plain-language beginner hint (tripod/windless). The confidence display no longer
+  mistakes the (intentionally) shifted, blurred background zone for ghosting.
+- **Depth-map merge (Helicon "DMap" style):** New "Merge method" selection or
+  `--focus-method {pyramid,depthmap}`. `depthmap` picks the **sharpest photo** per pixel
+  (power-weighted, hole-free) — strong on **hard depth edges** (insects, coins, circuit boards). The
+  default remains the **Laplacian pyramid**, which is clearly sharper on fine/soft structures (flowers,
+  fur) in tests; the method is labelled honestly so you can pick the right one per subject.
 
 ## [1.18.7] – 2026-07-08
-### Starless-Workflow: Nebel + Sterne live einstellbar
-- StarNet läuft **einmal**, danach lassen sich **Nebel-Boost** und **Stern-Stärke** über zwei Regler
-  (Astro-Bereich: „Starless: Nebel / Sterne") **sofort** nachregeln — die Vorschau aktualisiert in
-  ~30 ms, ohne dass StarNet neu rechnet (die Ebenen werden gecacht). So bekommt man Sterne dezenter
-  oder kräftiger, Nebel flacher oder voller — alles sichtbar im Vorschaubild. (Klarstellung: das
-  Endbild enthält selbstverständlich die Sterne; nur die separate `*_nebula`-Datei ist sternenlos.)
+### Starless workflow: nebula + stars adjustable live
+- StarNet runs **once**, after which **nebula boost** and **star strength** can be tuned **instantly**
+  via two sliders (Astro section: "Starless: nebula / stars") — the preview updates in ~30 ms without
+  StarNet recomputing (the layers are cached). So you get stars subtler or stronger, nebula flatter or
+  fuller — all visible in the preview. (To be clear: the final image of course contains the stars; only
+  the separate `*_nebula` file is starless.)
 
 ## [1.18.6] – 2026-07-07
-### Starless-Workflow: kräftigerer, kernschonender Nebel-Boost
-- Der Nebel-Boost im Starless-Workflow hebt jetzt **schwache/mittlere Nebelbereiche deutlich an**
-  (asinh-Lift), lässt aber den **bereits hellen Kern unverändert** (Kern-Maske) — so brennt z. B.
-  der M42-Trapez-Kern nicht weiter aus, während die äußeren Hα-Schwingen sichtbar mehr Struktur
-  zeigen. Plus lokaler Kontrast + dezente Sättigung.
+### Starless workflow: stronger, core-preserving nebula boost
+- The nebula boost in the starless workflow now lifts **weak/medium nebula regions noticeably**
+  (asinh lift), but leaves the **already-bright core unchanged** (core mask) — so e.g. the M42
+  Trapezium core does not blow out further while the outer Hα wings show visibly more structure. Plus
+  local contrast + gentle saturation.
 
 ## [1.18.5] – 2026-07-06
-### Neu — ⭐ Starless-Workflow (StarNet++ Anbindung)
-Voll automatisierter „Profi-Weg" für Astro: **Sterne trennen → Nebel verstärken (lokaler Kontrast +
-dezente Sättigung) → Sterne per Screen-Blend sauber zurück** (`1−(1−Nebel)·(1−Sterne)`). Davor läuft
-GraXpert (Gradient) auf dem Linearbild, danach unsere Palette/Streckung. Holt deutlich mehr
-Nebelstruktur raus, ohne Sterne aufzublähen. (`core/starless.py`.)
-- **Modus-abhängig, immer erklärt:** Im **Anfänger-Modus** macht „✨ Veredeln" den vollen Workflow
-  automatisch (wenn StarNet da ist). Im **Profi-Modus** bleibt „Veredeln" schlank (nur GraXpert) und
-  der volle Workflow liegt unter **Werkzeuge → Starless-Workflow**; einzelne Schritte (nur StarNet /
-  nur GraXpert) ebenfalls dort. Jeder Schritt wird im Log erklärt.
-- **StarNet++ Auto-Erkennung** schon in v1.18.4 erweitert. **macOS-Hinweis** (Guide + bei fehlendem
-  Tool): unsignierte StarNet-Binärdatei einmal mit `xattr -dr com.apple.quarantine <ordner>` entsperren.
+### New — ⭐ Starless workflow (StarNet++ integration)
+Fully automated "pro path" for astro: **separate stars → enhance nebula (local contrast + gentle
+saturation) → screen-blend the stars back cleanly** (`1−(1−nebula)·(1−stars)`). Before that, GraXpert
+(gradient) runs on the linear image, then our palette/stretch. Pulls out far more nebula structure
+without bloating stars. (`core/starless.py`.)
+- **Mode-dependent, always explained:** In **beginner mode** "✨ Enhance" does the full workflow
+  automatically (when StarNet is present). In **pro mode** "Enhance" stays lean (GraXpert only) and the
+  full workflow lives under **Tools → Starless workflow**; individual steps (StarNet only / GraXpert
+  only) are there too. Every step is explained in the log.
+- **StarNet++ auto-detection** already extended in v1.18.4. **macOS note** (guide + when the tool is
+  missing): unblock the unsigned StarNet binary once with `xattr -dr com.apple.quarantine <folder>`.
 
 ## [1.18.4] – 2026-07-05
-### Astro: Feinschliff nach Feedback
-- **Weicherer Auto-Stretch:** Schwarzpunkt von Median+0.5·MAD auf **0.25·MAD** gesenkt und Kern-Schutz
-  früher (ab 80 % statt 85 %). Zeigt **mehr von schwachen Nebel-Außenbereichen**, ohne das Rauschen
-  hochzuziehen; der helle Kern bleibt geschützt (keine weitere Überstrahlung). Sterne bleiben gleich.
-- **Paletten umbenannt & neu sortiert** (verständlicher, sinnvolle Default-Reihenfolge):
-  **HOO — naturgetreu (Dual-Band)** · **Bicolor — warm/natürlich** · **Foraxx — dynamisch** ·
-  **SHO Gold — synthetischer Hubble-Look**.
-### Externe Tools
-- **StarNet++ Auto-Erkennung erweitert:** sucht jetzt auch in `~/siril/starnet`, `~/Documents/starnet`,
-  `~/StarNet` und im Siril-App-Ordner. (Hinweis: macOS kann die unsignierte StarNet-Binärdatei
-  quarantänen — einmalig `xattr -dr com.apple.quarantine <ordner>` nötig.)
-- **Siril liest OSC jetzt farbig:** beim Konvertieren wird **CFA automatisch debayert** (`-debayer`,
-  wenn BAYERPAT im Header) — vorher kam aus dem Siril-Pfad nur Graustufen.
+### Astro: polish after feedback
+- **Softer auto-stretch:** black point lowered from median+0.5·MAD to **0.25·MAD** and core protection
+  earlier (from 80 % instead of 85 %). Shows **more of the faint outer nebula** without lifting the
+  noise; the bright core stays protected (no further blowout). Stars unchanged.
+- **Palettes renamed & reordered** (clearer, sensible default order):
+  **HOO — true to nature (dual-band)** · **Bicolor — warm/natural** · **Foraxx — dynamic** ·
+  **SHO Gold — synthetic Hubble look**.
+### External tools
+- **StarNet++ auto-detection extended:** now also searches `~/siril/starnet`, `~/Documents/starnet`,
+  `~/StarNet` and the Siril app folder. (Note: macOS may quarantine the unsigned StarNet binary —
+  `xattr -dr com.apple.quarantine <folder>` needed once.)
+- **Siril now reads OSC in colour:** during conversion the CFA is **debayered automatically**
+  (`-debayer`, when BAYERPAT is in the header) — previously the Siril path produced greyscale only.
 
 ## [1.18.3] – 2026-07-04
-### Aufgeräumt (Code)
-- **Tote Imports entfernt** (pyflakes): ~18 ungenutzte Imports in main_window.py/components.py
-  (u. a. hashlib, subprocess, ungenutzte Qt-Klassen, nicht genutzte components-Re-Importe),
-  eine ungenutzte Variable (`peaks`) und ein f-string ohne Platzhalter. Keine Funktionsänderung.
-- README-Screenshots auf den aktuellen v1.18.2-Stand gebracht (übersetzte UI, ausklappbares Astro).
+### Cleaned up (code)
+- **Dead imports removed** (pyflakes): ~18 unused imports in main_window.py/components.py (incl.
+  hashlib, subprocess, unused Qt classes, unused components re-imports), one unused variable (`peaks`)
+  and an f-string without a placeholder. No behaviour change.
+- README screenshots updated to the current v1.18.2 state (translated UI, collapsible astro).
 
 ## [1.18.2] – 2026-07-03
-### UI aufgeräumt + Style konsolidiert (Stabilisierung)
-- **Astro-Panel entrümpelt:** selten gebrauchte Optionen (Engine, Bias, FITS, Hot-/Cold-Pixel,
-  Drizzle, Binning) sitzen jetzt in einem **ausklappbaren „Erweitert"-Abschnitt** (standardmäßig
-  eingeklappt). Häufiges (Methode, Kappa, Ausrichten, Dark/Flat, Auto-Kalibrierung, Filter, Palette,
-  Sessions) bleibt direkt sichtbar. Neue wiederverwendbare `CollapsibleSection`.
-- **Layout-Bug behoben:** zwei Astro-Elemente lagen auf derselben Grid-Zeile (überlappten) — getrennt.
-- **Style konsolidiert:** wiederkehrende Inline-Stile (grüne Abschnitts-Überschriften, graue Hinweise)
-  durch zentrale THEME-Regeln (`QLabel#sectionHeader`, `QLabel#hint`) ersetzt — weniger Magie-Strings,
-  einheitlicheres Aussehen.
-- Keine Funktionsänderung, keine neuen Features.
+### UI cleaned up + style consolidated (stabilization)
+- **Astro panel decluttered:** rarely used options (engine, bias, FITS, hot/cold pixel, drizzle,
+  binning) now sit in a **collapsible "Advanced" section** (collapsed by default). Common settings
+  (method, kappa, alignment, dark/flat, auto-calibration, filter, palette, sessions) stay directly
+  visible. New reusable `CollapsibleSection`.
+- **Layout bug fixed:** two astro elements were on the same grid row (overlapping) — separated.
+- **Style consolidated:** recurring inline styles (green section headers, grey hints) replaced by
+  central THEME rules (`QLabel#sectionHeader`, `QLabel#hint`) — fewer magic strings, more consistent
+  look.
+- No behaviour change, no new features.
 
 ## [1.18.1] – 2026-07-02
-### Stabilisierung (Übersetzungen + Doku)
-- **Englisches UI war zur Hälfte deutsch — behoben.** Rund 90 sichtbare Strings standen nicht in
-  `tr()` (u. a. der **komplette Bearbeiten-/Retusche-Dialog** in components.py, wo `tr` nicht mal
-  importiert war) und erschienen im englischen UI auf Deutsch. Alle gewrappt + englische
-  Übersetzungen ergänzt (en.json deutlich gewachsen). DE bleibt unverändert (Schlüssel = deutscher Text).
-- **i18n-Test verschärft:** neuer Regressions-Schutz, der rohe deutsche UI-Strings (in QLabel/
-  QPushButton/QCheckBox/QGroupBox/setToolTip/setWindowTitle/setPlaceholderText/_row) erkennt, die
-  nicht in `tr()` stehen — damit die Lücke nicht zurückkommt.
-- **Handbuch (DE):** Der Dual-Band/Schmalband-Block stand fälschlich im **Makro**-Kapitel; jetzt
-  korrekt im **Astro**-Abschnitt (wie in der EN-Anleitung).
-- Keine neuen Features — bewusste Stabilisierungsrunde.
+### Stabilization (translations + docs)
+- **English UI was half German — fixed.** About 90 visible strings were not in `tr()` (incl. the
+  **entire Edit/Retouch dialog** in components.py, where `tr` was not even imported) and appeared in
+  German in the English UI. All wrapped + English translations added (en.json grew noticeably). DE
+  stays unchanged (key = German text).
+- **i18n test tightened:** new regression guard that detects raw German UI strings (in QLabel/
+  QPushButton/QCheckBox/QGroupBox/setToolTip/setWindowTitle/setPlaceholderText/_row) not in `tr()` —
+  so the gap doesn't come back.
+- **Manual (DE):** the dual-band/narrowband block was wrongly in the **macro** chapter; now correctly
+  in the **astro** section (as in the EN guide).
+- No new features — a deliberate stabilization round.
 
 ## [1.18.0] – 2026-07-01
-### Schneller
-- **Parallele Registrierung:** die Ausricht-Schleife nutzt jetzt alle Kerne (OpenCV gibt den GIL
-  frei) statt seriell zu laufen — deutlich schneller bei vielen Frames.
-- **Palette sofort umschalten:** ein Dual-Band-Palettenwechsel (HOO/SHO/Foraxx/Bicolor) färbt das
-  fertige 32-bit-Linearbild **in Millisekunden neu ein**, statt den ganzen Stack neu zu rechnen.
+### Faster
+- **Parallel registration:** the alignment loop now uses all cores (OpenCV releases the GIL) instead
+  of running serially — much faster with many frames.
+- **Switch palette instantly:** a dual-band palette change (HOO/SHO/Foraxx/Bicolor) recolours the
+  finished 32-bit linear image **in milliseconds**, instead of restacking everything.
 
-### Besser (Ergebnis)
-- **Weit geditherte Frames zurückholen:** Frames, die sich nicht an die Referenz ausrichten lassen,
-  werden über eine **Cluster-Brücke** (Sub-Referenz → ORB-Brücke → Verkettung) gerettet — JEDER
-  zurückgeholte Frame wird verifiziert (Sterne müssen sauber auf die Referenz fallen), sonst bleibt
-  er außen vor. (Im Test: 15 → 17 von 20 Frames, ohne Verschmieren.)
-- **Kalibrierung automatisch erkennen:** dark-/flat-/bias-Unterordner werden im Aufnahme-Ordner
-  (und darüber) gefunden und angewendet — entfernt Amp-Glow/Vignette ohne Handarbeit.
-- **Binning (2×/3×):** fasst Pixel zusammen → höheres SNR, rundere/kleinere Sterne (gut bei
-  überabgetasteten Daten).
-- **Mehrere Nächte/Sessions kombinieren:** „➕ Weitere Nacht/Session" führt mehrere Aufnahme-Ordner
-  desselben Objekts zu EINEM Stack zusammen (mehr Integration = besseres Ergebnis).
+### Better (result)
+- **Recover widely dithered frames:** frames that won't align to the reference are rescued via a
+  **cluster bridge** (sub-reference → ORB bridge → chaining) — EACH recovered frame is verified (stars
+  must fall cleanly onto the reference), otherwise it stays out. (In testing: 15 → 17 of 20 frames,
+  without smearing.)
+- **Auto-detect calibration:** dark/flat/bias subfolders are found in the capture folder (and above)
+  and applied — removes amp glow/vignetting without manual work.
+- **Binning (2×/3×):** combines pixels → higher SNR, rounder/smaller stars (good for oversampled data).
+- **Combine multiple nights/sessions:** "➕ Another night/session" merges several capture folders of
+  the same object into ONE stack (more integration = better result).
 
-### Einfacher
-- **Live-Vorschau:** während des Stackens (Astro & Makro/Fokus) zeigt ForgePix laufend ein
-  Zwischenergebnis, statt erst am Ende.
+### Easier
+- **Live preview:** during stacking (astro & macro/focus) ForgePix continuously shows an intermediate
+  result instead of only at the end.
 
 ### CLI
-- Neu: `--bin {1,2,3}`, `--also <ordner…>` (weitere Sessions), `--no-auto-calib`.
+- New: `--bin {1,2,3}`, `--also <folder…>` (additional sessions), `--no-auto-calib`.
 
 ### Tests
-- +3 Tests (Binning, Kalibrier-Auto-Erkennung). 62 grün.
+- +3 tests (binning, calibration auto-detect). 62 green.
 
 ## [1.17.0] – 2026-06-30
-### Neu — One-Click „✨ Veredeln" (GraXpert-Anbindung)
-- **Veredeln-Button in der Ergebnis-Leiste (Astro/Langzeit/Hybrid):** schickt das fertige
-  32-bit-Linearbild mit EINEM Klick durch **GraXpert** — erst Gradienten-/Hintergrund-Extraktion,
-  dann KI-Entrauschung — und reimportiert das Ergebnis automatisch. Der übliche Schritt nach dem
-  Stacken, ohne Tool-Wechsel. (`tools_engine.run_graxpert_enhance`.)
-- **Freundlicher Hinweis statt Fehler, wenn ein Tool fehlt:** ist GraXpert (oder StarNet) nicht
-  installiert, erklärt ForgePix in einem Dialog, was das Tool macht und wo es das **kostenlos** gibt
-  (graxpert.com / starnetastro.com), und bietet an, das fertige Linearbild im Dateimanager zu zeigen.
-  Pfade unter **Setup → Externe Tools** (oder Auto-Erkennung). Gilt auch für die Einzel-Aufrufe
-  GraXpert/StarNet im Werkzeuge-Menü.
-- Hinweis: RC-Astro (BlurXTerminator/StarX/NoiseX) sind proprietäre KI-Modelle und lassen sich nicht
-  nachbauen — ForgePix bindet die freien Tools GraXpert/StarNet ein.
+### New — one-click "✨ Enhance" (GraXpert integration)
+- **Enhance button in the result bar (astro/long-exposure/hybrid):** sends the finished 32-bit linear
+  image through **GraXpert** with ONE click — first gradient/background extraction, then AI denoising —
+  and re-imports the result automatically. The usual post-stacking step, without switching tools.
+  (`tools_engine.run_graxpert_enhance`.)
+- **Friendly hint instead of an error when a tool is missing:** if GraXpert (or StarNet) is not
+  installed, ForgePix explains in a dialog what the tool does and where to get it **for free**
+  (graxpert.com / starnetastro.com), and offers to show the finished linear image in the file manager.
+  Paths under **Setup → External tools** (or auto-detection). Also applies to the individual
+  GraXpert/StarNet calls in the Tools menu.
+- Note: RC-Astro (BlurXTerminator/StarX/NoiseX) are proprietary AI models and can't be reproduced —
+  ForgePix integrates the free tools GraXpert/StarNet.
 
 ### Tests
-- +2 Tests für die Tool-Anbindung (Hinweis-Infos, sauberer Abbruch ohne GraXpert). 59 grün.
+- +2 tests for the tool integration (hint info, clean abort without GraXpert). 59 green.
 
 ## [1.16.19] – 2026-06-29
-### Behoben (Astro: türkise Sterne neutralisiert, Farben ruhiger)
-- **Sterne leuchteten knallig cyan/türkis.** In Schmalband ist Sternfarbe ein Artefakt (durchs
-  Dual-Band-Filter kommen nur Hα-Rot + OIII-Cyan → türkise Sternkugeln). Die Stern-Entsättigung
-  erfasste bisher nur die hellsten Kerne (Helligkeits-Gate zu hoch) und ließ den farbigen **Glow/Hof**
-  stehen. Jetzt: niedrigeres Gate (auch mittelhelle Sterne) **plus Aufweiten der Maske auf die
-  Sternhöfe** → Sterne werden neutral/weiß, der Nebel behält seine Farbe.
-- **Sättigung-Default 1.1 → 1.05** (CLI/GUI/KI) — ruhigere, natürlichere Farben.
+### Fixed (astro: cyan stars neutralized, colours calmer)
+- **Stars glowed bright cyan/turquoise.** In narrowband, star colour is an artefact (a dual-band filter
+  passes only Hα-red + OIII-cyan → turquoise star spheres). Star desaturation previously caught only the
+  brightest cores (brightness gate too high) and left the coloured **glow/halo** standing. Now: lower
+  gate (also medium-bright stars) **plus dilating the mask onto the star halos** → stars become
+  neutral/white, the nebula keeps its colour.
+- **Saturation default 1.1 → 1.05** (CLI/GUI/AI) — calmer, more natural colours.
 
 ## [1.16.18] – 2026-06-28
-### Behoben (Astro: echte Bearbeitung statt „Comic" — Sterne rund, Rauschen runter)
-Gründliche Diagnose an echten IC-5146-Daten (Dual-Band, ASI294MC Pro) hat zwei ernste Fehler
-aufgedeckt und behoben:
+### Fixed (astro: real processing instead of "comic" — round stars, less noise)
+Thorough diagnosis on real IC 5146 data (dual-band, ASI294MC Pro) uncovered and fixed two serious bugs:
 
-- **Sterne waren tropfenförmig (mit Geist) — Registrierungs-Bug.** `cv2.phaseCorrelate` rastete
-  bei Astro-Frames auf dem **festen Fixed-Pattern** (Hotpixel/Amp-Glow) ein und verfehlte die über
-  die Nacht **gewanderten Sterne** komplett (Residuum bis ~27 px → verschmierte Sterne). Ersetzt
-  durch **stern-basiertes Offset-Voting** (robust gegen Hotpixel) + RANSAC-Feinausrichtung; ORB als
-  Fallback für große Dither-Sprünge. Sterndetektion von Otsu (fand nur ~5 Sterne) auf eine
-  **rauschadaptive MAD-Schwelle** (100–200 Sterne) umgestellt. Residuum jetzt **<1 px = runde
-  Sterne**. Frames, die sich nicht sicher ausrichten lassen (z. B. weit weggedithert, kaum
-  Überlappung), werden **übersprungen statt verschmiert reingemittelt**.
-- **Ergebnis viel zu knallig/verrauscht — Stretch-Defaults entschärft.** Schwarzpunkt liegt jetzt
-  am **robusten Himmelshintergrund** (Median + 0.5·MAD) statt bei festen 0,08 % → Hintergrund wird
-  dunkel, Rauschen wird nicht hochgezogen. **Chroma-Entrauschung** (Farbe glätten, Luminanz scharf)
-  killt den bunten Grieß. Default-Stretch von 14 → **6**, Sättigung 1.3 → **1.1**; KI-Vorschlag
-  ebenso gedeckelt (Strength ≤12, Sättigung ≤1.25). GUI-Regler-Defaults angepasst.
+- **Stars were teardrop-shaped (with a ghost) — registration bug.** `cv2.phaseCorrelate` locked onto
+  the **fixed pattern** (hot pixels/amp glow) in astro frames and completely missed the stars that
+  **drifted over the night** (residual up to ~27 px → smeared stars). Replaced with **star-based offset
+  voting** (robust against hot pixels) + RANSAC fine alignment; ORB as a fallback for large dither
+  jumps. Star detection switched from Otsu (found only ~5 stars) to a **noise-adaptive MAD threshold**
+  (100–200 stars). Residual now **<1 px = round stars**. Frames that can't be aligned safely (e.g. far
+  dithered, little overlap) are **skipped rather than averaged in smeared**.
+- **Result far too garish/noisy — stretch defaults toned down.** Black point now sits at the **robust
+  sky background** (median + 0.5·MAD) instead of a fixed 0.08 % → background goes dark, noise isn't
+  lifted. **Chroma denoising** (smooth colour, keep luminance sharp) kills the colourful grain. Default
+  stretch 14 → **6**, saturation 1.3 → **1.1**; AI suggestion capped too (strength ≤12, saturation
+  ≤1.25). GUI slider defaults adjusted.
 
 ### Tests
-- +2 Registrierungs-Regressionstests (Drift trotz fester Hotpixel finden; MAD-Sterndetektion). 57 grün.
+- +2 registration regression tests (find drift despite a fixed hot-pixel pattern; MAD star detection).
+  57 green.
 
 ## [1.16.17] – 2026-06-27
-### Tests & Doku (Dual-Band-Paletten nachgezogen)
-- **Tests für alle Paletten:** Bisher war nur HOO testabgedeckt. Jetzt auch **SHO** (Hα→gold),
-  **Foraxx** (reines Hα bleibt rot) und **Bicolor** (synthetisches Grün vorhanden) — 55 Tests grün.
-- **Handbuch (DE/EN) aktualisiert:** Der Astro-Abschnitt beschrieb nur HOO. Jetzt sind **Filter-Auswahl
-  (SVBony SV220 / L-eXtreme, Auto-Erkennung)** und alle **vier Paletten** (HOO · SHO · Foraxx · Bicolor)
-  dokumentiert.
+### Tests & docs (dual-band palettes caught up)
+- **Tests for all palettes:** previously only HOO was test-covered. Now also **SHO** (Hα→gold),
+  **Foraxx** (pure Hα stays red) and **Bicolor** (synthetic green present) — 55 tests green.
+- **Manual (DE/EN) updated:** the astro section described HOO only. Now the **filter selection**
+  (SVBony SV220 / L-eXtreme, auto-detection) and all **four palettes** (HOO · SHO · Foraxx · Bicolor)
+  are documented.
 
 ## [1.16.16] – 2026-06-27
-### Hinzugefügt (Dual-Band: Bicolor-Palette)
-- **Vierte Palette „Bicolor" (Cannistra-Technik):** Aus den zwei vorhandenen Schmalband-Kanälen
-  (Hα, OIII) wird der fehlende **synthetisch errechnet** — hier das **Grün** als G = max(OIII, 0.5·Hα).
-  Ergebnis: natürlicheres, wärmeres Bernstein/Gold, **weniger Magenta** und neutralere Sterne als
-  reines HOO. Auswahl jetzt: **HOO · SHO (gold) · SHO Foraxx · Bicolor** — GUI-Dropdown + CLI
-  `--palette hoo|sho|foraxx|bicolor`. Wie immer: SII bleibt außen vor (nur Hα+OIII vorhanden).
+### Added (dual-band: Bicolor palette)
+- **Fourth palette "Bicolor" (Cannistra technique):** the missing channel is **synthesized** from the
+  two available narrowband channels (Hα, OIII) — here the **green** as G = max(OIII, 0.5·Hα). Result: a
+  more natural, warmer amber/gold, **less magenta** and more neutral stars than pure HOO. Selection now:
+  **HOO · SHO (gold) · SHO Foraxx · Bicolor** — GUI dropdown + CLI `--palette hoo|sho|foraxx|bicolor`.
+  As always: SII stays out (only Hα+OIII present).
 
 ## [1.16.15] – 2026-06-26
-### Hinzugefügt (Dual-Band: Foraxx-Palette)
-- **Dritte Palette „SHO Foraxx" (dynamisch):** Recherchiert (thecoldestnights.com / Foraxx-Methode)
-  und eingebaut — der Grün-Kanal wird je nach Hα·OIII-Stärke gemischt: G = f·Hα + (1−f)·OIII mit
-  f = (Hα·OIII)^(1−Hα·OIII). Dadurch **reines Hα → rot, Hα+OIII gemischt → gold, reines OIII → blau**
-  (nuancierter als das flache SHO; rein-Hα-Ziele bleiben korrekt rot statt erzwungenem Gold).
-  Auswahl jetzt: **HOO · SHO (gold) · SHO Foraxx (dynamisch)** — GUI-Dropdown + CLI `--palette
-  hoo|sho|foraxx`. SII bleibt synthetisch (kein echtes SII in Dual-Band).
+### Added (dual-band: Foraxx palette)
+- **Third palette "SHO Foraxx" (dynamic):** researched (thecoldestnights.com / Foraxx method) and
+  built in — the green channel is mixed depending on Hα·OIII strength: G = f·Hα + (1−f)·OIII with
+  f = (Hα·OIII)^(1−Hα·OIII). So **pure Hα → red, Hα+OIII mixed → gold, pure OIII → blue** (more nuanced
+  than flat SHO; pure-Hα targets stay correctly red instead of forced gold). Selection now:
+  **HOO · SHO (gold) · SHO Foraxx (dynamic)** — GUI dropdown + CLI `--palette hoo|sho|foraxx`. SII stays
+  synthetic (no real SII in dual-band).
 
 ## [1.16.14] – 2026-06-26
-### Hinzugefügt (Dual-Band-Palette: synthetisches SHO)
-- **SHO/Hubble-Palette aus Dual-Band (gefaktes SII):** Neue Palette-Auswahl bei Dual-Band —
-  **HOO** (rot+teal, datentreu) oder **SHO synthetisch** (Hubble gold+blau). Da Dual-Band **kein
-  echtes SII** enthält, wird SII aus Hα **synthetisiert** (gängige Narrowband-Praxis): Rot=SII(≈Hα),
-  Grün=0.8·Hα+0.2·OIII, Blau=OIII → Hα-Bereiche werden gold, OIII blau. Klar als „synthetisch,
-  nicht wissenschaftlich" gekennzeichnet. GUI-Palette-Dropdown + CLI `--palette hoo|sho`. Sterne
-  bleiben entsättigt, Nebel farbig.
+### Added (dual-band palette: synthetic SHO)
+- **SHO/Hubble palette from dual-band (faked SII):** new palette choice for dual-band — **HOO**
+  (red+teal, data-true) or **SHO synthetic** (Hubble gold+blue). Since dual-band has **no real SII**,
+  SII is **synthesized** from Hα (common narrowband practice): Red=SII(≈Hα), Green=0.8·Hα+0.2·OIII,
+  Blue=OIII → Hα regions become gold, OIII blue. Clearly labelled "synthetic, not scientific". GUI
+  palette dropdown + CLI `--palette hoo|sho`. Stars stay desaturated, nebula coloured.
 
 ## [1.16.13] – 2026-06-26
-### Geändert (Astro: Filter einstellbar)
-- **Filter-Auswahl im Astro-Modul** statt einfachem Häkchen: Dropdown **„Kein Filter / Breitband"**
-  vs. **„Dual-Band Ha+OIII (z. B. SVBony SV220, L-eXtreme)"**. Wird zusätzlich automatisch aus dem
-  FITS-Header erkannt. Dual-Band → HOO-Verarbeitung (rot+teal), Breitband → Farbkalibrierung+SCNR.
-  Einstellung wird gemerkt.
+### Changed (astro: filter selectable)
+- **Filter selection in the astro module** instead of a simple checkbox: dropdown **"No filter /
+  broadband"** vs. **"Dual-band Ha+OIII (e.g. SVBony SV220, L-eXtreme)"**. Also auto-detected from the
+  FITS header. Dual-band → HOO processing (red+teal), broadband → colour calibration+SCNR. The setting
+  is remembered.
 
 ## [1.16.12] – 2026-06-26
-### Hinzugefügt / Geändert (Astro-Qualität)
-- **Stern-basierte Registrierung:** Bei „Translation + Feldrotation" werden jetzt echte
-  **Sternzentren** erkannt und gematcht (RANSAC-Affine), statt allgemeiner Bildmerkmale (ORB bleibt
-  Fallback) — genauere Ausrichtung.
-- **Stern-Entsättigung in HOO:** kleine, kontrastreiche Punkte (Sterne = Kontinuum) werden neutral
-  gezogen → kein rot/teal-Farbsaum mehr (Bayer-R/B-Versatz + chromatische Aberration); **ausgedehnte
-  Nebel behalten ihre Farbe** (lokale-Kontrast-Maske, nicht nur Helligkeit).
-- Zusammen mit der sauberen Hα/OIII-Trennung: rote Nebel, neutraler Hintergrund, neutrale Sterne.
+### Added / changed (astro quality)
+- **Star-based registration:** for "Translation + field rotation", real **star centres** are now
+  detected and matched (RANSAC affine) instead of generic image features (ORB stays fallback) — more
+  accurate alignment.
+- **Star desaturation in HOO:** small, high-contrast points (stars = continuum) are pulled neutral → no
+  more red/teal colour fringe (Bayer R/B offset + chromatic aberration); **extended nebulae keep their
+  colour** (local-contrast mask, not just brightness).
+- Together with the clean Hα/OIII separation: red nebulae, neutral background, neutral stars.
 
 ## [1.16.11] – 2026-06-26
-### Geändert (Dual-Band: sauberere Linien-Trennung)
-- **HOO trennt Hα und OIII jetzt sauber in zwei Signale:** Hα aus dem **Rot**-Kanal, OIII aus dem
-  **Blau**-Kanal (statt `max(G,B)` — Grün ist beim OSC am stärksten Hα-kontaminiert). Zusätzlich
-  Hintergrund pro Kanal abziehen + **leichte lineare Entmischung** (Hα −= k·OIII, OIII −= k·Hα)
-  gegen Restkreuztalk. Ergebnis: reineres Rot/Teal, neutraler Hintergrund — klar zwei Töne.
+### Changed (dual-band: cleaner line separation)
+- **HOO now separates Hα and OIII cleanly into two signals:** Hα from the **red** channel, OIII from
+  the **blue** channel (instead of `max(G,B)` — green is most Hα-contaminated on OSC). Plus per-channel
+  background subtraction + **slight linear unmixing** (Hα −= k·OIII, OIII −= k·Hα) against residual
+  crosstalk. Result: purer red/teal, neutral background — clearly two tones.
 
 ## [1.16.10] – 2026-06-26
-### Hinzugefügt (Dual-Band-Farbe — HOO)
-- **Dual-Band wird jetzt als HOO verarbeitet:** Bei Dual-Band/Schmalband (Ha+OIII) werden die
-  Linien **getrennt** — Hα (rot, Rot-Kanal) und OIII (teal, Grün+Blau) — **einzeln normalisiert**
-  (damit das oft schwächere OIII sichtbar wird) und neu kombiniert (Rot=Hα, Grün+Blau=OIII). Ergebnis:
-  rote Hα-Nebel **und** tealfarbene OIII-Bereiche statt rot-dominiert; Sterne bekommen natürliche
-  (teal/weiß) Farben, Hintergrund neutral. Greift automatisch im Dual-Band-Modus (Schalter oder
-  Header-Erkennung). +1 Test (52).
-### Hinweis
-- Hα-dominierte Ziele (z. B. IC 5146 Kokon) bleiben überwiegend rot — das ist astrophysikalisch
-  korrekt (wenig OIII). Teal wird bei OIII-reichen Zielen (Cirrus, planetarische Nebel) deutlich.
-- Sternform: rotate-Ausrichtung macht Sterne rund; ein Restversatz bleibt registrierungsbedingt
-  (eine stern-basierte Registrierung als künftiger Schritt würde sie weiter schärfen).
+### Added (dual-band colour — HOO)
+- **Dual-band is now processed as HOO:** for dual-band/narrowband (Ha+OIII) the lines are **separated**
+  — Hα (red, red channel) and OIII (teal, green+blue) — **normalized individually** (so the often
+  weaker OIII becomes visible) and recombined (Red=Hα, Green+Blue=OIII). Result: red Hα nebulae **and**
+  teal OIII regions instead of red-dominated; stars get natural (teal/white) colours, neutral
+  background. Applies automatically in dual-band mode (switch or header detection). +1 test (52).
+### Note
+- Hα-dominated targets (e.g. IC 5146 Cocoon) stay mostly red — that's astrophysically correct (little
+  OIII). Teal shows clearly on OIII-rich targets (Cirrus, planetary nebulae).
+- Star shape: rotate alignment makes stars round; a residual offset remains due to registration (a
+  star-based registration as a future step would sharpen them further).
 
 ## [1.16.9] – 2026-06-26
-### Hinzugefügt
-- **Masken-Pinsel im Editor (Helligkeit/Klarheit lokal):** Zusätzlich zur Auto-Maske lässt sich
-  die Anpassung jetzt **von Hand malen** — **+ Aufnehmen** (wirkt dort) bzw. **− Schützen** (nimmt
-  es dort weg), weicher Rand, einstellbare Pinselgröße, „Maske löschen". Start ist die Auto-Maske
-  (falls aktiv), sonst leer. Funktioniert für **Astro & Makro**. **Tastensteuerung:** B Pinsel
-  ein/aus · A/S Aufnehmen/Schützen · [ ] Pinselgröße · Backspace Maske löschen. +1 Test (51).
+### Added
+- **Mask brush in the editor (local brightness/clarity):** in addition to the auto mask, the adjustment
+  can now be **painted by hand** — **+ Add** (applies there) or **− Protect** (removes it there), soft
+  edge, adjustable brush size, "Clear mask". Starts from the auto mask (if active), otherwise empty.
+  Works for **astro & macro**. **Keys:** B brush on/off · A/S Add/Protect · [ ] brush size · Backspace
+  clear mask. +1 test (51).
 
 ## [1.16.8] – 2026-06-26
-### Geändert (Aufräumen — Projektstruktur)
-- **Engine-Module nach `core/` verschoben:** Der Projekt-Root enthält jetzt nur noch die
-  Start-Datei `focus_stack_gui.py` (+ `ui/`, `core/`, `assets/`, `docs/`, `lang/`, `tests/`) statt
-  13 lose `.py`-Dateien — übersichtlicher, weniger erschlagend. Kein Verhaltenswechsel: Engine
-  (astro/stacker/focus_*/longexp/mosaic/parallel/siril/tools/constants/i18n) liegt in `core/`,
-  per Pfad eingebunden (`--paths core` im Build, hidden-imports unverändert). i18n findet `lang/`
-  weiterhin (Quelle + Bundle), `SCRIPT` zeigt auf `core/`. 50 Tests grün, App + Pipeline + i18n
-  in Source-Mode verifiziert.
+### Changed (cleanup — project structure)
+- **Engine modules moved to `core/`:** the project root now contains only the launcher
+  `focus_stack_gui.py` (+ `ui/`, `core/`, `assets/`, `docs/`, `lang/`, `tests/`) instead of 13 loose
+  `.py` files — clearer, less overwhelming. No behaviour change: the engine
+  (astro/stacker/focus_*/longexp/mosaic/parallel/siril/tools/constants/i18n) lives in `core/`, included
+  by path (`--paths core` in the build, hidden-imports unchanged). i18n still finds `lang/` (source +
+  bundle), `SCRIPT` points to `core/`. 50 tests green, app + pipeline + i18n verified in source mode.
 
 ## [1.16.7] – 2026-06-26
-### Hinzugefügt
-- **Auto-Maske im Editor (lokale Helligkeit, ohne Malen):** Neue Option „🎯 Auto-Maske: nur Motiv
-  aufhellen" — Belichtung/Klarheit/Tonwerte wirken nur auf die **mittleren Helligkeiten** (Nebel/
-  Motiv), während **heller Kern/Sterne und dunkler Hintergrund geschützt** bleiben (weiche
-  Luminanz-Maske). Funktioniert für **Astro UND Makro**, ein Klick — ideal für Anfänger. +1 Test (50).
-- **Dual-Band-Filter wird auch automatisch erkannt:** Steht der Filtername im FITS-Header
-  (Dual/Duo/Extreme/Enhance/OIII/SHO/HOO …), wird die Grün-Entfernung automatisch ausgeschaltet
-  (OIII bleibt). Sonst greift der manuelle Schalter. Also: erkannt, WENN in den Metadaten — sonst
-  einstellbar.
+### Added
+- **Auto mask in the editor (local brightness, no painting):** new option "🎯 Auto mask: brighten only
+  the subject" — exposure/clarity/levels act only on the **midtones** (nebula/subject) while the
+  **bright core/stars and dark background stay protected** (soft luminance mask). Works for **astro AND
+  macro**, one click — ideal for beginners. +1 test (50).
+- **Dual-band filter also auto-detected:** if the filter name is in the FITS header
+  (Dual/Duo/Extreme/Enhance/OIII/SHO/HOO …), green removal is switched off automatically (OIII stays).
+  Otherwise the manual switch applies. So: detected WHEN in the metadata — otherwise adjustable.
 
 ## [1.16.6] – 2026-06-26
-### Behoben/Hinzugefügt (Dual-Band-Korrektheit)
-- **Grün-Entfernung nicht mehr erzwungen — neue Option „Dual-Band/Schmalband-Filter (Ha+OIII)":**
-  Mit Dual-Band-Filter ist Grün echtes **OIII-Signal** (landet beim OSC-Sensor teils im Grün-Kanal);
-  die automatische SCNR-Grün-Entfernung hätte es zerstört (→ „nur rot"). Ist der Schalter an, wird
-  KEINE Grün-Entfernung gemacht, OIII (Teal) bleibt erhalten. Ohne Filter/Breitband bleibt SCNR aktiv
-  (entfernt Grünstich + grüne Hotpixel). CLI: `--dualband`. Persistiert, +i18n.
-  Hinweis: Für ernsthafte Dual-Band-/Narrowband-Bearbeitung (HOO/SHO-Palette) ist der **lineare
-  32-bit/FITS-Export → PixInsight/Siril/GraXpert** der richtige Weg — der bleibt unangetastet.
+### Fixed/added (dual-band correctness)
+- **Green removal no longer forced — new option "Dual-band/narrowband filter (Ha+OIII)":** with a
+  dual-band filter, green is real **OIII signal** (partly lands in the green channel on OSC sensors);
+  automatic SCNR green removal would have destroyed it (→ "red only"). With the switch on, NO green
+  removal is done, OIII (teal) is preserved. Without a filter/broadband, SCNR stays active (removes
+  green cast + green hot pixels). CLI: `--dualband`. Persisted, +i18n.
+  Note: for serious dual-band/narrowband processing (HOO/SHO palette), the **linear 32-bit/FITS export
+  → PixInsight/Siril/GraXpert** is the right path — that stays untouched.
 
 ## [1.16.5] – 2026-06-26
-### Behoben (Astro-Farbe)
-- **Grünstich entfernt (SCNR):** Astro-Vorschau begrenzt Grün auf den Schnitt von Rot/Blau — in
-  Deep-Sky ist Grün praktisch nie echtes Signal (kommt von OSC-Bayer/Lichtverschmutzung). Entfernt
-  zugleich grüne Hot-Pixel-/Stern-Sprenkel. Subtraktiv/treu, läuft VOR dem Strecken. +1 Test (49).
-  (Reste wie schwache Amp-Glow-/Satelliten-Spur brauchen Dark-Frames — Kalibrierung.)
+### Fixed (astro colour)
+- **Green cast removed (SCNR):** the astro preview clamps green to the average of red/blue — in deep
+  sky, green is practically never real signal (comes from OSC Bayer/light pollution). Also removes green
+  hot-pixel/star speckles. Subtractive/faithful, runs BEFORE stretching. +1 test (49). (Residuals like
+  faint amp glow/satellite trails need dark frames — calibration.)
 
 ## [1.16.4] – 2026-06-26
-### Behoben (Astro-Qualität — beim Verifikations-Lauf gefunden)
-- **Standard-Ausrichtung war `shift` (nur Translation):** Bei realen Datensätzen mit Feldrotation
-  führte das zu **länglichen, farbig getrennten Sternen** und einem flachen Bild (am IC 5146 / ASI294
-  nachgewiesen). Standard ist jetzt **`rotate` (Translation + Feldrotation)** — korrigiert auch
-  gedrehte Felder, funktioniert ebenso bei reiner Nachführung. Sterne werden rund.
-- **Hot-/Cold-Pixel-Korrektur standardmäßig an:** entfernt die farbigen Einzelpixel-Punkte
-  (Bayer-/Sensor-Hotpixel), die vorher als Farbsprenkel sichtbar waren.
-- Astro-Screenshot = realer IC 5146 (Kokonnebel) mit runden Sternen.
+### Fixed (astro quality — found during the verification run)
+- **Default alignment was `shift` (translation only):** on real datasets with field rotation this led
+  to **elongated, colour-split stars** and a flat image (shown on IC 5146 / ASI294). The default is now
+  **`rotate` (translation + field rotation)** — also corrects rotated fields and works equally for pure
+  tracking. Stars become round.
+- **Hot/cold pixel correction on by default:** removes the coloured single-pixel dots (Bayer/sensor hot
+  pixels) that were previously visible as colour speckle.
+- Astro screenshot = real IC 5146 (Cocoon Nebula) with round stars.
 
 ## [1.16.3] – 2026-06-26
-### Behoben (CI)
-- **tests.yml:** `psdtags` fehlte unter den CI-Abhängigkeiten → der neue Ebenen-TIFF-Regressionstest
-  brach in GitHub Actions (lokal grün). psdtags ergänzt; Test überspringt zusätzlich sauber, falls
-  psdtags fehlt. CI wieder grün.
+### Fixed (CI)
+- **tests.yml:** `psdtags` was missing from the CI dependencies → the new layered-TIFF regression test
+  broke in GitHub Actions (green locally). psdtags added; the test also skips cleanly if psdtags is
+  missing. CI green again.
 
-## [1.16.2] – 2026-06-26 — Beta-Stabilisierung
-### Behoben (beim Verifikations-Lauf gefunden)
-- **Photoshop-Ebenen blieben bei EXIF-Übernahme erhalten:** Die eingebaute EXIF-Übernahme schrieb
-  TIFFs neu und hätte dabei ein **Ebenen-TIFF flachgemacht** (Photoshop-ImageSourceData verloren).
-  Solche Dateien werden jetzt erkannt (Tag 37724) und beim EXIF-Schreiben übersprungen — Ebenen
-  bleiben erhalten. Regressionstest ergänzt (48 Tests).
-### Geändert (Doku)
-- **README EXIF-Bullet präzisiert** (DE/EN): „EXIF/Provenienz wird übernommen, wo möglich — JPEG mit
-  EXIF, TIFF mit Kern-Provenienz, vollständige TIFF-Metadaten optional via exiftool" statt pauschal
-  „EXIF bleibt erhalten".
-### Verifiziert (echte Daten, lokal auf macOS)
-- Makro-Stack (JPG-Serie) + Ghost-Map · Export JPG/16-bit-TIFF/Photoshop-Ebenen-TIFF + EXIF-Übernahme
-  · Seestar-FITS M 42 (GRBG, Feldrotation, Farbe) · ASI294MC-FITS IC 5146 (RGGB-Auto-Erkennung,
-  Translation, Farbe) · Sony-ARW-Entwicklung (16-bit + EXIF) · Streamed-Ghost-Map. KI-Pfad end-to-end
-  über Spark (Qwen3.6-27B). Offen: native Win/macOS-Starttests (nur CI-Build); Stern-Farbfransen bei
-  OSC = Feinschliff.
+## [1.16.2] – 2026-06-26 — Beta stabilization
+### Fixed (found during the verification run)
+- **Photoshop layers preserved during EXIF copy:** the built-in EXIF copy rewrote TIFFs and would have
+  **flattened a layered TIFF** (losing Photoshop ImageSourceData). Such files are now detected (tag
+  37724) and skipped when writing EXIF — layers are preserved. Regression test added (48 tests).
+### Changed (docs)
+- **README EXIF bullet clarified** (DE/EN): "EXIF/provenance is copied where possible — JPEG with EXIF,
+  TIFF with core provenance, full TIFF metadata optionally via exiftool" instead of a blanket "EXIF is
+  preserved".
+### Verified (real data, locally on macOS)
+- Macro stack (JPG series) + ghost map · export JPG/16-bit TIFF/Photoshop layered TIFF + EXIF copy ·
+  Seestar FITS M 42 (GRBG, field rotation, colour) · ASI294MC FITS IC 5146 (RGGB auto-detect,
+  translation, colour) · Sony ARW development (16-bit + EXIF) · streamed ghost map. AI path end-to-end
+  via Spark (Qwen3.6-27B). Open: native Win/macOS launch tests (CI build only); star colour fringing on
+  OSC = polish.
 
 ## [1.16.1] – 2026-06-26
-### Hinzugefügt (Astro-Aufbereitung: einstellbar + KI)
-- **Drei Astro-Regler für das Vorschau-Bild — Auto (KI) oder manuell:** **Aufhellung** (5–30),
-  **Sättigung** (1.0–1.6) und **Farbkalibrierung** (0–1). Standard = „Aufbereitung automatisch
-  (KI / Standard)": die KI erkennt jetzt auch den **Farbstich** und schlägt die Farbkalibrierung
-  vor (zusätzlich zu Aufhellung/Sättigung). Haken entfernen → alles selbst einstellen
-  (GUI-Regler bzw. CLI `--astro-bright/--astro-saturation/--astro-color`). Werte werden gemerkt.
-- `astro.color_balance(strength)` ist jetzt **blendbar** (0 = aus … 1 = voll). Wirkt nur aufs
-  Vorschau-JPG; lineare Exports bleiben faithful.
-- +1 Test (47). Ordner-Hinweis: Build-Artefakte sind bereits per `.gitignore` ausgeschlossen.
+### Added (astro processing: adjustable + AI)
+- **Three astro sliders for the preview image — auto (AI) or manual:** **brightness** (5–30),
+  **saturation** (1.0–1.6) and **colour calibration** (0–1). Default = "Processing automatic
+  (AI / standard)": the AI now also detects the **colour cast** and suggests the colour calibration (in
+  addition to brightness/saturation). Uncheck → set everything yourself (GUI sliders or CLI
+  `--astro-bright/--astro-saturation/--astro-color`). Values are remembered.
+- `astro.color_balance(strength)` is now **blendable** (0 = off … 1 = full). Affects the preview JPG
+  only; linear exports stay faithful.
+- +1 test (47). Folder note: build artefacts are already excluded via `.gitignore`.
 
 ## [1.16.0] – 2026-06-26
-### Hinzugefügt / Geändert (Astro-Farbe & -Qualität)
-- **Debayering von OSC-FITS:** Farbkameras (Seestar, ZWO ASI …) liefern Bayer-Rohdaten als 2D-FITS
-  — die wurden bisher als Graustufen gelesen (graues Ergebnis). Jetzt wird debayert → **echte Farbe**.
-- **Bayer-Muster-Auto-Erkennung:** `BAYERPAT` wird aus dem Header gelesen; fehlt er, wird das Muster
-  **selbst erkannt** (probiert alle 4, wählt das mit den geringsten Farb-Artefakten). Verifiziert:
-  GRBG (Seestar) und RGGB (ASI294MC) korrekt aus den Rohdaten erkannt.
-- **Farbkalibrierung fürs Vorschau-Bild:** Hintergrund pro Kanal neutralisieren + Sterne neutral
-  abgleichen → gegen den Rotstich von OSC/LP-Filter, echte Nebelfarben (blaue Reflexion, rotes Ha).
-  Die linearen Exports (16/32-bit, FITS) bleiben faithful für GraXpert/StarNet/PixInsight.
-- **Highlight-/Kern-Schutz beim Strecken:** helle Bereiche werden sanfter gestreckt (Kern bleibt
-  strukturiert statt weißem Klecks) + leichter Farb-Boost.
-- **KI schlägt Aufhellung fürs fertige Astro-Bild vor** (Stärke/Sättigung/Kern-Schutz), mit der
-  ausdrücklichen Vorgabe, den Kern NICHT weiter aufzuhellen — nur das schwache Signal.
-- +3 Tests (46 gesamt). Echter M 42-Stack (Seestar, Feldrotation, Spark-KI) als 03_astro.png.
+### Added / changed (astro colour & quality)
+- **Debayering of OSC FITS:** colour cameras (Seestar, ZWO ASI …) deliver Bayer raw data as 2D FITS —
+  previously read as greyscale (grey result). Now debayered → **real colour**.
+- **Bayer pattern auto-detection:** `BAYERPAT` is read from the header; if missing, the pattern is
+  **detected automatically** (tries all 4, picks the one with the fewest colour artefacts). Verified:
+  GRBG (Seestar) and RGGB (ASI294MC) correctly detected from the raw data.
+- **Colour calibration for the preview image:** neutralize the background per channel + balance stars
+  neutral → against the red cast of OSC/LP filters, real nebula colours (blue reflection, red Ha). The
+  linear exports (16/32-bit, FITS) stay faithful for GraXpert/StarNet/PixInsight.
+- **Highlight/core protection when stretching:** bright areas are stretched more gently (the core stays
+  structured instead of a white blob) + a slight colour boost.
+- **AI suggests brightening for the finished astro image** (strength/saturation/core protection), with
+  the explicit instruction NOT to brighten the core further — only the faint signal.
+- +3 tests (46 total). Real M 42 stack (Seestar, field rotation, Spark AI) as 03_astro.png.
 
 ## [1.15.1] – 2026-06-26
-### Behoben (kritisch)
-- **Ergebnis-Anzeige stürzte ab:** Seit der Modularisierung (v1.10.1) fehlte in `ui/result_view.py`
-  der Import von `IMG_EXTS` — `_find_result`/`_show_result` warf nach **jedem** Lauf einen
-  `NameError`, das Ergebnis wurde nicht angezeigt. Import ergänzt. Neuer Regressionstest deckt
-  den kompletten Anzeige-Pfad ab; pyflakes-Scan bestätigt: keine weiteren fehlenden Importe.
-### Geändert
-- **Echter Astro-Screenshot:** `03_astro.png` zeigt jetzt einen realen ForgePix-Stack von **M 42
-  (Orion)** aus 49 Seestar-Subs (Feldrotation + Sigma-Rejection), inkl. KI-Sub-Bewertung.
+### Fixed (critical)
+- **Result display crashed:** since the modularization (v1.10.1), `ui/result_view.py` was missing the
+  `IMG_EXTS` import — `_find_result`/`_show_result` threw a `NameError` after **every** run, and the
+  result wasn't shown. Import added. A new regression test covers the entire display path; a pyflakes
+  scan confirms: no further missing imports.
+### Changed
+- **Real astro screenshot:** `03_astro.png` now shows a real ForgePix stack of **M 42 (Orion)** from 49
+  Seestar subs (field rotation + sigma rejection), incl. AI sub rating.
 
 ## [1.15.0] – 2026-06-26
-### Hinzugefügt
-- **EXIF auch in 16-bit-TIFF — ohne exiftool:** TIFF-Ausgaben bekommen jetzt die Kern-Provenienz
-  (Kamera/Modell/Datum als Baseline-Tags + lesbare Zusammenfassung mit Brennweite/Blende/ISO/
-  Belichtung in der Bildbeschreibung) eingebaut via `tifffile` — **pixelidentisch** (Lesen/Schreiben
-  über tifffile, kein BGR/RGB-Swap). Die vollständige EXIF-Unter-IFD je Einzeltag bleibt der
-  exiftool-Kür vorbehalten (wird automatisch bevorzugt, wenn vorhanden).
-- **Geister-Karte auch bei großen/gestreamten Stacks:** Neue speicherschonende
-  `disagreement_map_streamed()` (lädt EIN Frame nach dem anderen, Online-Varianz nach Welford,
-  downscaled + ausgerichtet). Damit gibt es Ghost-Map/KI-Retusche-Hinweis jetzt auch im
-  RAM-schonenden Großstack-Pfad (vorher dort nicht verfügbar).
-- +2 Tests (42 gesamt).
+### Added
+- **EXIF in 16-bit TIFF too — without exiftool:** TIFF outputs now get core provenance (camera/model/
+  date as baseline tags + a readable summary with focal length/aperture/ISO/exposure in the image
+  description) embedded via `tifffile` — **pixel-identical** (read/write via tifffile, no BGR/RGB swap).
+  The full per-tag EXIF sub-IFD remains the exiftool bonus (automatically preferred when present).
+- **Ghost map also for large/streamed stacks:** new memory-friendly `disagreement_map_streamed()`
+  (loads ONE frame at a time, online variance via Welford, downscaled + aligned). So the ghost map/AI
+  retouch hint is now available in the RAM-friendly large-stack path too (previously unavailable there).
+- +2 tests (42 total).
 
 ## [1.14.3] – 2026-06-26
-### Hinzugefügt (selbst-enthaltend)
-- **EXIF-Übernahme ohne exiftool — mitgeliefert:** Kamera/Objektiv/Brennweite/Blende/ISO/Belichtung
-  werden jetzt **eingebaut** auf die **JPEG-Ausgaben** übertragen (via `piexif`; Quelle JPEG/TIFF
-  direkt oder RAW über die Kernfelder). Damit braucht der Installer **keine** Zusatz-Installation
-  mehr für die EXIF-Übernahme. exiftool wird weiter automatisch **bevorzugt**, wenn vorhanden, und
-  bleibt die Kür für vollständige Metadaten auf 16-bit-TIFF.
-- `piexif` als Abhängigkeit (requirements + CI + Installer-Bundle). +1 Test (40 gesamt).
+### Added (self-contained)
+- **EXIF copy without exiftool — bundled:** camera/lens/focal length/aperture/ISO/exposure are now
+  **built-in** transferred onto the **JPEG outputs** (via `piexif`; source JPEG/TIFF directly or RAW via
+  the core fields). So the installer needs **no** extra install for EXIF copy. exiftool is still
+  **preferred** automatically when present, and remains the bonus for full metadata on 16-bit TIFF.
+- `piexif` as a dependency (requirements + CI + installer bundle). +1 test (40 total).
 
 ## [1.14.2] – 2026-06-26
-### Hinzugefügt / Geändert
-- **EXIF-Lesen ohne exiftool:** Brennweite/Blende/ISO/Belichtung (für DOF-Rechner, KI-Kontext,
-  Modul-Erkennung) werden jetzt **eingebaut** via `ExifRead` (pure-Python, JPEG **und** RAW)
-  gelesen — exiftool wird dafür **nicht mehr** gebraucht. exiftool bleibt nur noch für das
-  **Übertragen** der vollständigen Metadaten auf die Ausgabedateien nötig (klar so dokumentiert).
-  exiftool wird weiter bevorzugt, wenn vorhanden; sonst greift automatisch der Fallback.
-- `ExifRead` als Abhängigkeit (requirements + CI + Installer-Bundle). +2 Tests (39 gesamt).
+### Added / changed
+- **EXIF reading without exiftool:** focal length/aperture/ISO/exposure (for the DOF calculator, AI
+  context, module detection) are now read **built-in** via `ExifRead` (pure Python, JPEG **and** RAW) —
+  exiftool is **no longer** needed for this. exiftool remains needed only to **transfer** the full
+  metadata onto the output files (documented clearly). exiftool is still preferred when present;
+  otherwise the fallback kicks in automatically.
+- `ExifRead` as a dependency (requirements + CI + installer bundle). +2 tests (39 total).
 ### Repo
-- GitHub-Themen (Topics) gesetzt: focus-stacking, astrophotography, computational-photography u. a.
-  (Repo-Beschreibung steht bereits korrekt auf „ForgePix (Beta) …").
+- GitHub topics set: focus-stacking, astrophotography, computational-photography and more (the repo
+  description already correctly reads "ForgePix (Beta) …").
 
 ## [1.14.1] – 2026-06-26
-### Geändert (Ehrlichkeit/Claim-Check + Beta)
-- **Claim-Check der Doku:** Abhängigkeiten klar markiert — **EXIF-Übernahme/„Aus Foto lesen"
-  brauchen `exiftool`** (sonst übersprungen), **FITS** braucht `astropy` (optional, im Installer
-  enthalten). Photoshop-Ebenen-TIFF und FITS wurden real verifiziert (geschrieben + zurückgelesen).
-  GraXpert/StarNet++/Siril bleiben klar als optional + Auto-Erkennung + Datei-Fallback beschrieben.
-- **Datenschutz-Hinweis** zur KI jetzt einheitlich: in **Setup** (schon da), **README** und **beiden
-  Guides** — es gehen nur Vorschau-Frames, Schärfeprofil, EXIF-Eckdaten, optional Fokus-/Geister-Karte
-  und der Wunsch an die KI; **keine** Originaldateien, **keine** Standortdaten. Lokaler Server = nichts
-  verlässt den Rechner.
-- **Beta-Kennzeichnung:** README-Lead + „Beta" im „Über"-Dialog. Positionierung: „automatisches
-  Fokus-Stacking und Computational Photography für Makro, Astro und Langzeitserien — lokal nutzbar,
-  KI optional".
+### Changed (honesty/claim check + Beta)
+- **Claim check of the docs:** dependencies clearly marked — **EXIF copy/"read from photo" need
+  `exiftool`** (otherwise skipped), **FITS** needs `astropy` (optional, included in the installer).
+  Photoshop layered TIFF and FITS were really verified (written + read back). GraXpert/StarNet++/Siril
+  stay clearly described as optional + auto-detection + file fallback.
+- **Privacy note** about the AI now consistent: in **Setup** (already there), **README** and **both
+  guides** — only preview frames, sharpness profile, EXIF key facts, optionally the focus/ghost map and
+  your wish go to the AI; **no** original files, **no** location data. A local server = nothing leaves
+  the machine.
+- **Beta marking:** README lead + "Beta" in the "About" dialog. Positioning: "automatic focus stacking
+  and computational photography for macro, astro and long-exposure series — locally usable, AI
+  optional".
 
 ## [1.14.0] – 2026-06-26
-### Hinzugefügt (KI-Hinweise, optional)
-- **Geister-Karte an die KI:** Nach dem Stacken bekommt die Post-Stack-KI (Feinschliff) optional
-  die **Geister-Karte** mit und nennt konkrete **Retusche-Stellen** („wo ist Ghosting?"). Die
-  Karte wird dafür intern erzeugt, auch ohne `--ghost-map`. Erscheint als „KI-Retusche-Hinweis"
-  im Log; ohne KI-Server passiert nichts.
-- **Astro-Sub-Auswahl in Klartext:** Bei Astro fasst die KI (falls Server da) in 1–3 Sätzen
-  zusammen, **welche Subs warum** rausfliegen (Wolken/Guiding/FWHM/Spuren) — rein textbasiert,
-  datensparsam. Neue reine Funktion `astro_quality.subs_summary_text()`.
-- +2 Tests (37 gesamt).
+### Added (AI hints, optional)
+- **Ghost map to the AI:** after stacking, the post-stack AI (polish) optionally gets the **ghost map**
+  and names concrete **retouch spots** ("where is ghosting?"). The map is generated internally for this,
+  even without `--ghost-map`. Appears as "AI retouch hint" in the log; without an AI server nothing
+  happens.
+- **Astro sub selection in plain language:** for astro the AI (if a server is present) summarizes in
+  1–3 sentences **which subs are dropped and why** (clouds/guiding/FWHM/trails) — purely text-based,
+  data-frugal. New pure function `astro_quality.subs_summary_text()`.
+- +2 tests (37 total).
 
 ## [1.13.0] – 2026-06-26
-### Hinzugefügt (KI-Kontext + Transparenz)
-- **Reicherer KI-Vorschlag:** Der KI-Settings-Vorschlag bekommt jetzt zusätzlich **EXIF-Eckdaten**
-  (Brennweite/Blende/Belichtung/ISO/Objektiv) und – bei Makro – die **Fokus-Herkunfts-Karte als
-  Bild** mit. So kann die KI Fokus-Lücken erkennen und „mehr Aufnahmen nötig?" beurteilen.
-- **Freitext-Wunsch:** Neues Feld „Wunsch (optional)" im KI-Bereich (z. B. „seidiges Wasser,
-  Personen scharf"). Wird beim KI-Vorschlag **wörtlich berücksichtigt** (CLI: `--wish`).
-- **Transparenz:** Setup zeigt klar, **was** an die KI geht (einige Vorschau-Frames, Schärfeprofil,
-  EXIF-Eckdaten, dein Wunsch) — **keine** Originaldateien, **keine** Standortdaten.
-- Erweiterungspunkt `suggest_settings(context=…)` + `build_ai_context()`; +3 Tests (35 gesamt).
-### Dokumentation
-- **Anfänger- vs. Profi-Vergleichstabelle** (wer kann was, wie, warum, wann sinnvoll) in beiden
-  Guides (DE/EN).
+### Added (AI context + transparency)
+- **Richer AI suggestion:** the AI settings suggestion now additionally gets **EXIF key facts**
+  (focal length/aperture/exposure/ISO/lens) and — for macro — the **focus-origin map as an image**. So
+  the AI can spot focus gaps and judge "more shots needed?".
+- **Free-text wish:** new field "Wish (optional)" in the AI section (e.g. "silky water, people sharp").
+  Taken into account **verbatim** for the AI suggestion (CLI: `--wish`).
+- **Transparency:** Setup shows clearly **what** goes to the AI (a few preview frames, sharpness
+  profile, EXIF key facts, your wish) — **no** original files, **no** location data.
+- Extension point `suggest_settings(context=…)` + `build_ai_context()`; +3 tests (35 total).
+### Documentation
+- **Beginner vs. pro comparison table** (who can do what, how, why, when it makes sense) in both guides
+  (DE/EN).
 
 ## [1.12.0] – 2026-06-26
-### Hinzugefügt (einfacher)
-- **Null-Klick im Anfänger-Modus:** Ordner aufs Fenster ziehen startet **sofort die Automatik** —
-  rein → fertig, ganz ohne Knopf. (Profi-Modus: weiterhin erst Reihen-Analyse.)
-- **Modul automatisch erraten:** Beim Ablegen eines Ordners (von der Modul-Auswahl) rät ForgePix
-  das passende Modul aus Dateitypen, Dateinamen und einer kurzen EXIF-Stichprobe — FITS/„light/
-  dark/flat" → Astro, sehr lange Belichtung bei hoher ISO → Astro, lange Belichtung → Langzeit,
-  sonst Makro. Wird vorgewählt + im Log/Status begründet; der Nutzer kann jederzeit umschalten.
-  Neue Engine-Funktion `focus_analysis.guess_module()` (+3 Tests, 32 gesamt).
+### Added (easier)
+- **Zero-click in beginner mode:** dropping a folder on the window **starts the automatic run
+  immediately** — in → done, no button at all. (Pro mode: still series analysis first.)
+- **Guess the module automatically:** when dropping a folder (from the module selection), ForgePix
+  guesses the right module from file types, file names and a short EXIF sample — FITS/"light/dark/flat"
+  → astro, very long exposure at high ISO → astro, long exposure → long-exposure, otherwise macro.
+  Preselected + justified in the log/status; the user can switch anytime. New engine function
+  `focus_analysis.guess_module()` (+3 tests, 32 total).
 
 ## [1.11.0] – 2026-06-26
-### Geändert (Tempo)
-- **Mehrkern-Verarbeitung:** RAW-Entwicklung und Schärfe-Analyse laufen jetzt über **alle
-  CPU-Kerne** (ThreadPool; rawpy/OpenCV geben den GIL frei). Reihenfolge bleibt exakt erhalten.
-  Auf Mehrkern-Maschinen deutlich schneller — bei RAW-Serien am stärksten.
-- **Schärfe-Cache:** Analyse-Ergebnisse werden pro Datei (Schlüssel = Pfad + Änderungszeit)
-  zwischengespeichert. Erneute Läufe/„Weiter wo du warst" überspringen die Neuberechnung
-  (im Test ~19× schneller beim 2. Lauf, identische Ergebnisse).
-- **Embedded-JPEG fürs Culling:** Für die reine Schärfe-Analyse wird – wenn groß genug – das
-  eingebettete Kamera-JPEG des RAW genutzt statt voll zu entwickeln (sicherer Fallback auf
-  volle Entwicklung). Die Stack-Qualität bleibt unberührt (Entwicklung fürs Ergebnis unverändert).
-- Neuer geteilter `parallel.py`-Helfer (`pmap`/`cpu_workers`) + 3 Tests (29 gesamt).
+### Changed (speed)
+- **Multi-core processing:** RAW development and sharpness analysis now run across **all CPU cores**
+  (ThreadPool; rawpy/OpenCV release the GIL). The order is preserved exactly. Much faster on multi-core
+  machines — most of all on RAW series.
+- **Sharpness cache:** analysis results are cached per file (key = path + modification time). Repeat
+  runs/"continue where you left off" skip the recomputation (~19× faster on the 2nd run in testing,
+  identical results).
+- **Embedded JPEG for culling:** for sharpness analysis alone, the RAW's embedded camera JPEG is used —
+  if large enough — instead of fully developing (safe fallback to full development). Stack quality is
+  untouched (development for the result unchanged).
+- New shared `parallel.py` helper (`pmap`/`cpu_workers`) + 3 tests (29 total).
 
 ## [1.10.1] – 2026-06-26
-### Behoben
-- **Absturz beim Beenden vermeidbar gemacht:** Der Update-Check lief als `QThread` und konnte beim
-  schnellen Beenden kurz nach dem Start einen `qFatal`/Abort auslösen (Thread beim Aufräumen noch
-  aktiv). Läuft jetzt als reiner Python-Daemon-Thread → das kann nicht mehr passieren.
-### Geändert (interne Modularisierung 2/n — keine Verhaltensänderung)
-- **`ui/main_window.py` von ~2340 auf ~1940 Zeilen** verschlankt. Weitere zusammenhängende Teile
-  ausgelagert: `ui/settings_io.py` (Einstellungen laden/speichern), `ui/export.py`
-  (Schnell-Export + Export-Dialog), `ui/result_view.py` (Ergebnis-/Vorschau-Anzeige, Ansicht-
-  Umschalter, Entscheidungs-Panel). Funktion und Oberfläche unverändert (26 Tests grün,
-  Rendering offscreen geprüft).
+### Fixed
+- **Crash on quit made avoidable:** the update check ran as a `QThread` and could trigger a
+  `qFatal`/abort when quitting quickly right after launch (thread still active during cleanup). Now runs
+  as a plain Python daemon thread → that can no longer happen.
+### Changed (internal modularization 2/n — no behaviour change)
+- **`ui/main_window.py` slimmed from ~2340 to ~1940 lines.** Further coherent parts extracted:
+  `ui/settings_io.py` (load/save settings), `ui/export.py` (quick export + export dialog),
+  `ui/result_view.py` (result/preview display, view switcher, decision panel). Function and UI unchanged
+  (26 tests green, offscreen rendering checked).
 
 ## [1.10.0] – 2026-06-26
-### Geändert (interne Modularisierung — keine Verhaltensänderung)
-- **`ui/main_window.py` von ~2640 auf ~2340 Zeilen verschlankt.** Zusammenhängende Teile in
-  eigene Module ausgelagert: `ui/theme.py` (Qt-Stylesheet), `ui/workers.py`
-  (Hintergrund-Threads + Versionsvergleich), `ui/welcome.py` (Startbildschirm & „Über"-Dialog
-  als Mixin), `ui/appinfo.py` (geteilte Pfad-/Namens-Konstanten). Erleichtert künftige Arbeit;
-  Funktion und Oberfläche unverändert (26 Tests grün, identisches Rendering).
+### Changed (internal modularization — no behaviour change)
+- **`ui/main_window.py` slimmed from ~2640 to ~2340 lines.** Coherent parts extracted into their own
+  modules: `ui/theme.py` (Qt stylesheet), `ui/workers.py` (background threads + version comparison),
+  `ui/welcome.py` (welcome screen & "About" dialog as a mixin), `ui/appinfo.py` (shared path/name
+  constants). Eases future work; function and UI unchanged (26 tests green, identical rendering).
 
 ## [1.9.5] – 2026-06-26
-### Hinzugefügt
-- **Auto-Update-Hinweis:** Beim Start prüft ForgePix einmal leise die GitHub-Releases und zeigt
-  auf dem Startbildschirm einen dezenten Hinweis „Neue Version verfügbar → herunterladen", wenn
-  eine neuere Version vorliegt. Vollständig **abschaltbar** (Setup → „Beim Start auf Updates
-  prüfen"), läuft im Hintergrund-Thread und bleibt bei Offline/Fehler still. Es werden keine
-  Daten gesendet (reiner Lese-Aufruf der öffentlichen Releases-API).
+### Added
+- **Auto-update hint:** on launch ForgePix quietly checks the GitHub releases once and shows a subtle
+  hint on the welcome screen "New version available → download" if a newer version exists. Fully
+  **switchable off** (Setup → "Check for updates on start"), runs in a background thread and stays quiet
+  when offline/on error. No data is sent (a pure read of the public releases API).
 
 ## [1.9.4] – 2026-06-25
-### Hinzugefügt
-- **„Weiter wo du warst"** auf dem Startbildschirm: Ein Chip lädt den zuletzt verwendeten Ordner
-  samt Modul mit einem Klick wieder — erscheint nur, wenn der Ordner noch existiert.
+### Added
+- **"Continue where you left off"** on the welcome screen: a chip reloads the last used folder and
+  module with one click — appears only if the folder still exists.
 
 ## [1.9.3] – 2026-06-25
-### Hinzugefügt
-- **Klickbare Befunde** im Entscheidungs-Panel: Ein Befund springt per Klick zur passenden
-  Ansicht/Werkzeug — „Ghosting" → Geister-Karte, „Halos" → Retusche, „Fokus/Abdeckung" →
-  Fokus-Map. Der Link erscheint nur, wenn das Ziel verfügbar ist. Aus Diagnose wird ein Klick
-  zur Lösung.
+### Added
+- **Clickable findings** in the decision panel: a finding jumps on click to the matching view/tool —
+  "Ghosting" → ghost map, "Halos" → retouch, "Focus/coverage" → focus map. The link appears only when
+  the target is available. Diagnosis becomes one click to the fix.
 
 ## [1.9.2] – 2026-06-25
-### Hinzugefügt
-- **Schnell-Export-Chips** im Entscheidungs-Panel: 📷 Instagram · 🌐 Web · 🖨 Druck als
-  Ein-Klick direkt neben dem Ergebnis — exportiert das fertige Bild sofort ins gewählte Format
-  (ohne Dialog) und öffnet den Ordner. Der ausführliche Export-Dialog (⌘E) bleibt für
-  Mehrfach-Ziele/Ebenen/16-bit. Chips sind aktiv, sobald ein Ergebnis vorliegt.
+### Added
+- **Quick-export chips** in the decision panel: 📷 Instagram · 🌐 Web · 🖨 Print as one-click right next
+  to the result — exports the finished image straight into the chosen format (no dialog) and opens the
+  folder. The detailed export dialog (⌘E) stays for multiple targets/layers/16-bit. Chips are active as
+  soon as a result is present.
 
 ## [1.9.1] – 2026-06-25
-### Hinzugefügt
-- **„Warum diese Einstellungen?"** im Entscheidungs-Panel: Die Begründung der Automatik/KI
-  (Motiv, Vorschlag, Begründung) wird live aus dem Lauf-Log mitgeschnitten und rechts neben dem
-  Ergebnis angezeigt — die Software erklärt sichtbar, *warum* sie so entschieden hat.
+### Added
+- **"Why these settings?"** in the decision panel: the reasoning of the auto/AI (subject, suggestion,
+  rationale) is captured live from the run log and shown next to the result — the software visibly
+  explains *why* it decided that way.
 
 ## [1.9.0] – 2026-06-25
-### Hinzugefügt
-- **3-Spalten-Layout (Lightroom-Stil):** links Einstellungen · Mitte großes Bild mit
-  **Ansicht-Umschalter** (Ergebnis / Fokus-Map / Geister-Karte) + Aktionen + Filmstreifen ·
-  rechts **Entscheidungs-Panel** (Stack-Konfidenz-Score, „X von Y verwendet", Befunde,
-  nächste Schritte) und Log.
-- **Code-Signing-Gerüst:** macOS-Build signiert ad-hoc; echte Developer-ID-Signierung +
-  Notarisierung schalten sich automatisch ein, sobald die Apple-Secrets gesetzt sind
-  (Anleitung: docs/SIGNING.md).
+### Added
+- **3-column layout (Lightroom style):** settings on the left · large image in the centre with a **view
+  switcher** (Result / Focus map / Ghost map) + actions + filmstrip · **decision panel** on the right
+  (stack confidence score, "X of Y used", findings, next steps) and log.
+- **Code-signing scaffold:** the macOS build is ad-hoc signed; real Developer-ID signing + notarization
+  switch on automatically once the Apple secrets are set (guide: docs/SIGNING.md).
 
 ## [1.8.1] – 2026-06-25
-### Behoben (aus Audit)
-- **KI-Vorschlag-Knopf** startete im gebündelten Binary eine zweite GUI statt der Pipeline —
-  jetzt frozen-sicher (gemeinsamer `_start_pipeline`-Helfer für alle Subprozess-Starts).
-- **FITS** war in jedem Installer tot: `astropy` fehlte im Build — jetzt in build.yml + tests.yml.
-- **macOS-Dock-Icon** (pyobjc) im Mac-Build ergänzt.
-- **Einstellungs-Migration** von „StackForge" → „ForgePix" (alte Nutzer behalten Pfade/Modus/Fenster).
-- Tote `SHINESTACKER`-Referenz + verwaiste `StackForge.iconset` entfernt; FITS-Test ergänzt (26 Tests).
+### Fixed (from audit)
+- **AI suggestion button** launched a second GUI instead of the pipeline in the bundled binary — now
+  frozen-safe (shared `_start_pipeline` helper for all subprocess launches).
+- **FITS** was dead in every installer: `astropy` was missing from the build — now in build.yml +
+  tests.yml.
+- **macOS dock icon** (pyobjc) added in the Mac build.
+- **Settings migration** from "StackForge" → "ForgePix" (old users keep paths/mode/window).
+- Dead `SHINESTACKER` reference + orphaned `StackForge.iconset` removed; FITS test added (26 tests).
 
 ## [1.8.0] – 2026-06-25
-### Hinzugefügt
-- **Fertige Installer für macOS · Windows · Linux** (PyInstaller via GitHub Actions, automatisch ans
-  Release gehängt) — kein Python mehr nötig. Download auf der Releases-Seite.
-- Gebündeltes Binary dient als GUI **und** (über `--cli`) als Pipeline-Backend.
-### Behoben
-- cv2-Rekursionsfehler im gebündelten Binary (Pfad-Verschmutzung im frozen-Modus).
+### Added
+- **Ready-made installers for macOS · Windows · Linux** (PyInstaller via GitHub Actions, attached to
+  the release automatically) — no Python needed anymore. Download on the releases page.
+- The bundled binary serves as the GUI **and** (via `--cli`) as the pipeline backend.
+### Fixed
+- cv2 recursion error in the bundled binary (path pollution in frozen mode).
 
 ## [1.7.0] – 2026-06-25
-### Geändert
-- **Umbenannt von „StackForge" zu „ForgePix"** — der alte Name war auf GitHub/PyPI mehrfach belegt.
-  ForgePix ist auf PyPI und GitHub verifiziert frei. App, Icons, Bundle, Repo, Docs durchgängig umgestellt.
-- Ordner aufgeräumt: veraltete Screenshots entfernt, Asset-Dateien umbenannt.
+### Changed
+- **Renamed from "StackForge" to "ForgePix"** — the old name was taken multiple times on GitHub/PyPI.
+  ForgePix is verified free on PyPI and GitHub. App, icons, bundle, repo, docs all switched over.
+- Folder cleaned up: outdated screenshots removed, asset files renamed.
 
 ## [1.6.0] – 2026-06-25
-### Geändert (foto-zentriertes Layout)
-- **Bild groß oben, Log klein unten** — das Ergebnis bekommt die Hauptfläche, der Log ist Nebensache.
-- **Echte Statuszeile** statt grünem Strich: Bereit · Ordner geladen · Läuft · Analysiere · Stacke · Fertig
-  (farbcodiert, aus dem Live-Log abgeleitet).
-- **Größerer Header:** Logo + „ForgePix" + Untertitel „Computational Photography Suite".
-- **README:** „Warum ForgePix?"-Bullets geschärft + **Bilderstrecke** (Input → Analyse → Fokus-Map →
-  Ergebnis) mit echten Fotos; Screenshots auf das neue Layout aktualisiert.
+### Changed (photo-centric layout)
+- **Image large on top, log small below** — the result gets the main area, the log is secondary.
+- **Real status line** instead of a green strip: Ready · Folder loaded · Running · Analyzing · Stacking
+  · Done (colour-coded, derived from the live log).
+- **Larger header:** logo + "ForgePix" + subtitle "Computational Photography Suite".
+- **README:** "Why ForgePix?" bullets sharpened + **image strip** (input → analysis → focus map →
+  result) with real photos; screenshots updated to the new layout.
 
 ## [1.5.0] – 2026-06-25
-### Geändert (UX-Politur)
-- **Startbildschirm:** hochwertigere Karten — große Icons, Titel, Kategorie und Beispiele
-  (z. B. „Produkte · Münzen · Insekten · Food“) + Empfehlungs-Pill. **Einstellungen & „Was ist das?“**
-  schon am Start (Sprache/Anfänger-Profi/KI).
-- **Hauptfenster:** deutlich **größere Bildfläche** (~⅔), leeres Ergebnis als klare Drag-&-Drop-Zone,
-  viele Buttons in ein **„🛠 Werkzeuge“-Menü** aufgeräumt (nur Vorher/Nachher · Bearbeiten · Export sichtbar).
-- **Editor:** größeres **Histogramm** und größere **Bildfläche**.
-- **README** komplett aufpoliert: „Warum ForgePix?“-Sektion + Screenshot-Galerie (6 Ansichten).
-- **Schieberegler** gethemt (v1.4.1).
+### Changed (UX polish)
+- **Welcome screen:** higher-quality cards — large icons, title, category and examples (e.g. "Products ·
+  Coins · Insects · Food") + recommendation pill. **Settings & "What is this?"** already at the start
+  (language/beginner-pro/AI).
+- **Main window:** noticeably **larger image area** (~⅔), an empty result as a clear drag-&-drop zone,
+  many buttons tidied into a **"🛠 Tools" menu** (only Before/After · Edit · Export visible).
+- **Editor:** larger **histogram** and larger **image area**.
+- **README** fully polished: "Why ForgePix?" section + screenshot gallery (6 views).
+- **Sliders** themed (v1.4.1).
 
 ## [1.4.1] – 2026-06-25
-### Behoben
-- **Schieberegler durchgängig gethemt** (grüner Verlauf + heller Griff statt Qt-Standard-Blau) —
-  betraf v. a. den Camera-Raw-Editor („Bearbeiten").
-- Letzte lila Canvas-Reste (Vergleichs-/Kurven-Hintergrund) auf Anthrazit umgestellt.
+### Fixed
+- **Sliders themed throughout** (green gradient + light handle instead of Qt-default blue) — affected
+  mainly the Camera-Raw editor ("Edit").
+- Last purple canvas remnants (compare/curves background) switched to anthracite.
 
 ## [1.4.0] – 2026-06-25
-### Geändert
-- **Startbildschirm neu gestaltet:** Logo + Tagline, aufgeräumte Modul-Karten mit Emoji,
-  Kurzbeschreibung und grünem Empfehlungs-Pill (Bildanzahl), zentriert mit fester Maximalbreite.
+### Changed
+- **Welcome screen redesigned:** logo + tagline, tidy module cards with emoji, a short description and a
+  green recommendation pill (image count), centred with a fixed maximum width.
 
 ## [1.3.0] – 2026-06-25
-### Hinzugefügt
-- **Export-Dialog:** Auswahl der Ziele (Web-JPG/Instagram/WhatsApp/Web/4K/Druck-16-bit-TIFF),
-  Ausgabe-Schärfung, JPG-Qualität, **Photoshop-Ebenen-Datei** und 16-bit-TIFF. Sichtbarer
-  „📦 Export"-Knopf + ⌘E.
-- Erstes öffentliches Release auf GitHub inkl. CI (GitHub Actions) und Tests-Badge.
-### Geändert
-- Welcome-Screen klarer („Schritt 1: Wähle ein Modul" + 3-Schritt-Ablauf).
-- App-Launcher portabel (relatives Projektverzeichnis).
+### Added
+- **Export dialog:** target selection (Web JPG/Instagram/WhatsApp/Web/4K/Print 16-bit TIFF), output
+  sharpening, JPG quality, **Photoshop layered file** and 16-bit TIFF. Visible "📦 Export" button + ⌘E.
+- First public release on GitHub incl. CI (GitHub Actions) and a tests badge.
+### Changed
+- Welcome screen clearer ("Step 1: choose a module" + 3-step flow).
+- App launcher portable (relative project directory).
 
 ## [1.2.0] – 2026-06-25
-### Hinzugefügt
-- **Foto-Tastatursteuerung:** Leertaste (Vorher/Nachher), ← → (Bild wechseln), A/S/E/G/F/R,
-  ⌘E (Export). **Drag&Drop:** Ordner aufs Fenster → übernehmen + im Profi-Makro Analyse starten.
-### Geändert
-- **Theme** auf Anthrazit + Chili-Grün (GreenChili-Marke) statt Lila.
-- Messwert-Begründungen beim Aussortieren („Schärfewert 41 % vom Serien-Median").
+### Added
+- **Photo keyboard control:** space (before/after), ← → (switch image), A/S/E/G/F/R, ⌘E (export).
+  **Drag & drop:** folder onto the window → adopt it + start analysis in pro macro.
+### Changed
+- **Theme** to anthracite + chili green (GreenChili brand) instead of purple.
+- Metric reasons when culling ("sharpness value 41 % of the series median").
 
 ## [1.1.0] – 2026-06-25
-### Hinzugefügt
-- **Tastenkürzel** (⌘O/⌘↩/⌘1–4/F1 …) + Hilfe-Dialog.
-- **Test-Suite** (24 unittest-Tests, `./run_tests.sh`), inkl. i18n-Vollständigkeitstest.
-### Behoben
-- None-/Leer-Guards (Astro/Langzeit), Timeout-Handling (GraXpert/StarNet/Siril),
-  Analyse im Hintergrund-Thread (GUI blockiert nicht mehr).
+### Added
+- **Keyboard shortcuts** (⌘O/⌘↩/⌘1–4/F1 …) + help dialog.
+- **Test suite** (24 unittest tests, `./run_tests.sh`), incl. an i18n completeness test.
+### Fixed
+- None/empty guards (astro/long-exposure), timeout handling (GraXpert/StarNet/Siril), analysis in a
+  background thread (GUI no longer blocks).
 
 ## [1.0.0] – 2026-06-24
-### Hinzugefügt
-- Vier Module: **Makro/Fokus-Stacking, Astro, Hybrid, Langzeitbelichtung** mit Start-Auswahl.
-- **Fokus-Intelligenz:** Verwackelt-Filter, Reihen-Analyse, Stack-Optimizer, DOF-/Bracketing-
-  Assistent mit EXIF-Auslesen, Stack-Konfidenz-Score, Fokus-Map.
-- Astro: Kalibrierung, Translation/Feldrotation, Hot-Pixel, Drizzle, Sub-Bewertung, FITS,
-  GraXpert/StarNet/Siril per Ein-Klick.
-- Camera-Raw-Editor, Retusche, Export-Voreinstellungen, Batch/Watch, DE/EN, optionale KI.
+### Added
+- Four modules: **Macro/focus stacking, Astro, Hybrid, Long exposure** with a start selection.
+- **Focus intelligence:** blur filter, series analysis, stack optimizer, DOF/bracketing assistant with
+  EXIF reading, stack confidence score, focus map.
+- Astro: calibration, translation/field rotation, hot pixel, drizzle, sub rating, FITS,
+  GraXpert/StarNet/Siril with one click.
+- Camera-Raw editor, retouch, export presets, batch/watch, DE/EN, optional AI.
