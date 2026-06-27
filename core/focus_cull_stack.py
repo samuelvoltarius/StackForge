@@ -1940,10 +1940,16 @@ def run_hdr(input_dir, work_dir, args):
             print("    (übersprungen — zu wenige lesbare Bilder)")
             continue
         _tm = getattr(args, "hdr_tonemap", "reinhard")
-        if getattr(args, "hdr_method", "fusion") == "radiance":
-            result = hdr.merge_radiance(imgs, tonemap=("reinhard" if _tm == "local" else _tm))
-            if _tm == "local":                            # H2: Durand-Lokal-Tonemapping nachschalten
-                result = hdr.tonemap_local(result, strength=1.0)
+        if _tm == "local":
+            # H2: lokales Durand-Tonemapping auf die SAUBERE Exposure-Fusion anwenden (nicht auf die
+            # Radiance-Map — die rauscht in tiefen Schatten und tonemapping verstärkt Farb-Flecken;
+            # auf echten Nacht-Reihen verifiziert: Fusion+Durand bleibt farbsauber).
+            result = hdr.merge_exposures(imgs, align=not getattr(args, "no_align", False),
+                                         deghost=getattr(args, "hdr_deghost", "off"),
+                                         flow=getattr(args, "hdr_deghost_flow", False))
+            result = hdr.tonemap_local(result, strength=1.0)
+        elif getattr(args, "hdr_method", "fusion") == "radiance":
+            result = hdr.merge_radiance(imgs, tonemap=_tm)
         else:
             result = hdr.merge_exposures(imgs, align=not getattr(args, "no_align", False),
                                          deghost=getattr(args, "hdr_deghost", "off"),
