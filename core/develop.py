@@ -138,6 +138,67 @@ def local_contrast(img, amount=0.5, scales=4, protect=0.2):
     return (res * maxv).astype(dtype) if dtype != np.float32 else res
 
 
+def capture_sharpen(img, sigma=0.7, iterations=12, protect=0.9):
+    """Capture-Sharpening per Richardson-Lucy-Dekonvolution (wie RawTherapee „Capture Sharpening"):
+    macht die Aufnahme-Unschärfe (Demosaicing + AA-Filter + leichtes Seeing) rückgängig — holt ECHTE
+    Auflösung zurück, nicht nur Kantenkontrast wie Unsharp-Mask. Gauß-PSF (sigma in Pixeln), auf der
+    Luminanz, mit weichem Lichter-Schutz (protect) gegen Überschwinger an hellen Kanten. Treu."""
+    f, dtype, maxv = _as_float(img)
+    if iterations < 1 or sigma <= 0:
+        return img
+    k = cv2.getGaussianKernel(int(max(3, round(sigma * 6)) | 1), sigma)
+    psf = (k @ k.T).astype(np.float32); psf /= psf.sum()
+    psf_m = psf[::-1, ::-1].copy()
+    lum = (cv2.cvtColor(np.clip(f, 0, 1).astype(np.float32), cv2.COLOR_BGR2GRAY)
+           if f.ndim == 3 else np.clip(f, 0, 1).astype(np.float32))
+    obs = np.clip(lum, 1e-4, None)
+    est = obs.copy()
+    for _ in range(int(iterations)):
+        conv = cv2.filter2D(est, -1, psf, borderType=cv2.BORDER_REFLECT)
+        est = est * cv2.filter2D(obs / np.maximum(conv, 1e-6), -1, psf_m, borderType=cv2.BORDER_REFLECT)
+        est = np.clip(est, 0, None)
+    ratio = np.clip(est / np.maximum(lum, 1e-4), 0.3, 3.0)
+    out = f.astype(np.float32) * ratio[..., None] if f.ndim == 3 else f.astype(np.float32) * ratio
+    if protect is not None and protect < 1.0:               # Lichter weich schützen
+        hi = cv2.GaussianBlur(np.clip((lum - protect) / max(1e-3, 1 - protect), 0, 1), (0, 0), 2.0)
+        m = hi[..., None] if out.ndim == 3 else hi
+        out = out * (1 - m) + f.astype(np.float32) * m
+    out = np.clip(out, 0, 1)
+    return (out * maxv).astype(dtype) if dtype != np.float32 else out
+
+
+def dehaze(img, strength=1.0, omega=0.9, patch=15):
+    """Dunst-/Schleier-Entfernung über den **Dark-Channel-Prior** (He et al. 2009 — wie RawTherapee/
+    darktable „Haze removal"): in dunstfreien Außenbereichen ist in jedem Patch mindestens ein
+    Farbkanal sehr dunkel; Dunst hebt dieses Minimum an. Daraus werden Atmosphärenlicht und
+    Transmission geschätzt, die Transmission wird (Guided Filter, falls verfügbar) kantentreu
+    verfeinert, dann das dunstfreie Bild rekonstruiert. strength 0..1 blendet zum Original. Treu."""
+    f, dtype, maxv = _as_float(img)
+    if f.ndim != 3 or strength <= 0:
+        return img
+    f = np.clip(f, 0, 1).astype(np.float32)
+    dark = cv2.erode(f.min(axis=2), cv2.getStructuringElement(cv2.MORPH_RECT, (patch, patch)))
+    flat = dark.ravel()
+    n = max(1, int(flat.size * 0.001))
+    idx = np.argpartition(flat, -n)[-n:]                    # hellste 0.1% des Dark Channels
+    g = cv2.cvtColor((f * 255).astype(np.uint8), cv2.COLOR_BGR2GRAY).ravel()
+    A = f.reshape(-1, 3)[idx][np.argmax(g[idx])]            # Atmosphärenlicht
+    A = np.clip(A, 1e-3, 1.0)
+    t = 1.0 - omega * cv2.erode((f / A).min(axis=2),
+                                cv2.getStructuringElement(cv2.MORPH_RECT, (patch, patch)))
+    try:                                                    # Transmission kantentreu verfeinern
+        t = cv2.ximgproc.guidedFilter(cv2.cvtColor((f * 255).astype(np.uint8), cv2.COLOR_BGR2GRAY),
+                                      t.astype(np.float32), 40, 1e-3)
+    except Exception:
+        t = cv2.GaussianBlur(t, (0, 0), 8)
+    t = np.clip(t, 0.1, 1.0)[..., None]
+    out = (f - A) / t + A
+    out = np.clip(out, 0, 1)
+    s = float(min(1.0, max(0.0, strength)))
+    out = f * (1 - s) + out * s
+    return (np.clip(out, 0, 1) * maxv).astype(dtype) if dtype != np.float32 else np.clip(out, 0, 1)
+
+
 def _smoothstep(e0, e1, x):
     t = np.clip((x - e0) / (e1 - e0 + 1e-12), 0, 1)
     return t * t * (3 - 2 * t)

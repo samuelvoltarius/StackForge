@@ -1285,6 +1285,23 @@ class TestProToolGaps(TmpCase):
         self.assertEqual(out.dtype, np.uint8)
 
 
+
+    def test_dehaze_und_capture_sharpen(self):
+        import develop
+        img = (_rng().rand(120, 160, 3) * 120 + 60).astype(np.uint8)
+        for _ in range(15):
+            cv2.circle(img, (_rng().randint(0, 160), _rng().randint(0, 120)), _rng().randint(5, 14),
+                       tuple(int(c) for c in _rng().randint(0, 255, 3)), -1)
+        haze = np.clip(img.astype(float) * 0.5 + 128, 0, 255).astype(np.uint8)
+        dh = develop.dehaze(haze, strength=1.0)
+        def ctr(x): return float(cv2.cvtColor(x, cv2.COLOR_BGR2GRAY).std())
+        self.assertGreater(ctr(dh), ctr(haze))            # Dunst weg -> mehr Kontrast
+        blur = cv2.GaussianBlur(img, (0, 0), 1.0)
+        cs = develop.capture_sharpen(blur, sigma=0.8, iterations=12)
+        def lap(x): return cv2.Laplacian(cv2.cvtColor(x, cv2.COLOR_BGR2GRAY), cv2.CV_64F).var()
+        self.assertGreater(lap(cs), lap(blur))            # schaerfer
+        self.assertLessEqual(int(cs.max()), 255)
+
     def test_local_contrast_hebt_mikrokontrast(self):
         import develop
         img = (_rng().rand(120, 160, 3) * 180 + 30).astype(np.uint8)

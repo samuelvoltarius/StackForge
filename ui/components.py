@@ -146,6 +146,23 @@ def adjust_image(img, p):
             r = max(3.0, min(f.shape[0], f.shape[1]) / 90.0)
             blur = cv2.GaussianBlur(f, (0, 0), r)
             f = np.clip(f + (p["clarity"] / 100.0) * (f - blur), 0, 1)
+    if p.get("dehaze"):                                  # Dark-Channel-Prior Dunst-Entfernung
+        try:
+            import sys as _sys, os as _os
+            _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "core"))
+            import develop as _dev
+            f = np.clip(_dev.dehaze(f.astype(np.float32), strength=p["dehaze"] / 100.0), 0, 1)
+        except Exception:
+            pass
+    if p.get("capture_sharpen"):                         # RL-Capture-Sharpening (Aufnahme-Unschärfe)
+        try:
+            import sys as _sys, os as _os
+            _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "core"))
+            import develop as _dev
+            it = int(6 + 0.2 * p["capture_sharpen"])     # Stärke → Iterationen
+            f = np.clip(_dev.capture_sharpen(f.astype(np.float32), sigma=0.8, iterations=it), 0, 1)
+        except Exception:
+            pass
     if p.get("vibrance") or p.get("saturation"):
         hsv = cv2.cvtColor(f, cv2.COLOR_BGR2HSV)
         s = hsv[..., 1]
@@ -257,7 +274,8 @@ class AdjustDialog(QDialog):
         ("highlights", "Lichter", "Tonwerte"), ("shadows", "Schatten", "Tonwerte"),
         ("whites", "Weiß", "Tonwerte"), ("blacks", "Schwarz", "Tonwerte"),
         ("temp", "Temperatur", "Weißabgleich"), ("tint", "Tönung", "Weißabgleich"),
-        ("clarity", "Klarheit", "Präsenz"),
+        ("clarity", "Klarheit", "Präsenz"), ("dehaze", "Dunst entfernen", "Präsenz"),
+        ("capture_sharpen", "Capture-Schärfung", "Präsenz"),
         ("vibrance", "Dynamik", "Farbe"), ("saturation", "Sättigung", "Farbe"),
     ]
 

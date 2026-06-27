@@ -114,7 +114,10 @@ def combine(paths, mode="smooth", align="none", strength=1.0, work_dir=None, det
             f = astro._read_float(p)
             acc = f if acc is None else acc + f
             log(f"    additiv {i + 1}/{len(proc)}")
-        result = acc / max(1.0, float(acc.max()))   # auf 0..1 normieren (Licht einsammeln)
+        # auf das 99.95%-Perzentil normieren statt auf max: EIN heißer Pixel (max) würde sonst das
+        # ganze Bild dunkel drücken. Perzentil ist hotpixel-robust.
+        norm = float(np.percentile(acc, 99.95))
+        result = np.clip(acc / max(1e-6, norm), 0, 1)
     elif mode == "comet":
         # abklingendes Lighten: ältere Spuren werden dunkler → heller Kopf, verblassender Schweif
         result = None
