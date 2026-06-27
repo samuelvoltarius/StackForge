@@ -116,15 +116,18 @@ ForgePix is a faithful developer + editor by design — but one gap is fundament
 
 ## Synthesis — what actually separates ForgePix from the pros
 
-**Cheap, high-impact quick-wins (do first):**
-1. **Wire `align_local` ECC into the focus path** (F1) — built, dead. 🔴 S.
-2. **Astro luminance wavelet NR** (A1) — the single most visible astro quality gap. 🔴 M.
-3. **Astro sampled RBF background** (A2) — stop eating nebula; RBF already present. 🔴 S–M.
-4. **Astro per-frame SNR weighting + iterative sigma** (A4). 🟠 S.
-5. **Lucky: brightness-normalized quality metric + sigma-clip patch stack** (L3, L5). 🔴 S.
-6. **Panorama `WAVE_CORRECT_AUTO`** (P3) — a real multi-row bug. 🟠 S.
-7. **RAW: wire RL capture-sharpening + dark-channel dehaze** (R3, R6) — engines already exist. 🟠 S.
-8. **HDR: percentile-normalize `bright`, gradient+adaptive deghost** (H5, H3). 🟠 S.
+**Cheap, high-impact quick-wins** — ✅ **done in v1.24** unless noted:
+1. ✅ **Wire `align_local` ECC into the focus path** (F1) — was dead code (−39% residual on defocused frames).
+2. ✅ **Astro luminance wavelet NR** (A1, `--astro-denoise`) — −42% bg noise, nebula preserved.
+3. ✅ **Astro sampled RBF background** (A2) — DBE-style TPS surface; gradient residual 0.0000 vs 0.0035.
+4. ⬜ **Astro per-frame SNR weighting + iterative sigma** (A4) — still open (low effort).
+5. ✅ **Lucky: brightness-normalized quality metric + sigma-clip patch stack** (L3, L5).
+6. ✅ **Panorama `WAVE_CORRECT_AUTO`** (P3) — multi-row bug fixed.
+7. ✅ **RAW: RL capture-sharpening + dark-channel dehaze** (R3, R6) — editor sliders.
+8. ✅ **HDR: percentile-normalize `bright`** (H5). ⬜ gradient+adaptive deghost (H3) still open.
+
+Still-open quick-wins: A3 (triangle star matching), A4 (SNR weighting), H3 (flow/adaptive deghost),
+L2 (iterative reference), H4 (sky-mask spatial constraint).
 
 **Big, genuinely hard (separate projects):**
 - RAW **color management** (R1) — the one "faithful developer" claim that color management would actually back up.

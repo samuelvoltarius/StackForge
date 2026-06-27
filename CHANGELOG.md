@@ -6,6 +6,30 @@ All notable changes to ForgePix. Format based on
 [Keep a Changelog](https://keepachangelog.com/), versioning per
 [SemVer](https://semver.org/).
 
+## [1.24.0] – 2026-06-27
+### Deep gap-closing — algorithm-level fixes from the pro-tool audit (`docs/DEEP_GAPS.md`)
+A module-by-module **algorithm** audit (not feature checkboxes) found substantive gaps; the quick-wins:
+- **Focus — ECC sub-pixel align was dead code:** `align_local.ecc_refine` (brightness-invariant) existed
+  but was never called — the focus path only used ORB→affine, which is weak on defocused stack ends. Now
+  wired as a refine stage (defocused-frame residual −39% in tests).
+- **Astro — luminance noise reduction** (`--astro-denoise`): there was *no* luminance NR (only a chroma
+  blur), so the stretch pulled up background noise. Multi-scale wavelet NR on the linear data (−42% bg noise
+  on IC5146, nebula preserved).
+- **Astro — RBF background extraction** (DBE/GraXpert principle): the old lowpass blur followed extended
+  nebula and ate it; now a thin-plate-spline surface through robust sky samples (nebula samples sigma-clipped
+  out). Gradient residual 0.0000 vs 0.0035.
+- **Lucky — quality metric + robust patch combine:** brightness-normalized, pre-blurred sharpness score
+  (was noise²-driven); per-AP **sigma-clip** + correlation-confidence rejection (one bad match no longer
+  pulls the point). Plus the earlier **feature-homography auto-align** that de-streaks panning captures.
+- **Panorama — `WAVE_CORRECT_AUTO`** instead of hardwired HORIZ (a real bug that warped multi-row/grid mosaics).
+- **RAW — dehaze + capture sharpening:** dark-channel-prior dehaze and RL capture-sharpening (recovers real
+  resolution, not just edge contrast) as editor sliders — the RL engine previously lived only in the astro path.
+- **Long exposure — hotpixel-robust `bright`:** normalize to the 99.95th percentile, not max (one hot pixel
+  no longer darkens the whole frame).
+- `docs/DEEP_GAPS.md` documents every gap honestly, incl. the big ones left as separate projects (RAW color
+  management, lucky drizzle, panorama distortion/photometric BA, true star-point field-rotation stacking, ML tools).
+- +5 tests (106 total, green).
+
 ## [1.23.0] – 2026-06-27
 ### Closing the last comparison gaps — deconvolution, sky-mask, lucky fix, control points
 The remaining 🟡/❌ items from the pro-tool scorecard, built and tested:

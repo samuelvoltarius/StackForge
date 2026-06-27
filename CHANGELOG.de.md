@@ -6,6 +6,29 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.24.0] – 2026-06-27
+### Tiefe Lücken geschlossen — Algorithmus-Fixes aus dem Profi-Tool-Audit (`docs/DEEP_GAPS.md`)
+Ein Modul-für-Modul-**Algorithmus**-Audit (keine Feature-Häkchen) fand substanzielle Lücken; die Quick-Wins:
+- **Fokus — ECC-Subpixel war toter Code:** `align_local.ecc_refine` (helligkeitsinvariant) war gebaut, aber
+  nie aufgerufen — der Pfad nutzte nur ORB→Affine (schwach an defokussierten Stack-Enden). Jetzt als
+  Verfeinerungsstufe verdrahtet (defokussierter Restfehler −39%).
+- **Astro — Luminanz-Rauschreduktion** (`--astro-denoise`): es gab KEINE Luminanz-NR (nur Chroma-Blur) →
+  der Stretch zog Hintergrundrauschen hoch. Multi-Skalen-Wavelet-NR auf den linearen Daten (−42% Bg-Rauschen
+  auf IC5146, Nebel erhalten).
+- **Astro — RBF-Hintergrund-Extraktion** (DBE/GraXpert-Prinzip): der alte Tiefpass folgte dem Nebel und fraß
+  ihn; jetzt Thin-Plate-Spline-Fläche durch robuste Sky-Stützpunkte (Nebel-Stützpunkte sigma-geclippt).
+  Gradient-Rest 0.0000 vs 0.0035.
+- **Lucky — Quality-Metrik + robustes Patch-Mittel:** helligkeitsnormierte, vorgeglättete Schärfe (war
+  rausch²-getrieben); pro AP **Sigma-Clip** + Korrelations-Konfidenz (ein Fehl-Match zieht den Punkt nicht mehr).
+  Plus die frühere **Feature-Homographie-Auto-Ausrichtung** gegen Streifen bei Schwenks.
+- **Panorama — `WAVE_CORRECT_AUTO`** statt hartem HORIZ (echter Bug bei Multi-Row/Gitter-Mosaiken).
+- **RAW — Dehaze + Capture-Sharpening:** Dark-Channel-Prior-Dehaze und RL-Capture-Sharpening (holt echte
+  Auflösung) als Editor-Regler — die RL-Engine lag vorher nur im Astro-Pfad.
+- **Langzeit — hotpixel-robuster `bright`:** Normierung aufs 99.95%-Perzentil statt max.
+- `docs/DEEP_GAPS.md` dokumentiert jede Lücke ehrlich, inkl. der großen Brocken als eigene Projekte (RAW-
+  Farb-Management, Lucky-Drizzle, Panorama-Verzeichnungs/Photometrie-BA, echtes Punkt-Stern-Stacking, ML-Tools).
+- +5 Tests (106 gesamt, grün).
+
 ## [1.23.0] – 2026-06-27
 ### Die letzten Vergleichs-Lücken geschlossen — Dekonvolution, Sky-Maske, Lucky-Fix, Kontrollpunkte
 Die restlichen 🟡/❌ aus der Profi-Tool-Scorecard, gebaut und getestet:
