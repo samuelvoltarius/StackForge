@@ -104,6 +104,18 @@ class TestFocusAnalysis(TmpCase):
         self.assertEqual(fm.ndim, 3)
         self.assertEqual(fm.shape[2], 3)
 
+    def test_focus_map_mask_flat_neutralizes_noise(self):
+        import focus_analysis as fa
+        paths = make_focus_series(self.d, n=8)
+        masked = fa.focus_map(paths, mask_flat=True, out_size=(120, 120))
+        full = fa.focus_map(paths, mask_flat=False, out_size=(120, 120))
+        # Maskiert darf nicht bunter sein als unmaskiert (Rauschen wird neutralisiert):
+        # die Farbsättigung (Abstand der Kanäle) sinkt im Schnitt.
+        def chroma(im):
+            f = im.astype(np.float32)
+            return float((f.max(axis=2) - f.min(axis=2)).mean())
+        self.assertLessEqual(chroma(masked), chroma(full) + 1e-6)
+
     def test_dof_macro(self):
         import focus_analysis as fa
         d = fa.dof_calc(8, focal_mm=105, magnification=1.0, sensor="fullframe")

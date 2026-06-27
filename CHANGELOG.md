@@ -4,6 +4,14 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.19.3] – 2026-07-12
+### Fokus-Map liest sich besser (nur scharfe Bereiche färben)
+- Die Fokus-Herkunfts-Karte zeigte in **strukturlosen/unscharfen Flächen** (z. B. Bokeh-Hintergrund)
+  buntes **Zufallsrauschen** — dort gibt es keinen echten „schärfsten" Frame. Jetzt werden solche
+  Flächen **neutral-grau** gelassen (Konfidenz aus der absoluten Kachel-Schärfe); gefärbt wird nur,
+  wo wirklich **scharfe Kanten/Details** liegen. Die Form des Motivs ist sofort lesbar.
+  (`focus_analysis.focus_map(mask_flat=True)`, Standard an)
+
 ## [1.19.2] – 2026-07-11
 ### Camera-Raw-Editor überall + HDR korrekt
 - **„Bearbeiten" (Camera-Raw) funktioniert jetzt überall:** ist immer aktiv und öffnet ohne Lauf-

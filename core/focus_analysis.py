@@ -234,9 +234,13 @@ def analyze_series(paths, grid=12, max_side=1000, log=print):
             "coverage": round(100 * coverage, 1), "complete": complete, "optimizer": opt}
 
 
-def focus_map(paths, M=None, out_size=None, grid=12):
+def focus_map(paths, M=None, out_size=None, grid=12, mask_flat=True):
     """Fokus-Herkunfts-Karte: färbt jeden Bereich danach, AUS WELCHEM Frame die schärfsten
-    Details dort stammen (Regenbogen über die Frame-Reihenfolge). Lehrreich + zeigt Lücken."""
+    Details dort stammen (Regenbogen über die Frame-Reihenfolge). Lehrreich + zeigt Lücken.
+
+    mask_flat=True: strukturlose/unscharfe Flächen (z. B. Bokeh-Hintergrund) bleiben **neutral-grau**
+    statt Zufallsfarben — denn dort gibt es keinen echten „schärfsten" Frame. Es wird also nur dort
+    gefärbt, wo wirklich scharfe Kanten/Details liegen (Konfidenz aus der absoluten Kachel-Schärfe)."""
     if M is None:
         M = sharpness_matrix(paths, grid=grid, log=lambda *a: None)
     n = len(paths)
@@ -244,6 +248,14 @@ def focus_map(paths, M=None, out_size=None, grid=12):
     # Frame-Index → Farbton (0..255), per Colormap einfärben
     idx = (winners / max(1, n - 1) * 255).astype(np.uint8)
     color = cv2.applyColorMap(idx, cv2.COLORMAP_JET)
+    if mask_flat:
+        # Konfidenz = absolute Schärfe des Gewinners je Kachel, robust normiert (95-Perzentil).
+        # Flach/unscharf → niedrig → Richtung Neutralgrau blenden (kein bedeutungsloses Rauschen).
+        peak = M.max(axis=0).reshape(grid, grid)
+        ref95 = float(np.percentile(peak, 95)) + 1e-6
+        conf = np.clip((peak / ref95 - 0.10) / 0.40, 0, 1)[..., None]   # Schwelle gegen Rauschen
+        neutral = np.full_like(color, 45)
+        color = (color * conf + neutral * (1.0 - conf)).astype(np.uint8)
     if out_size is None:
         ref = _load_gray(paths[0], max_side=800)        # RAW-fähig (rawpy), nicht nur cv2
         out_size = (ref.shape[1], ref.shape[0]) if ref is not None else (640, 480)
