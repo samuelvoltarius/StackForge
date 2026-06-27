@@ -1013,6 +1013,12 @@ def main():
     ap.add_argument("--astro-method", choices=["sigma", "winsor", "average", "median", "max"],
                     default="sigma", help="Astro-Stacking-Methode (Default sigma=Kappa-Sigma)")
     ap.add_argument("--astro-kappa", type=float, default=2.5, help="Kappa für Sigma-Clipping")
+    ap.add_argument("--astro-local-norm", action="store_true",
+                    help="Astro: lokale Normalisierung (örtlicher Hintergrundabgleich pro Frame VOR "
+                         "der Rejection) — gegen Gradienten & Mehrfach-Sessions")
+    ap.add_argument("--astro-stretch-mode", choices=["asinh", "mtf"], default="asinh",
+                    help="Astro-Streckung: asinh (Standard) oder mtf (MTF/Histogramm, reversibel, "
+                         "definierter Schwarzpunkt — PixInsight-AutoSTF-Stil)")
     ap.add_argument("--no-register", action="store_true", help="Astro: keine Stern-Ausrichtung")
     ap.add_argument("--astro-align", choices=["shift", "rotate"], default="shift",
                     help="Astro-Ausrichtung: shift=Translation (Nachführung), "
@@ -1328,7 +1334,7 @@ def run_astro(input_dir, work_dir, args):
         except Exception:
             pass
     result = astro.stack(aligned, method=args.astro_method, kappa=args.astro_kappa, normalize=True,
-                         preview_cb=_preview_cb)
+                         local_norm=getattr(args, "astro_local_norm", False), preview_cb=_preview_cb)
     binf = int(getattr(args, "astro_bin", 1) or 1)
     if binf > 1:
         result = astro.bin_image(result, binf)
@@ -1441,7 +1447,10 @@ def _astro_write(result, work_dir, paths, args, astro):
             base_view = _dualband_view(result, getattr(args, "palette", "hoo"), astro)
         else:
             base_view = astro.remove_green_cast(astro.color_balance(result, color_s))
-        view = astro.autostretch(base_view, strength=strength, saturation=sat, protect_core=protect)
+        if getattr(args, "astro_stretch_mode", "asinh") == "mtf":
+            view = astro.mtf_stretch(base_view, saturation=sat)
+        else:
+            view = astro.autostretch(base_view, strength=strength, saturation=sat, protect_core=protect)
     else:
         if dualband:
             view = _dualband_view(result, getattr(args, "palette", "hoo"), astro)

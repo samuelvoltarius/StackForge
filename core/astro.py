@@ -330,7 +330,8 @@ def register_and_cache(paths, out_dir, dark=None, flat=None, do_register=True,
     return aligned
 
 
-def stack(paths, method="sigma", kappa=2.5, normalize=True, log=print, preview_cb=None):
+def stack(paths, method="sigma", kappa=2.5, normalize=True, local_norm=False,
+          log=print, preview_cb=None):
     """Speicherschonendes Stacken über die Platte (zweistufig bei sigma/winsor).
     Gibt float32-Ergebnis [0..1] (BGR) zurück.
 
@@ -349,6 +350,16 @@ def stack(paths, method="sigma", kappa=2.5, normalize=True, log=print, preview_c
         meds = [float(np.median(_read_float(p))) for p in paths]
         gm = float(np.median(meds))
         offs = np.array([gm - m for m in meds], np.float32)
+    # lokale Normalisierung: örtliche Hintergrund-Fläche statt nur Skalar (gegen Gradienten)
+    ref_surf = _bg_surface(first) if (normalize and local_norm) else None
+    if ref_surf is not None:
+        log("    lokale Normalisierung aktiv (örtlicher Hintergrundabgleich)")
+
+    def rd(i, p):
+        f = _read_float(p)
+        if ref_surf is not None:
+            return local_normalize(f, ref_surf)
+        return f + offs[i]
 
     if method in ("average", "median", "max"):
         if method == "median":
@@ -364,7 +375,7 @@ def stack(paths, method="sigma", kappa=2.5, normalize=True, log=print, preview_c
         acc = np.zeros(shape, np.float32) if method == "average" else None
         mx = np.zeros(shape, np.float32) if method == "max" else None
         for i, p in enumerate(paths):
-            f = _read_float(p) + offs[i]
+            f = rd(i, p)
             if method == "average":
                 acc += f
             else:
@@ -377,7 +388,7 @@ def stack(paths, method="sigma", kappa=2.5, normalize=True, log=print, preview_c
     # sigma / winsor: Pass 1 Mittel+Std, Pass 2 Rejection
     s = np.zeros(shape, np.float32); s2 = np.zeros(shape, np.float32)
     for i, p in enumerate(paths):
-        f = _read_float(p) + offs[i]
+        f = rd(i, p)
         s += f; s2 += f * f
         log(f"    Statistik {i + 1}/{n}")
     mean = s / n
@@ -385,7 +396,7 @@ def stack(paths, method="sigma", kappa=2.5, normalize=True, log=print, preview_c
     lo = mean - kappa * std; hi = mean + kappa * std
     acc = np.zeros(shape, np.float32); cnt = np.zeros(shape, np.float32)
     for i, p in enumerate(paths):
-        f = _read_float(p) + offs[i]
+        f = rd(i, p)
         if method == "winsor":
             f = np.clip(f, lo, hi)
             acc += f; cnt += 1
@@ -560,6 +571,58 @@ def remove_green_cast(f, amount=1.0):
     b, g, r = out[..., 0], out[..., 1], out[..., 2]      # BGR
     neutral = np.minimum(g, (b + r) * 0.5)
     out[..., 1] = g * (1 - amount) + neutral * amount
+    return out
+
+
+def _bg_surface(f, ds=8):
+    """Glatte Hintergrund-/Gradienten-Fläche eines Frames (grob downsamplen + stark glätten →
+    Sterne mitteln sich weg). Für die lokale Normalisierung."""
+    g = f if f.ndim == 2 else f.mean(2)
+    h, w = g.shape
+    sw, sh = max(8, w // ds), max(8, h // ds)
+    small = cv2.resize(g.astype(np.float32), (sw, sh), interpolation=cv2.INTER_AREA)
+    small = cv2.GaussianBlur(small, (0, 0), max(2.0, sw / 10.0))
+    return cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
+
+
+def local_normalize(frame, ref_surface):
+    """Frame **örtlich** an die Referenz-Hintergrundfläche angleichen (statt nur per Skalar-Offset).
+    Da die Frames registriert sind, hebt sich der gemeinsame Nebel in (ref_surf − frame_surf) auf —
+    übrig bleibt der **örtliche Hintergrund-/Gradienten-Unterschied**, der korrigiert wird. Das macht
+    die Ausreißer-Rejection erst korrekt (gegen Gradienten & Mehrfach-Sessions)."""
+    corr = ref_surface - _bg_surface(frame)
+    return frame + (corr[..., None] if frame.ndim == 3 else corr)
+
+
+def _mtf(x, m):
+    """Midtones Transfer Function (PixInsight-Primitive): MTF(x,m) = (m−1)x / ((2m−1)x − m).
+    Reversibel, definiert auf [0,1]. m = Mitteltonbalance (klein = stark aufhellen)."""
+    x = np.asarray(x, np.float32)
+    den = (2.0 * m - 1.0) * x - m
+    out = np.where(np.abs(den) < 1e-9, x, ((m - 1.0) * x) / den)
+    return np.clip(out, 0, 1)
+
+
+def mtf_stretch(f, target_bg=0.25, shadow=-2.8, saturation=1.05, denoise_chroma=True):
+    """MTF-Auto-Stretch (PixInsight-AutoSTF-Stil): Schwarzpunkt aus Median+shadow·MAD, dann
+    Mitteltonbalance so, dass der Himmelshintergrund auf `target_bg` (≈0.25) gehoben wird.
+    Korrekt und reversibel — kontrollierter als asinh, mit definiertem Schwarzpunkt."""
+    g = _gray(f)
+    med = float(np.median(g))
+    mad = float(np.median(np.abs(g - med))) * 1.4826 + 1e-6
+    c0 = float(np.clip(med + shadow * mad, 0, 0.99))            # Schwarzpunkt (shadow<0 → unter Median)
+    x = np.clip((f - c0) / max(1e-6, 1 - c0), 0, 1)
+    mn = float(np.clip((med - c0) / max(1e-6, 1 - c0), 1e-4, 0.9999))
+    T = target_bg
+    m = mn * (T - 1.0) / (2 * T * mn - T - mn)                  # MTF(mn,m)=T nach m aufgelöst
+    m = float(np.clip(m, 1e-3, 1 - 1e-3))
+    out = _mtf(x, m)
+    if saturation and saturation != 1.0 and out.ndim == 3:
+        lum = _gray(out)[..., None]
+        out = np.clip(lum + (out - lum) * saturation, 0, 1)
+    if denoise_chroma and out.ndim == 3:
+        lum = _gray(out)[..., None]
+        out = np.clip(lum + cv2.GaussianBlur(out - lum, (0, 0), 3.0), 0, 1)
     return out
 
 

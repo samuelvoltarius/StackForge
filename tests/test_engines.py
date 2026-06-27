@@ -338,6 +338,28 @@ class TestStacker(TmpCase):
         self.assertLess((g > 250).mean(), (cv2.cvtColor(bright, cv2.COLOR_BGR2GRAY) > 250).mean() + 1e-6)
         self.assertLess((g < 5).mean(), (cv2.cvtColor(dark, cv2.COLOR_BGR2GRAY) < 5).mean() + 1e-6)
 
+    def test_astro_mtf_stretch(self):
+        import astro
+        lin = np.clip(0.02 + 0.005 * _rng().standard_normal((100, 100, 3)), 0, 1).astype(np.float32)
+        out = astro.mtf_stretch(lin)
+        self.assertEqual(out.shape, lin.shape)
+        self.assertTrue(0.0 <= float(out.min()) and float(out.max()) <= 1.0001)
+        # Himmelshintergrund wird Richtung ~0.25 gehoben
+        self.assertGreater(float(np.median(astro._gray(out))), 0.12)
+        self.assertLess(float(np.median(astro._gray(out))), 0.4)
+
+    def test_astro_local_normalize(self):
+        import astro
+        flat = np.full((120, 120, 3), 0.1, np.float32)
+        gx = np.mgrid[0:120, 0:120][1]
+        grad = (flat + (gx / 120 * 0.15)[..., None]).astype(np.float32)
+        fixed = astro.local_normalize(grad, astro._bg_surface(flat))
+
+        def spread(im):
+            s = astro._bg_surface(im)
+            return float(s.max() - s.min())
+        self.assertLess(spread(fixed), spread(grad) * 0.3)   # Gradient deutlich abgeflacht
+
     def test_wavelet_sharpen(self):
         import wavelet
         sharp = cv2.GaussianBlur((_rng().rand(120, 150, 3) * 255).astype(np.uint8), (0, 0), 0.7)
