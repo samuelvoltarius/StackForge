@@ -6,6 +6,24 @@ Alle nennenswerten Änderungen an ForgePix. Format orientiert an
 [Keep a Changelog](https://keepachangelog.com/de/), Versionierung nach
 [SemVer](https://semver.org/lang/de/).
 
+## [1.25.1] – 2026-06-27
+### An ECHTEM Material verifiziert (eigene Aufnahmen) + objektiv per VLLM bewertet — Default-Bugs gefixt
+Jedes Modul mit echten eigenen Aufnahmen getestet und das Ergebnis von einem Vision-Modell (statt „per
+Auge") benoten lassen; dabei mehrere Defekte im **Standard-Pfad** gefunden und behoben.
+- **Astro – Standardausgabe war SCHWARZ:** `--astro-stretch` war standardmäßig AUS, `color_balance`
+  clippte den Himmel hart auf 0, und der Default-Stretch (`asinh`) normierte auf die hellen Sterne.
+  Jetzt: Stretch standardmäßig AN, neutraler Hintergrund-Sockel, Default **MTF**; asinh/ghs holen das
+  schwache Signal über einen Sky-Anker heraus (alle drei Modi funktionieren). VLLM: schwarz → **gut (2-)**.
+- **Astro – Blau-/Grünstich:** der aggressive Stretch blies winzige Kanal-Differenzen zum Farbstich auf →
+  exakte Hintergrund-Neutralisierung vor dem Stretch + SCNR/Neutralisierung danach. Hintergrund farbneutral.
+- **Astro – Gradienten-Entfernung:** verwirft Stützpunkte jetzt residuenbasiert (2D-Trend) statt global.
+- **HDR – Fusion-Blaustich/Flachheit:** Auto-Weißabgleich + mehr Biss (VLLM 4 → 2). Radiance-Pfad nutzt
+  echte EXIF-Belichtungszeiten + Chroma-Denoise; lokales Durand-Tonemapping überbelichtet nicht mehr.
+- **Langzeit:** `suggest_mode` erkennt Kameraschwenk (Phasenkorrelation) und richtet automatisch aus.
+- **Panorama:** Auto-Zuschnitt auf das größte randvolle Rechteck (keine schwarzen Zacken; VLLM 4 → 1).
+- **Fokus-Stacking:** Ausrichtungs-Ränder werden automatisch weggeschnitten (`--no-autocrop` für vollen Rahmen).
+- **GUI:** Astro-Stretch-Default jetzt MTF (farbneutral), klarere Labels.
+
 ## [1.25.0] – 2026-06-27
 ### Alle restlichen tiefen Lücken gebaut — 6 parallele Modul-Agenten + Integration
 Der komplette `DEEP_GAPS.md`-Backlog als echte Engine-Algorithmen umgesetzt (ein Subagent je Modul,

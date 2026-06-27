@@ -6,6 +6,24 @@ All notable changes to ForgePix. Format based on
 [Keep a Changelog](https://keepachangelog.com/), versioning per
 [SemVer](https://semver.org/).
 
+## [1.25.1] – 2026-06-27
+### Verified on REAL footage (own captures) + objectively graded by a vision model — default-path bugs fixed
+Every module tested on real own captures and the result graded by a vision model (instead of "by eye");
+this surfaced several defects in the **default path** that are now fixed.
+- **Astro – default output was BLACK:** `--astro-stretch` defaulted OFF, `color_balance` hard-clipped the
+  sky to 0, and the default stretch (`asinh`) normalised to the bright stars. Now: stretch ON by default,
+  neutral background pedestal, default **MTF**; asinh/ghs lift faint signal via a sky anchor (all three
+  modes work). VLLM: black → **good (2-)**.
+- **Astro – blue/green cast:** the aggressive stretch amplified tiny per-channel imbalances into a cast →
+  exact background neutralisation before the stretch + SCNR/neutralisation after. Neutral background.
+- **Astro – gradient removal** now rejects support points residually (vs a 2D trend) instead of globally.
+- **HDR – fusion blue cast/flatness:** auto white balance + more bite (VLLM 4 → 2). Radiance path uses real
+  EXIF exposure times + chroma denoise; local Durand tonemapping no longer overexposes.
+- **Long exposure:** `suggest_mode` detects camera pan (phase correlation) and auto-aligns.
+- **Panorama:** auto-crop to the largest interior rectangle (no black wedges; VLLM 4 → 1).
+- **Focus stacking:** alignment borders are auto-cropped (`--no-autocrop` keeps the full frame).
+- **GUI:** astro stretch default is now MTF (color-neutral), clearer labels.
+
 ## [1.25.0] – 2026-06-27
 ### Every remaining deep gap built — 6 parallel module agents + integration
 The full `DEEP_GAPS.md` backlog implemented as real engine algorithms (one subagent per module, then
