@@ -236,20 +236,66 @@ def _compose_affine(A, B):
     return (A3 @ B3)[:2].astype(np.float32)
 
 
-def _warp_and_save(f, M, out_size, op, drizzle):
+def _tps_refine(fw, refg_out, max_ctrl=150, min_resid=0.5, log=print):
+    """Lokale (nicht-rigide) Feinregistrierung per Thin-Plate-Spline gegen RESTVERZEICHNUNG —
+    Feldkrümmung bei Weitwinkel/Refraktor, atmosphärische Refraktion, leichtes Tilt. Nach der
+    globalen Affin-Ausrichtung bleibende Restversätze der Sterne werden als glattes Warp-Feld
+    herausgerechnet (Sterne werden über das ganze Feld rund). Nur aktiv, wenn genug Sternpaare
+    mit echtem Restversatz da sind — sonst bleibt der Frame unverändert (kein Verschlimmbessern)."""
+    try:
+        from scipy.interpolate import RBFInterpolator
+    except Exception:
+        return fw
+    fg = _gray(fw)
+    rp = _star_centroids(refg_out, max_stars=max_ctrl)
+    ip = _star_centroids(fg, max_stars=max_ctrl * 3)
+    if len(rp) < 12 or len(ip) < 12:
+        return fw
+    src, dst = [], []
+    for r in rp:                                            # ref-Pos -> nächste Frame-Pos
+        d = np.linalg.norm(ip - r, axis=1)
+        j = int(np.argmin(d))
+        if d[j] < 6.0:
+            dst.append(r); src.append(ip[j])
+    if len(src) < 12:
+        return fw
+    src = np.array(src, np.float32); dst = np.array(dst, np.float32)
+    resid = np.linalg.norm(src - dst, axis=1)
+    if float(np.median(resid)) < min_resid:
+        return fw                                           # global schon sauber → nichts zu tun
+    h, w = fg.shape[:2]
+    try:
+        rbf = RBFInterpolator(dst, src, kernel="thin_plate_spline", smoothing=1.0)
+        gs = 48                                             # grobes Gitter, TPS ist glatt → hochskalieren
+        gx, gy = np.meshgrid(np.linspace(0, w - 1, gs), np.linspace(0, h - 1, gs))
+        q = np.stack([gx.ravel(), gy.ravel()], 1)
+        mapped = rbf(q).reshape(gs, gs, 2).astype(np.float32)
+        mapx = cv2.resize(mapped[..., 0], (w, h))
+        mapy = cv2.resize(mapped[..., 1], (w, h))
+        out = cv2.remap(fw, mapx, mapy, interpolation=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_REFLECT)
+        log(f"      TPS-Feinregistrierung: {len(src)} Sterne, Rest {float(np.median(resid)):.2f}px")
+        return out
+    except Exception:
+        return fw
+
+
+def _warp_and_save(f, M, out_size, op, drizzle, tps_refg=None):
     if M is not None:
         if drizzle > 1:
             M = M.copy(); M[:, 2] *= drizzle
         f = cv2.warpAffine(f, M, out_size, flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_REFLECT)
     elif drizzle > 1:
         f = cv2.resize(f, out_size, interpolation=cv2.INTER_LANCZOS4)
+    if tps_refg is not None:
+        f = _tps_refine(f, tps_refg, log=lambda *a: None)
     cv2.imwrite(op, np.clip(f * 65535, 0, 65535).astype(np.uint16),
                 [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
     return op
 
 
 def register_and_cache(paths, out_dir, dark=None, flat=None, do_register=True,
-                       align_mode="shift", cosmetic=False, drizzle=1, detector="ORB", log=print):
+                       align_mode="shift", cosmetic=False, drizzle=1, detector="ORB",
+                       tps=False, log=print):
     """Frames kalibrieren + ausrichten, als 16-bit-TIFF in out_dir ablegen.
 
     align_mode: 'shift'/'rotate' (stern-basiert; phaseCorrelate wird bewusst NICHT genutzt — rastet
@@ -268,6 +314,9 @@ def register_and_cache(paths, out_dir, dark=None, flat=None, do_register=True,
         ref = cosmetic_correct(ref)
     refg = _gray(ref)
     out_size = (ref.shape[1] * drizzle, ref.shape[0] * drizzle)
+    tps_refg = (cv2.resize(refg, out_size) if drizzle > 1 else refg) if tps else None
+    if tps:
+        log("    TPS-Feinregistrierung aktiv (lokale Restverzeichnung wird korrigiert)")
 
     def _prep(i):
         f = calibrate(_read_float(paths[i]), dark, flat)
@@ -288,7 +337,7 @@ def register_and_cache(paths, out_dir, dark=None, flat=None, do_register=True,
             M = _estimate_rotation(refg, fg, detector)
         if M is None:
             return (i, None)                                 # 2. Pass versucht Cluster-Brücke
-        return (i, _warp_and_save(f, M, out_size, op, drizzle))
+        return (i, _warp_and_save(f, M, out_size, op, drizzle, tps_refg))
 
     results = pmap(_one, list(range(len(paths))), memory_heavy=True)
     aligned = [op for _i, op in sorted(results) if op]
@@ -323,11 +372,76 @@ def register_and_cache(paths, out_dir, dark=None, flat=None, do_register=True,
                 if good < 25:                                # zu wenige saubere Treffer → lieber lassen
                     continue
                 op = os.path.join(out_dir, f"reg_{i:04d}.tif")
-                aligned.append(_warp_and_save(_prep(i), M, out_size, op, drizzle))
+                aligned.append(_warp_and_save(_prep(i), M, out_size, op, drizzle, tps_refg))
                 rescued += 1
         if rescued:
             log(f"    +{rescued} weit geditherte Frames über Cluster-Brücke zurückgeholt ({len(aligned)}/{len(paths)})")
     return aligned
+
+
+def drizzle_stack(paths, scale=2, pixfrac=0.7, dark=None, flat=None, cosmetic=False,
+                  detector="ORB", log=print):
+    """ECHTES Drizzle (Variable-Pixel Linear Reconstruction, Fruchter & Hook — Punktkernel,
+    inverse Formulierung). Anders als „Drizzle-lite“ (jeden Frame einzeln hochskalieren und mitteln,
+    was die Interpolation verschmiert) wird hier das Resampling AUFGESCHOBEN: jeder Roh-Frame wird
+    über seine Sub-Pixel-Registrierung mit einem geschrumpften „Drop“ (pixfrac) direkt auf das feine
+    Ausgabegitter getropft, Fluss UND Gewicht akkumuliert. Aus geditherten Subs entsteht so echte
+    Auflösungsrückgewinnung (kleinere, schärfere Sterne) statt nur Hochskalierung.
+
+    scale: Gitter-Faktor (2 = doppelte Kantenlänge). pixfrac: Drop-Größe 0.1..1 (kleiner = schärfer,
+    braucht aber mehr Frames für volle Abdeckung; 0.7 ist ein guter Kompromiss)."""
+    scale = int(max(2, scale))
+    pf = float(np.clip(pixfrac, 0.1, 1.0))
+    ref = calibrate(_read_float(paths[len(paths) // 2]), dark, flat)
+    if cosmetic:
+        ref = cosmetic_correct(ref)
+    refg = _gray(ref)
+    H, W = ref.shape[:2]
+    ch = ref.shape[2] if ref.ndim == 3 else 1
+    OH, OW = H * scale, W * scale
+    flux = np.zeros((OH, OW, ch), np.float32)
+    wsum = np.zeros((OH, OW), np.float32)
+    yy, xx = np.mgrid[0:OH, 0:OW].astype(np.float32)
+    used = 0
+    for k, p in enumerate(paths):
+        f = calibrate(_read_float(p), dark, flat)
+        if f.shape[:2] != (H, W):
+            f = cv2.resize(f, (W, H))
+        if cosmetic:
+            f = cosmetic_correct(f)
+        if f.ndim == 2:
+            f = f[..., None]
+        fg = _gray(f)
+        M = _estimate_star_transform(refg, fg)
+        if M is None:
+            M = _estimate_rotation(refg, fg, detector)
+        if M is None:
+            continue
+        Ms = (scale * M).astype(np.float32)              # frame -> Ausgabegitter
+        Minv = cv2.invertAffineTransform(Ms)             # Ausgabegitter -> frame
+        xs = Minv[0, 0] * xx + Minv[0, 1] * yy + Minv[0, 2]
+        ys = Minv[1, 0] * xx + Minv[1, 1] * yy + Minv[1, 2]
+        rx = np.round(xs); ry = np.round(ys)
+        inb = (rx >= 0) & (rx < W) & (ry >= 0) & (ry < H)
+        wgt = ((np.abs(xs - rx) <= pf / 2) & (np.abs(ys - ry) <= pf / 2) & inb).astype(np.float32)
+        val = cv2.remap(f, xs, ys, interpolation=cv2.INTER_NEAREST,
+                        borderMode=cv2.BORDER_CONSTANT)
+        if val.ndim == 2:
+            val = val[..., None]
+        flux += val * wgt[..., None]
+        wsum += wgt
+        used += 1
+        log(f"    Drizzle {used}/{len(paths)} (pixfrac {pf:.2f}, {scale}×)")
+    if used == 0:
+        raise RuntimeError("Drizzle: kein Frame ausrichtbar")
+    out = flux / np.clip(wsum[..., None], 1e-6, None)
+    holes = wsum < 1e-6
+    if holes.any():                                       # nie getroffene Pixel sanft füllen
+        u8 = (np.clip(out, 0, 1) * 255).astype(np.uint8)
+        filled = cv2.inpaint(u8, holes.astype(np.uint8), 3, cv2.INPAINT_TELEA)
+        out[holes] = filled[holes].astype(np.float32) / 255.0
+        log(f"    Drizzle: {int(holes.sum())} unbedeckte Pixel gefüllt (mehr Frames/größeres pixfrac hilft)")
+    return np.clip(out, 0, 1)
 
 
 def stack(paths, method="sigma", kappa=2.5, normalize=True, local_norm=False,
@@ -384,6 +498,33 @@ def stack(paths, method="sigma", kappa=2.5, normalize=True, local_norm=False,
             if preview_cb and (i % _pv_every == 0 or i == n - 1):
                 preview_cb(np.clip((acc / (i + 1)) if method == "average" else mx, 0, 1), i + 1, n)
         return np.clip(acc / n if method == "average" else mx, 0, 1)
+
+    if method == "linearfit":
+        # Linear-Fit-Clipping (PixInsight-Stil): pro Pixel die sortierten Werte über die Frames
+        # mit einer Geraden modellieren, Streuung der Residuen messen, Ausreißer (Satelliten,
+        # Flugzeuge, kosmische Treffer, Hotpixel) jenseits kappa·sigma verwerfen. Robuster als
+        # Sigma-Clipping bei WENIGEN Subs und systematisch ungleicher Transparenz/Helligkeit.
+        res = np.empty(shape, np.float32)
+        rows = max(1, 2_000_000 // (shape[1] * shape[2]))
+        x = np.arange(n, dtype=np.float32)
+        xm = x.mean(); xv = float(((x - xm) ** 2).sum()) + 1e-9
+        for y in range(0, shape[0], rows):
+            band = np.stack([rd(i, p)[y:y + rows] for i, p in enumerate(paths)])  # (n, r, w, c)
+            v = np.sort(band, axis=0)
+            mask = np.ones_like(v, dtype=bool)
+            for _ in range(2):                       # 2 Iterationen reichen praktisch
+                w_ = mask.astype(np.float32)
+                sw = np.clip(w_.sum(axis=0), 1.0, None)
+                ym = (v * w_).sum(axis=0) / sw
+                slope = ((x[:, None, None, None] - xm) * (v - ym) * w_).sum(axis=0) / xv
+                fit = slope * (x[:, None, None, None] - xm) + ym
+                resid = v - fit
+                sig = np.sqrt((resid * resid * w_).sum(axis=0) / sw) + 1e-9
+                mask = np.abs(resid) <= kappa * sig
+            w_ = mask.astype(np.float32)
+            res[y:y + rows] = (v * w_).sum(axis=0) / np.clip(w_.sum(axis=0), 1.0, None)
+            log(f"    linearfit-Rejection Zeilen {y}/{shape[0]}")
+        return np.clip(res, 0, 1)
 
     # sigma / winsor: Pass 1 Mittel+Std, Pass 2 Rejection
     s = np.zeros(shape, np.float32); s2 = np.zeros(shape, np.float32)
@@ -624,6 +765,48 @@ def mtf_stretch(f, target_bg=0.25, shadow=-2.8, saturation=1.05, denoise_chroma=
         lum = _gray(out)[..., None]
         out = np.clip(lum + cv2.GaussianBlur(out - lum, (0, 0), 3.0), 0, 1)
     return out
+
+
+def ghs_stretch(f, D=2.5, b=-0.5, SP=0.18, black_clip=None, saturation=1.08,
+                denoise_chroma=True, samples=4096):
+    """Generalised-Hyperbolic-Stretch (GHS-Familie) — frei steuerbarer High-Dynamic-Stretch,
+    der schwaches Nebel-Signal kräftig anhebt, ohne den hellen Kern/Sterne auszubrennen.
+    Ergänzt MTF (fester Schwarzpunkt) und asinh um eine voll parametrische Kurve.
+
+      • D  = Intensität (Stärke der Streckung; höher = aggressiver)
+      • b  = Charakter der Kurve:  b<0 weicher Knick (asinh-artig), gegen 0 sanfter,
+             stärker negativ = härterer, konzentrierter Knick (hyperbolisch)
+      • SP = Symmetrie-/Pivotpunkt (0..1): die Helligkeit, um die herum am stärksten gestreckt
+             wird — typ. knapp über dem Himmelshintergrund.
+
+    Konstruiert über die kumulierte lokale Streckung (Integral einer überall positiven
+    Streckfunktion) → garantiert monoton, bildet [0..1] streng auf [0..1] ab, erhält Schwarz/Weiß.
+    Identische Kurve je Kanal (linked, wie in Siril)."""
+    g = _gray(f)
+    if black_clip is not None:
+        bg = float(np.quantile(g, black_clip))
+    else:
+        med = float(np.median(g))
+        mad = float(np.median(np.abs(g - med))) * 1.4826
+        bg = med + 0.25 * mad
+    x0 = np.clip((f - bg) / max(1e-6, 1.0 - bg), 0, 1)          # Schwarzpunkt setzen
+
+    xs = np.linspace(0.0, 1.0, samples, dtype=np.float64)
+    k = float(D) * float(D)
+    ls = (1.0 + k * (xs - float(SP)) ** 2) ** float(b)         # lokale Streckung, Maximum bei SP
+    cdf = np.cumsum(ls)
+    cdf -= cdf[0]
+    cdf /= (cdf[-1] + 1e-12)                                    # → streng [0..1], monoton
+    out = np.interp(x0.ravel(), xs, cdf).reshape(x0.shape).astype(np.float32)
+
+    if out.ndim == 3:
+        if denoise_chroma:
+            lum = _gray(out)[..., None]
+            out = np.clip(lum + cv2.GaussianBlur(out - lum, (0, 0), 3.0), 0, 1)
+        if saturation and saturation != 1.0:
+            lum = _gray(out)[..., None]
+            out = np.clip(lum + (out - lum) * saturation, 0, 1)
+    return np.clip(out, 0, 1)
 
 
 def autostretch(f, black_clip=None, strength=6.0, protect_core=True, saturation=1.05,

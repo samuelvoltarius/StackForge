@@ -31,7 +31,8 @@ def _gap_fill_dilate(f, k=3):
 
 
 def combine(paths, mode="smooth", align="none", strength=1.0, work_dir=None, detector="ORB",
-            transform="rigid", gap_fill=False, comet_decay=0.9, log=print):
+            transform="rigid", gap_fill=False, comet_decay=0.9, sigma_clip=False,
+            freeze_below=None, log=print):
     """Serie zu einer Langzeitbelichtung verrechnen. Gibt float32 [0..1] (BGR) zurück.
 
     strength = „virtuelle Belichtungszeit" (0..1): gewichtetes Teil-Mitteln zwischen einem
@@ -93,8 +94,33 @@ def combine(paths, mode="smooth", align="none", strength=1.0, work_dir=None, det
             result = f if result is None else np.maximum(result, f)
             log(f"    Spur+Lückenfüllung {i + 1}/{len(proc)}")
     else:
-        # smooth/trails/declutter -> astro.stack (average/max/median), ohne Helligkeits-Normierung
-        result = astro.stack(proc, method=_METHOD[mode], normalize=False, log=log)
+        # smooth/trails/declutter -> astro.stack (average/max/median), ohne Helligkeits-Normierung.
+        # sigma_clip: glättende Modi (smooth/declutter) per Sigma-Clipping statt rohem Mittel/Median
+        # → Ausreißer (vorbeifliegende Vögel, Satelliten, Hotpixel, Funkeln) sauber verworfen.
+        method = _METHOD[mode]
+        if sigma_clip and mode in ("smooth", "declutter"):
+            method = "sigma"
+        result = astro.stack(proc, method=method, normalize=False, log=log)
+
+    # 2b) Vordergrund einfrieren (Sequator-Stil): nur der Himmel/obere Teil wird langzeitbelichtet,
+    #     der untere Teil (Landschaft) kommt SCHARF aus einem Einzelbild — gegen Verwischen durch
+    #     Wind/Mini-Drift am Boden. freeze_below = Anteil der Bildhöhe (0..1), der eingefroren wird.
+    if freeze_below and 0.0 < freeze_below < 1.0:
+        sharp = astro._read_float(proc[len(proc) // 2])
+        if sharp.shape != result.shape:
+            sharp = cv2.resize(sharp, (result.shape[1], result.shape[0]))
+        h = result.shape[0]
+        y0 = int(round((1.0 - freeze_below) * h))
+        feather = max(4, int(0.04 * h))
+        ramp = np.ones(h, np.float32)
+        ramp[:max(0, y0 - feather)] = 0.0
+        lo, hi = max(0, y0 - feather), min(h, y0 + feather)
+        if hi > lo:
+            ramp[lo:hi] = np.linspace(0.0, 1.0, hi - lo)
+        ramp[y0 + feather:] = 1.0
+        m = ramp[:, None, None]                      # 0 oben (Langzeit), 1 unten (scharf)
+        log(f"    Vordergrund eingefroren: unterste {int(freeze_below*100)} % scharf aus Einzelbild")
+        result = result * (1.0 - m) + sharp * m
 
     # 3) Virtuelle Belichtungszeit: gewichtetes Teil-Mitteln mit einem scharfen Referenzbild
     if strength < 0.999:

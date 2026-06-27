@@ -1019,11 +1019,22 @@ def main():
     ap.add_argument("--hdr-deghost", choices=["off", "auto", "aggressive"], default="off",
                     help="HDR-Deghosting: in Bewegungszonen (Blätter/Personen/Autos) nur das "
                          "best-belichtete Referenzbild statt der Fusion — gegen Doppelbilder")
+    ap.add_argument("--hdr-method", choices=["fusion", "radiance"], default="fusion",
+                    help="fusion=Exposure Fusion (Standard, halo-frei); radiance=Radiance-Map + "
+                         "Tonemapping (dramatischer lokaler Kontrast)")
+    ap.add_argument("--hdr-tonemap", choices=["reinhard", "mantiuk", "drago"], default="reinhard",
+                    help="Tonemapping-Operator für --hdr-method radiance")
     ap.add_argument("--longexp", action="store_true",
                     help="Langzeitbelichtung aus einer Serie (Wasser/Wolken/Lichtspuren) ohne ND-Filter")
     ap.add_argument("--longexp-gapfill", action="store_true",
                     help="Langzeit/Spuren: Lücken in Strichspuren ueberbruecken (gegen gestrichelte "
                          "Spuren durch Schreibpausen zwischen den Frames)")
+    ap.add_argument("--longexp-sigma", action="store_true",
+                    help="Langzeit (smooth/declutter): Sigma-Clipping statt rohem Mittel/Median — "
+                         "verwirft Ausreisser (Voegel, Satelliten, Hotpixel, Funkeln) sauber")
+    ap.add_argument("--longexp-freeze", type=float, default=None, metavar="ANTEIL",
+                    help="Vordergrund einfrieren (Sequator-Stil): unterste ANTEIL (0..1) der "
+                         "Bildhoehe scharf aus einem Einzelbild, nur der Himmel wird langzeitbelichtet")
     ap.add_argument("--longexp-mode", choices=["smooth", "trails", "comet", "declutter", "bright"],
                     default="smooth",
                     help="smooth=Mitteln (Wasser), trails=Aufhellen (Lichtspuren), "
@@ -1033,15 +1044,22 @@ def main():
     ap.add_argument("--longexp-strength", type=int, default=100,
                     help="Virtuelle Belichtungszeit 0–100 %% (gewichtetes Teil-Mitteln; "
                          "100=volle Glättung/Spuren, 0=Einzelbild eingefroren)")
-    ap.add_argument("--astro-method", choices=["sigma", "winsor", "average", "median", "max"],
+    ap.add_argument("--astro-method", choices=["sigma", "winsor", "linearfit", "average", "median", "max"],
                     default="sigma", help="Astro-Stacking-Methode (Default sigma=Kappa-Sigma)")
     ap.add_argument("--astro-kappa", type=float, default=2.5, help="Kappa für Sigma-Clipping")
     ap.add_argument("--astro-local-norm", action="store_true",
                     help="Astro: lokale Normalisierung (örtlicher Hintergrundabgleich pro Frame VOR "
                          "der Rejection) — gegen Gradienten & Mehrfach-Sessions")
-    ap.add_argument("--astro-stretch-mode", choices=["asinh", "mtf"], default="asinh",
-                    help="Astro-Streckung: asinh (Standard) oder mtf (MTF/Histogramm, reversibel, "
-                         "definierter Schwarzpunkt — PixInsight-AutoSTF-Stil)")
+    ap.add_argument("--astro-stretch-mode", choices=["asinh", "mtf", "ghs"], default="asinh",
+                    help="Astro-Streckung: asinh (Standard), mtf (MTF/Histogramm, reversibel, "
+                         "definierter Schwarzpunkt — PixInsight-AutoSTF-Stil) oder ghs "
+                         "(Generalised Hyperbolic Stretch, voll parametrisch)")
+    ap.add_argument("--astro-ghs-d", type=float, default=2.5,
+                    help="GHS-Intensität D (höher = aggressiver; nur bei --astro-stretch-mode ghs)")
+    ap.add_argument("--astro-ghs-b", type=float, default=-0.5,
+                    help="GHS-Charakter b (stärker negativ = härterer Knick; nur bei ghs)")
+    ap.add_argument("--astro-ghs-sp", type=float, default=0.18,
+                    help="GHS-Symmetriepunkt SP 0..1 (Pivot-Helligkeit; nur bei ghs)")
     ap.add_argument("--no-register", action="store_true", help="Astro: keine Stern-Ausrichtung")
     ap.add_argument("--astro-align", choices=["shift", "rotate"], default="shift",
                     help="Astro-Ausrichtung: shift=Translation (Nachführung), "
@@ -1050,6 +1068,11 @@ def main():
                     help="Astro: Hot-/Cold-Pixel vor dem Stacken entfernen (kosmetische Korrektur)")
     ap.add_argument("--astro-drizzle", type=int, choices=[1, 2], default=1,
                     help="Astro: 2 = doppelt hochskaliert integrieren (feineres Sampling, „Drizzle-lite“)")
+    ap.add_argument("--astro-drizzle-true", action="store_true",
+                    help="Astro: ECHTES Drizzle (flusserhaltendes Droppen mit pixfrac statt nur "
+                         "Hochskalieren) — braucht --astro-drizzle 2 und gediterte Subs")
+    ap.add_argument("--astro-pixfrac", type=float, default=0.7,
+                    help="Drop-Größe fürs echte Drizzle 0.1..1 (kleiner = schärfer, braucht mehr Frames)")
     ap.add_argument("--astro-stretch", action="store_true",
                     help="Astro: Vorschau-JPG asinh-gestreckt (Ergebnis-TIFF bleibt linear)")
     ap.add_argument("--astro-bright", type=float, default=-1.0,
@@ -1344,12 +1367,10 @@ def run_astro(input_dir, work_dir, args):
         extras.append("Hot-Pixel-Korrektur")
     if drizzle > 1:
         extras.append(f"Drizzle {drizzle}×")
+    drizzle_true = getattr(args, "astro_drizzle_true", False) and drizzle > 1
+    if drizzle_true:
+        extras.append(f"echtes Drizzle (pixfrac {getattr(args, 'astro_pixfrac', 0.7)})")
     print(f"  Registrieren … ({', '.join(extras)})")
-    aligned = astro.register_and_cache(paths, reg_dir, dark, flat,
-                                       do_register=not args.no_register,
-                                       align_mode=align_mode, cosmetic=cosmetic,
-                                       drizzle=drizzle, detector=getattr(args, "detector", "ORB"))
-    print(f"  Stacken ({args.astro_method}, kappa={args.astro_kappa}) …")
     pv_path = os.path.join(work_dir, "_live_preview.jpg")
 
     def _preview_cb(img01, i, n):
@@ -1362,8 +1383,24 @@ def run_astro(input_dir, work_dir, args):
             sys.stdout.flush()
         except Exception:
             pass
-    result = astro.stack(aligned, method=args.astro_method, kappa=args.astro_kappa, normalize=True,
-                         local_norm=getattr(args, "astro_local_norm", False), preview_cb=_preview_cb)
+
+    if drizzle_true:
+        # Echtes Drizzle integriert Registrierung + flusserhaltendes Droppen in EINEM Schritt
+        # (kein separates Resampling/Stacken) → behält die Sub-Pixel-Dither-Diversität.
+        print(f"  Drizzle-Integration ({drizzle}×, pixfrac={getattr(args, 'astro_pixfrac', 0.7)}) …")
+        result = astro.drizzle_stack(paths, scale=drizzle,
+                                     pixfrac=getattr(args, "astro_pixfrac", 0.7),
+                                     dark=dark, flat=flat, cosmetic=cosmetic,
+                                     detector=getattr(args, "detector", "ORB"))
+    else:
+        aligned = astro.register_and_cache(paths, reg_dir, dark, flat,
+                                           do_register=not args.no_register,
+                                           align_mode=align_mode, cosmetic=cosmetic,
+                                           drizzle=drizzle, detector=getattr(args, "detector", "ORB"),
+                                           tps=getattr(args, "astro_tps", False))
+        print(f"  Stacken ({args.astro_method}, kappa={args.astro_kappa}) …")
+        result = astro.stack(aligned, method=args.astro_method, kappa=args.astro_kappa, normalize=True,
+                             local_norm=getattr(args, "astro_local_norm", False), preview_cb=_preview_cb)
     binf = int(getattr(args, "astro_bin", 1) or 1)
     if binf > 1:
         result = astro.bin_image(result, binf)
@@ -1476,8 +1513,13 @@ def _astro_write(result, work_dir, paths, args, astro):
             base_view = _dualband_view(result, getattr(args, "palette", "hoo"), astro)
         else:
             base_view = astro.remove_green_cast(astro.color_balance(result, color_s))
-        if getattr(args, "astro_stretch_mode", "asinh") == "mtf":
+        _sm = getattr(args, "astro_stretch_mode", "asinh")
+        if _sm == "mtf":
             view = astro.mtf_stretch(base_view, saturation=sat)
+        elif _sm == "ghs":
+            view = astro.ghs_stretch(base_view, D=getattr(args, "astro_ghs_d", 2.5),
+                                     b=getattr(args, "astro_ghs_b", -0.5),
+                                     SP=getattr(args, "astro_ghs_sp", 0.18), saturation=sat)
         else:
             view = astro.autostretch(base_view, strength=strength, saturation=sat, protect_core=protect)
     else:
@@ -1579,7 +1621,9 @@ def run_longexp(input_dir, work_dir, args):
           f"Ausrichten={args.longexp_align}, virtuelle Belichtung={int(strength*100)} % ==")
     result = longexp.combine(paths, mode=mode, align=args.longexp_align, strength=strength,
                              work_dir=work_dir, detector=args.detector, transform=args.transform,
-                             gap_fill=getattr(args, "longexp_gapfill", False))
+                             gap_fill=getattr(args, "longexp_gapfill", False),
+                             sigma_clip=getattr(args, "longexp_sigma", False),
+                             freeze_below=getattr(args, "longexp_freeze", None))
 
     stack_dir = os.path.join(work_dir, "stack")
     if os.path.isdir(stack_dir):
@@ -1732,8 +1776,11 @@ def run_hdr(input_dir, work_dir, args):
         if len(imgs) < 2:
             print("    (übersprungen — zu wenige lesbare Bilder)")
             continue
-        result = hdr.merge_exposures(imgs, align=not getattr(args, "no_align", False),
-                                     deghost=getattr(args, "hdr_deghost", "off"))
+        if getattr(args, "hdr_method", "fusion") == "radiance":
+            result = hdr.merge_radiance(imgs, tonemap=getattr(args, "hdr_tonemap", "reinhard"))
+        else:
+            result = hdr.merge_exposures(imgs, align=not getattr(args, "no_align", False),
+                                         deghost=getattr(args, "hdr_deghost", "off"))
         result = hdr.apply_look(result, getattr(args, "hdr_look", "natural"))
         base = os.path.splitext(os.path.basename(grp[len(grp) // 2]))[0]
         out_jpg = os.path.join(stack_dir, f"{args.prefix}{base}_hdr.jpg")

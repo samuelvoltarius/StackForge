@@ -60,6 +60,33 @@ def merge_exposures(images, align=True, deghost="off", log=print):
     return out
 
 
+def merge_radiance(images, times=None, tonemap="reinhard", log=print):
+    """Echtes HDR über eine Radiance-Map (Debevec-CRF) + Tonemapping — **alternativer dramatischer
+    Look** mit lokalem Kontrast (Exposure Fusion bleibt der Standard, halo-frei). Belichtungszeiten
+    werden aus der mittleren Helligkeit geschätzt, wenn keine angegeben. tonemap: reinhard|mantiuk|drago."""
+    imgs = [_to8(im) for im in images]
+    if len(imgs) < 2:
+        return imgs[0]
+    h, w = imgs[0].shape[:2]
+    imgs = [cv2.resize(im, (w, h)) if im.shape[:2] != (h, w) else im for im in imgs]
+    if times is None:
+        meds = [float(np.median(cv2.cvtColor(im, cv2.COLOR_BGR2GRAY))) + 1.0 for im in imgs]
+        base = float(np.median(meds))
+        times = np.array([m / base for m in meds], np.float32)
+    times = np.clip(np.asarray(times, np.float32), 1e-3, None)
+    try:
+        resp = cv2.createCalibrateDebevec().process(imgs, times)
+        rad = cv2.createMergeDebevec().process(imgs, times, resp)
+    except cv2.error:
+        rad = cv2.createMergeDebevec().process(imgs, times)
+    tm = {"mantiuk": cv2.createTonemapMantiuk(2.2, 0.85, 1.2),
+          "drago": cv2.createTonemapDrago(1.0, 0.7),
+          }.get(tonemap, cv2.createTonemapReinhard(1.5, 0, 0, 0))
+    ldr = tm.process(rad)
+    log(f"    HDR: Radiance-Map + Tonemapping ({tonemap})")
+    return np.clip(np.nan_to_num(ldr) * 255.0, 0, 255).astype(np.uint8)
+
+
 def _deghost(imgs, fused, aggressive=False, log=print):
     """In Bewegungszonen die Fusion durch das best-belichtete Referenzbild ersetzen.
     Referenz = Frame mit den meisten gut belichteten Pixeln. Bewegung = wo ein helligkeits-
