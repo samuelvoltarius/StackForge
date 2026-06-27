@@ -537,5 +537,15 @@
   "Siril-SPCC (Gaia DR3)": "Siril SPCC (Gaia DR3)",
   "optional: OSC-Sensorname wie in Siril (z. B. Sony IMX294)": "optional: OSC sensor name as in Siril (e.g. Sony IMX294)",
   "Optionaler API-Key von nova.astrometry.net (My Profile) für blindes Plate-Solving im echten PCC, wenn kein Siril/lokaler Solver da ist. Dein eigener Key — nur lokal gespeichert, nie geteilt/committet.": "Optional API key from nova.astrometry.net (My Profile) for blind plate-solving in real PCC, when no Siril/local solver is available. Your own key — stored locally only, never shared/committed.",
-  "dein Astrometry.net-API-Key (nova.astrometry.net/api)": "your Astrometry.net API key (nova.astrometry.net/api)"
+  "dein Astrometry.net-API-Key (nova.astrometry.net/api)": "your Astrometry.net API key (nova.astrometry.net/api)",
+  "D / b / SP": "D / b / SP",
+  "Drizzle 2× = doppelt hochskaliert integrieren (feineres Sampling bei unterabgetasteten Daten; „Drizzle-lite“).": "Drizzle 2× = integrate at double resolution (finer sampling for undersampled data; \"drizzle-lite\").",
+  "Engine & Export": "Engine & export",
+  "Erweitert (Engine, Vorverarbeitung, Drizzle/TPS, GHS, PCC …)": "Advanced (engine, preprocessing, drizzle/TPS, GHS, PCC …)",
+  "Farbkalibrierung (PCC)": "Color calibration (PCC)",
+  "GHS-Streckung (Vorschau)": "GHS stretch (preview)",
+  "Hot-/Cold-Pixel = entfernt helle/dunkle Einzelpixel (Sensor-Defekte) vor dem Stacken.": "Hot/cold pixels = removes bright/dark single pixels (sensor defects) before stacking.",
+  "Objektivkorrekturen": "Lens corrections",
+  "Registrierung & Drizzle": "Registration & drizzle",
+  "Vorverarbeitung": "Preprocessing"
 }

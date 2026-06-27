@@ -340,21 +340,24 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         rg.addWidget(QLabel(tr("Demosaic")), 4, 0); rg.addWidget(self.raw_demosaic, 4, 1)
         rg.addWidget(help_btn("Verfahren, das aus dem Sensor-Mosaik das Farbbild rechnet. „auto/ahd“ "
                               "Standard, „dht“ hohe Qualität, „dcb“ wenig Falschfarbe, „vng“ weich."), 4, 2)
-        rg.addWidget(self.raw_highlights, 5, 0, 1, 2)
-        rg.addWidget(help_btn("Holt Zeichnung in ausgebrannte Lichter zurück (Kanal-Verhältnis) und "
-                              "verhindert magenta Lichter (Entsättigen zu Weiß)."), 5, 2)
-        rg.addWidget(self.raw_half, 4, 0, 1, 2)
+        rg.addWidget(self.raw_half, 5, 0, 1, 2)
         rg.addWidget(help_btn("Entwickelt RAW in halber Größe — schneller, weniger Details. "
-                              "Gut zum schnellen Ausprobieren."), 4, 2)
-        rg.addWidget(self.lens_auto, 6, 0, 1, 2)
+                              "Gut zum schnellen Ausprobieren."), 5, 2)
+        rg.addWidget(self.raw_highlights, 6, 0, 1, 2)
+        rg.addWidget(help_btn("Holt Zeichnung in ausgebrannte Lichter zurück (Kanal-Verhältnis) und "
+                              "verhindert magenta Lichter (Entsättigen zu Weiß)."), 6, 2)
+        _lens_lab = QLabel(tr("Objektivkorrekturen"))
+        _lens_lab.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:6px;")
+        rg.addWidget(_lens_lab, 7, 0, 1, 3)
+        rg.addWidget(self.lens_auto, 8, 0, 1, 2)
         rg.addWidget(help_btn("Korrigiert Vignette, Verzeichnung und Farbquerfehler automatisch aus der "
                               "lensfun-Datenbank (wenn lensfunpy installiert und das Objektiv bekannt "
-                              "ist). Sonst die manuellen Regler unten nutzen."), 6, 2)
-        rg.addWidget(QLabel(tr("Vignette")), 7, 0); rg.addWidget(self.lens_vignette, 7, 1)
-        rg.addWidget(help_btn("Manuelle Randabdunklungs-Korrektur (>0 hellt die Ecken auf)."), 7, 2)
-        rg.addWidget(QLabel(tr("Verzeichnung / CA")), 8, 0)
-        rg.addWidget(self.lens_distortion, 8, 1)
-        rg.addWidget(self.lens_ca, 8, 2)
+                              "ist). Sonst die manuellen Regler unten nutzen."), 8, 2)
+        rg.addWidget(QLabel(tr("Vignette")), 9, 0); rg.addWidget(self.lens_vignette, 9, 1)
+        rg.addWidget(help_btn("Manuelle Randabdunklungs-Korrektur (>0 hellt die Ecken auf)."), 9, 2)
+        rg.addWidget(QLabel(tr("Verzeichnung / CA")), 10, 0)
+        rg.addWidget(self.lens_distortion, 10, 1)
+        rg.addWidget(self.lens_ca, 10, 2)
         self.g_raw = g_raw
         p1.addWidget(g_raw)
 
@@ -477,10 +480,10 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                               "Aufnahmen verwenden."), 3, 3)
         ar.addWidget(self.astro_stretch, 4, 0, 1, 2)
         ar.addWidget(self.astro_stretch_mode, 4, 2)
-        ar.addWidget(self.astro_local_norm, 6, 0, 1, 3)
+        ar.addWidget(self.astro_local_norm, 9, 0, 1, 3)
         ar.addWidget(help_btn("Gleicht den Hintergrund jedes Frames ÖRTLICH an (statt nur global) vor "
                               "der Ausreißer-Verwerfung — macht das Stacken bei Gradienten und beim "
-                              "Kombinieren mehrerer Nächte korrekt."), 6, 3)
+                              "Kombinieren mehrerer Nächte korrekt."), 9, 3)
         ar.addWidget(self.astro_bg, 5, 0, 1, 3)
         ar.addWidget(help_btn("Entfernt weiche Helligkeits-Gradienten (Lichtverschmutzung/Vignette). "
                               "Für stärkere Tools: das 32-bit-Linear-TIFF in GraXpert/StarNet++/"
@@ -510,9 +513,15 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         ar.addWidget(QLabel(tr("Starless: Nebel")), 20, 0); ar.addWidget(self.starless_neb, 20, 1)
         ar.addWidget(QLabel(tr("Sterne")), 20, 2); ar.addWidget(self.starless_stars, 20, 3)
         # --- Erweitert (ausklappbar): selten gebrauchte Optionen, hält das Panel aufgeräumt ---
-        adv = CollapsibleSection(tr("Erweitert (Engine, Bias, Binning, Drizzle …)"))
+        adv = CollapsibleSection(tr("Erweitert (Engine, Vorverarbeitung, Drizzle/TPS, GHS, PCC …)"))
         ag = adv.grid
-        ag.addWidget(QLabel(tr("Bias")), 0, 0); ag.addWidget(self.astro_bias, 0, 1, 1, 1); ag.addWidget(bbtn, 0, 2)
+        def _subhead(text, r):
+            lab = QLabel(text)
+            lab.setStyleSheet("color:#7bd36a;font-weight:bold;margin-top:6px;")
+            ag.addWidget(lab, r, 0, 1, 4)
+
+        # — Engine & Export —
+        _subhead(tr("Engine & Export"), 0)
         ag.addWidget(QLabel(tr("Engine")), 1, 0); ag.addWidget(self.astro_engine, 1, 1, 1, 2)
         ag.addWidget(help_btn("„Eigene“ = ForgePix selbst (Standard, kein Fremdprogramm). "
                               "„Siril“ = optional dein installiertes Siril fernsteuern "
@@ -522,35 +531,44 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         ag.addWidget(help_btn("Speichert das fertige Stack-Ergebnis zusätzlich als 32-bit-FITS "
                               "(neben dem TIFF) — für PixInsight/Siril. FITS-Lights werden auch "
                               "direkt eingelesen."), 2, 3)
-        ag.addWidget(self.astro_cosmetic, 3, 0, 1, 2)
-        ag.addWidget(QLabel(tr("Drizzle")), 3, 2); ag.addWidget(self.astro_drizzle, 3, 3)
-        ag.addWidget(self.astro_drizzle_true, 6, 0, 1, 3)
+        # — Vorverarbeitung —
+        _subhead(tr("Vorverarbeitung"), 3)
+        ag.addWidget(QLabel(tr("Bias")), 4, 0); ag.addWidget(self.astro_bias, 4, 1, 1, 1); ag.addWidget(bbtn, 4, 2)
+        ag.addWidget(self.astro_cosmetic, 5, 0, 1, 3)
+        ag.addWidget(help_btn("Hot-/Cold-Pixel = entfernt helle/dunkle Einzelpixel (Sensor-Defekte) "
+                              "vor dem Stacken."), 5, 3)
+        ag.addWidget(QLabel(tr("Binning")), 6, 0); ag.addWidget(self.astro_bin, 6, 1, 1, 2)
+        ag.addWidget(help_btn("Software-Binning fasst 2×2 (bzw. 3×3) Pixel zusammen: weniger "
+                              "Rauschen, rundere/kleinere Sterne, halbe Auflösung. Gut bei "
+                              "überabgetasteten Daten (große Sterne/FWHM)."), 6, 3)
+        # — Registrierung & Drizzle —
+        _subhead(tr("Registrierung & Drizzle"), 7)
+        ag.addWidget(QLabel(tr("Drizzle")), 8, 0); ag.addWidget(self.astro_drizzle, 8, 1, 1, 2)
+        ag.addWidget(help_btn("Drizzle 2× = doppelt hochskaliert integrieren (feineres Sampling bei "
+                              "unterabgetasteten Daten; „Drizzle-lite“)."), 8, 3)
+        ag.addWidget(self.astro_drizzle_true, 9, 0, 1, 3)
         ag.addWidget(help_btn("Echtes Drizzle (Variable-Pixel Linear Reconstruction): tropft jeden "
                               "Sub mit geschrumpftem Drop (pixfrac) flusserhaltend aufs feine Gitter "
                               "→ echte Auflösungsrückgewinnung aus geditherten Subs. Braucht Drizzle 2× "
-                              "und gediterte Aufnahmen."), 6, 3)
-        ag.addWidget(self.astro_tps, 7, 0, 1, 3)
+                              "und gediterte Aufnahmen."), 9, 3)
+        ag.addWidget(self.astro_tps, 10, 0, 1, 3)
         ag.addWidget(help_btn("Thin-Plate-Spline-Feinregistrierung: korrigiert nach der globalen "
                               "Ausrichtung die RESTVERZEICHNUNG (Feldkrümmung bei Weitwinkel/Refraktor) "
-                              "→ runde Sterne über das ganze Feld."), 7, 3)
-        ag.addWidget(self.astro_pcc, 8, 0, 1, 2)
-        ag.addWidget(self.astro_pcc_backend, 8, 2, 1, 1)
+                              "→ runde Sterne über das ganze Feld."), 10, 3)
+        # — GHS-Streckung (Vorschau) —
+        _subhead(tr("GHS-Streckung (Vorschau)"), 11)
+        ag.addWidget(QLabel(tr("D / b / SP")), 12, 0)
+        ag.addWidget(self.astro_ghs_d, 12, 1); ag.addWidget(self.astro_ghs_b, 12, 2)
+        ag.addWidget(self.astro_ghs_sp, 12, 3)
+        # — Farbkalibrierung (PCC) —
+        _subhead(tr("Farbkalibrierung (PCC)"), 13)
+        ag.addWidget(self.astro_pcc, 14, 0, 1, 2)
+        ag.addWidget(self.astro_pcc_backend, 14, 2, 1, 1)
         ag.addWidget(help_btn("Echte photometrische Farbkalibrierung. Auto: Siril-SPCC (Plate-Solve + "
                               "Gaia DR3) → eigener Gaia-Pfad (astroquery) → Lite (stern-basiert, offline). "
-                              "Siril braucht Netz/Gaia-Katalog; Lite läuft immer."), 8, 3)
-        ag.addWidget(self.astro_oscsensor, 10, 0, 1, 3)
-        ag.addWidget(self.astro_narrowband, 10, 3)
-        ag.addWidget(QLabel(tr("GHS D / b / SP")), 9, 0)
-        ag.addWidget(self.astro_ghs_d, 9, 1); ag.addWidget(self.astro_ghs_b, 9, 2)
-        ag.addWidget(self.astro_ghs_sp, 9, 3)
-        ag.addWidget(QLabel(tr("Binning")), 4, 0); ag.addWidget(self.astro_bin, 4, 1, 1, 2)
-        ag.addWidget(help_btn("Software-Binning fasst 2×2 (bzw. 3×3) Pixel zusammen: weniger "
-                              "Rauschen, rundere/kleinere Sterne, halbe Auflösung. Gut bei "
-                              "überabgetasteten Daten (große Sterne/FWHM)."), 4, 3)
-        ag.addWidget(help_btn("Hot-/Cold-Pixel = entfernt helle/dunkle Einzelpixel (Sensor-Defekte) "
-                              "vor dem Stacken. Drizzle 2× = doppelt hochskaliert integrieren "
-                              "(feineres Sampling bei unterabgetasteten Daten; „Drizzle-lite“, keine "
-                              "echte Pixel-Fraktion wie PixInsight)."), 5, 3)
+                              "Siril braucht Netz/Gaia-Katalog; Lite läuft immer."), 14, 3)
+        ag.addWidget(self.astro_oscsensor, 15, 0, 1, 3)
+        ag.addWidget(self.astro_narrowband, 15, 3)
         ar.addWidget(adv, 22, 0, 1, 4)
         # Vorschau-Aufbereitung: Auto (KI/Standard) oder manuelle Regler
         ar.addWidget(self.astro_auto, 14, 0, 1, 3)
@@ -662,7 +680,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
         le_info = QLabel(tr("Empfohlen: Glatt 10–30 · Lichtspuren 30–300+ (lückenlos) · "
                             "Störer entfernen 8–20 · Aufhellen 10–60. Vom Stativ, gleiche Belichtung."))
         le_info.setWordWrap(True); le_info.setStyleSheet("color:#9aa09a;font-size:11px;")
-        lg.addWidget(le_info, 4, 0, 1, 4)
+        lg.addWidget(le_info, 8, 0, 1, 4)
         p1.addWidget(g_le)
 
         # HDR (Belichtungsreihe)
@@ -706,7 +724,7 @@ class MainWindow(WelcomeMixin, SettingsMixin, ExportMixin, ResultMixin, QMainWin
                              "Exposure Fusion). Das ist NICHT Fokus-Stacking. Freihand wird "
                              "automatisch ausgerichtet."))
         hdr_info.setWordWrap(True); hdr_info.setStyleSheet("color:#9aa09a;font-size:11px;")
-        hg.addWidget(hdr_info, 3, 0, 1, 3)
+        hg.addWidget(hdr_info, 6, 0, 1, 4)
         p1.addWidget(g_hdr)
 
         # Selektion
