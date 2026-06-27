@@ -61,6 +61,16 @@ class TestColorManagement(unittest.TestCase):
         # sRGB-Gamma von 0.5 linear ≈ 0.735
         self.assertAlmostEqual(float(disp.mean()), 0.7353, places=2)
 
+
+    def test_xyz_to_working_korrekt(self):
+        # Empfohlener Pfad: lineares sRGB -> XYZ -> xyz_to_working('srgb') -> Display(linear) == Original.
+        rng = np.random.default_rng(5)
+        lin = rng.uniform(0, 1, size=(6, 6, 3)).astype(np.float64)
+        xyz = lin @ D._RGB2XYZ["srgb"].T
+        work = D.xyz_to_working(xyz, working="srgb")
+        disp = D.working_to_display(work, working="srgb", gamma="linear")
+        self.assertTrue(np.allclose(disp, lin, atol=1e-6), f"xyz roundtrip err {np.abs(disp-lin).max()}")
+
     def test_unknown_working_raises(self):
         with self.assertRaises(ValueError):
             D.camera_to_working(np.zeros((2, 2, 3)), D._RGB2XYZ["srgb"], working="foo")

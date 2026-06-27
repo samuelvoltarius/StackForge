@@ -396,6 +396,26 @@ def camera_to_working(linear_rgb, cam_xyz_matrix, working="rec2020"):
     return arr @ M.T
 
 
+def xyz_to_working(linear_xyz, working="rec2020"):
+    """Lineares CIE-XYZ in den Arbeitsfarbraum (Rec.2020/ProPhoto/sRGB) bringen.
+
+    DAS ist der EMPFOHLENE Einstieg fürs RAW-Farb-Management: rawpy/LibRaw mit
+    ``output_color=rawpy.ColorSpace.XYZ`` + ``gamma=(1,1)`` + ``use_camera_wb=True`` liefert
+    bereits korrekt weißabgeglichenes, profil-richtiges lineares XYZ (LibRaw wendet Weißabgleich
+    UND Kameramatrix sauber an). Hier nur noch XYZ → Arbeitsraum. Auf ECHTEN DNG/ARW verifiziert
+    (Farben praktisch deckungsgleich mit rawpys sRGB).
+
+    Hinweis: ``camera_to_working`` (manuelle Kameramatrix) erwartet WB-NEUTRALES Kamera-RGB —
+    füttert man es mit WB-behaftetem rawpy-Output, entsteht ein Farbstich. Für die Praxis daher
+    diesen XYZ-Weg nutzen."""
+    rgb2xyz, w = _working_rgb2xyz(working)
+    xyz = np.asarray(linear_xyz, dtype=np.float64)
+    if w == "prophoto":                            # XYZ D65 → D50 vor ProPhoto
+        xyz = xyz @ _CAT_D65_D50.T
+    xyz2working = np.linalg.inv(rgb2xyz)
+    return xyz @ xyz2working.T
+
+
 def _linear_to_gamma(lin, gamma):
     """Lineares [0,1]-RGB → anzeige-/gamma-kodiertes RGB."""
     lin = np.clip(lin, 0.0, 1.0)
