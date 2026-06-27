@@ -302,6 +302,31 @@ def _flow_align_exposures(imgs, log=print):
     return out
 
 
+def _auto_white_balance(bgr, strength=0.6):
+    """Dezenter Auto-Weißabgleich gegen Farbstiche (z. B. den Blaustich, den Exposure-Fusion in
+    Schnee/Schatten-Szenen hinterlässt). Kombiniert Gray-World (mittlere Farbe → neutral) mit einem
+    Weiß-Anker (helle Bildpartien → neutral), damit nicht über-/unterkorrigiert wird. strength 0..1
+    blendet die Korrektur ein (1 = voll). Keine Inhalts-Erfindung, nur Kanal-Skalierung."""
+    f = bgr.astype(np.float32)
+    b, g, r = f[..., 0], f[..., 1], f[..., 2]
+    mean = np.array([b.mean(), g.mean(), r.mean()]) + 1e-6
+    gray = float(mean.mean())
+    gw = gray / mean                                        # Gray-World-Faktoren
+    # Weiß-Anker: Mittel der hellsten ~5 % je Kanal soll neutral werden (robuster bei Farbflächen)
+    thr = np.percentile(0.114 * b + 0.587 * g + 0.299 * r, 95)
+    m = (0.114 * b + 0.587 * g + 0.299 * r) >= thr
+    if m.sum() > 50:
+        hi = np.array([b[m].mean(), g[m].mean(), r[m].mean()]) + 1e-6
+        wp = float(hi.mean()) / hi
+        gain = np.sqrt(gw * wp)                             # geometrisches Mittel beider Schätzer
+    else:
+        gain = gw
+    gain = np.clip(gain, 0.7, 1.4)                          # nie extrem korrigieren
+    gain = 1.0 + strength * (gain - 1.0)                    # Stärke einblenden
+    out = f * gain[None, None, :]
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
 def apply_look(bgr, preset="natural"):
     """Treuer Tonlook für HDR/Exposure-Fusion (die von Natur aus flach wirkt). Kein Erfinden von
     Inhalten — nur klassische Tonwert-/Kontrastbearbeitung im LAB-Raum:
@@ -310,14 +335,16 @@ def apply_look(bgr, preset="natural"):
       • „dramatisch" zusätzlich CLAHE (adaptiver lokaler Kontrast).
     presets: neutral (aus), natural (Standard, dezent), vivid (kräftig), dramatic (stark)."""
     P = {
-        "neutral":  dict(black=0.00, contrast=0.0, clarity=0.00, sat=1.00, clahe=0.0),
-        "natural":  dict(black=0.015, contrast=3.0, clarity=0.18, sat=1.08, clahe=0.0),
-        "vivid":    dict(black=0.030, contrast=4.5, clarity=0.32, sat=1.20, clahe=0.0),
-        "dramatic": dict(black=0.045, contrast=5.5, clarity=0.45, sat=1.28, clahe=2.0),
+        "neutral":  dict(black=0.00, contrast=0.0, clarity=0.00, sat=1.00, clahe=0.0, wb=0.0),
+        "natural":  dict(black=0.020, contrast=4.0, clarity=0.20, sat=1.10, clahe=0.0, wb=0.6),
+        "vivid":    dict(black=0.030, contrast=5.0, clarity=0.32, sat=1.22, clahe=0.0, wb=0.7),
+        "dramatic": dict(black=0.045, contrast=6.0, clarity=0.45, sat=1.30, clahe=2.0, wb=0.7),
     }
     p = P.get(preset, P["natural"])
     if preset == "neutral":
         return bgr
+    if p.get("wb", 0) > 0:                                # Farbstich (z. B. Blaustich) dezent neutralisieren
+        bgr = _auto_white_balance(bgr, strength=p["wb"])
     lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB).astype(np.float32)
     L = lab[..., 0] / 255.0
     if p["black"] > 0:                                   # Schwarzpunkt → etwas Tiefe
