@@ -1130,6 +1130,15 @@ def main():
                          "bicolor (Cannistra: synth. Grün aus Ha+OIII, natürlicher)")
     ap.add_argument("--bg-extract", action="store_true",
                     help="Astro: Hintergrund/Gradient entfernen (Lichtverschmutzung)")
+    ap.add_argument("--astro-deconv", action="store_true",
+                    help="Astro: Dekonvolution (Richardson-Lucy, PSF aus Sternen geschätzt) — schärft "
+                         "Seeing/Optik-Verschmierung zurück, mit Stern-Schutz gegen Ringe")
+    ap.add_argument("--astro-deconv-iter", type=int, default=15,
+                    help="Dekonvolution: Anzahl Richardson-Lucy-Iterationen (mehr = schärfer, aber "
+                         "mehr Rauschen/Ringe; 10–25 sinnvoll)")
+    ap.add_argument("--astro-deconv-protect", type=float, default=0.85,
+                    help="Dekonvolution: Stern-Schutz-Schwelle 0..1 (hellere Bereiche werden weich "
+                         "geschützt; niedriger = mehr Schutz)")
     ap.add_argument("--fits-out", action="store_true",
                     help="Astro: Ergebnis zusätzlich als 32-bit-FITS speichern (PixInsight/Siril)")
     ap.add_argument("--no-astro-qc", action="store_true",
@@ -1509,6 +1518,10 @@ def _astro_write(result, work_dir, paths, args, astro):
     if getattr(args, "bg_extract", False):
         print("  Hintergrund/Gradient entfernen …")
         result = astro.background_extract(result)
+    if getattr(args, "astro_deconv", False):
+        print("  Dekonvolution (Richardson-Lucy, PSF aus Sternen) …")
+        result = astro.deconvolve(result, iterations=getattr(args, "astro_deconv_iter", 15),
+                                  star_protect=getattr(args, "astro_deconv_protect", 0.85))
     stack_dir = os.path.join(work_dir, "stack")
     if os.path.isdir(stack_dir):
         shutil.rmtree(stack_dir)

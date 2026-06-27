@@ -547,5 +547,9 @@
   "Hot-/Cold-Pixel = entfernt helle/dunkle Einzelpixel (Sensor-Defekte) vor dem Stacken.": "Hot/cold pixels = removes bright/dark single pixels (sensor defects) before stacking.",
   "Objektivkorrekturen": "Lens corrections",
   "Registrierung & Drizzle": "Registration & drizzle",
-  "Vorverarbeitung": "Preprocessing"
+  "Vorverarbeitung": "Preprocessing",
+  "Dekonvolution (Richardson-Lucy) holt von Seeing/Optik verschmiertes Detail zurück — die PSF wird aus den Sternen geschätzt. Mit Stern-Schutz gegen dunkle Ringe. Mehr Iterationen = schärfer, aber mehr Rauschen.": "Deconvolution (Richardson-Lucy) recovers detail smeared by seeing/optics — the PSF is estimated from the stars. With star protection against dark rings. More iterations = sharper but more noise.",
+  "Dekonvolution (Richardson-Lucy, PSF aus Sternen)": "Deconvolution (Richardson-Lucy, PSF from stars)",
+  "Iterationen": "Iterations",
+  "Schärfung": "Sharpening"
 }

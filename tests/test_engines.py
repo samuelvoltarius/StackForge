@@ -1254,6 +1254,27 @@ class TestProToolGaps(TmpCase):
             out = fn([a, b], log=lambda *a: None, **kw)
             self.assertEqual(out.shape, a.shape)
 
+
+    def test_deconvolve_schaerft_ohne_overshoot(self):
+        import astro
+        # verschwommenes Sternfeld -> Dekonvolution muss schaerfen, ohne Werte > Quelle zu erfinden
+        h, w = 140, 180
+        sharp = np.zeros((h, w, 3), np.float32)
+        r = _rng()
+        for _ in range(50):
+            x, y = r.randint(8, w - 8), r.randint(8, h - 8)
+            c = r.uniform(0.3, 0.8); cv2.circle(sharp, (x, y), 1, (c, c, c), -1)
+        blur = cv2.GaussianBlur(sharp, (0, 0), 2.0) + 0.03
+        psf = astro.estimate_psf(blur)
+        self.assertEqual(psf.shape, (21, 21))
+        self.assertAlmostEqual(float(psf.sum()), 1.0, places=3)
+        dec = astro.deconvolve(blur, iterations=12, log=lambda *a: None)
+        def lap(x):
+            g = cv2.cvtColor((np.clip(x, 0, 1) * 255).astype(np.uint8), cv2.COLOR_BGR2GRAY)
+            return cv2.Laplacian(g, cv2.CV_64F).var()
+        self.assertGreater(lap(dec), lap(blur))          # schaerfer
+        self.assertLessEqual(float(dec.max()), 1.0)      # kein Overshoot
+
     def test_hdr_radiance_tonemapping(self):
         import hdr
         base = (_rng().rand(100, 120, 3) * 255).astype(np.uint8)

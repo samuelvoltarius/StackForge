@@ -579,6 +579,76 @@ def background_extract(f, strength=0.12):
     return np.clip(out, 0, 1)
 
 
+def estimate_psf(f, size=21, max_stars=80):
+    """PSF (Punktspreizfunktion) EMPIRISCH aus dem Bild schätzen: viele kleine, ungesättigte Sterne
+    finden, je ein size×size-Fenster um den Stern ausschneiden, alle (auf das Maximum zentriert)
+    mitteln → die mittlere Sternform = die PSF (Seeing/Optik/Nachführung). Normalisiert (Summe 1).
+    Fallback auf eine schmale Gauss-PSF, wenn zu wenige saubere Sterne da sind."""
+    g = _gray(f)
+    g = g / (float(g.max()) + 1e-6)
+    pts = _star_centroids(g, max_stars=max_stars * 3)
+    h, w = g.shape[:2]
+    half = size // 2
+    acc = np.zeros((size, size), np.float32)
+    n = 0
+    for x, y in pts:
+        xi, yi = int(round(x)), int(round(y))
+        if half < xi < w - half and half < yi < h - half:
+            patch = g[yi - half:yi + half + 1, xi - half:xi + half + 1].astype(np.float32)
+            peak = float(patch.max())
+            if 0.05 < peak < 0.9:                       # ungesättigt, über Rauschen
+                patch = patch - float(np.median(patch))  # lokalen Hintergrund abziehen
+                patch = np.clip(patch, 0, None)
+                s = float(patch.sum())
+                if s > 1e-6:
+                    acc += patch / s
+                    n += 1
+        if n >= max_stars:
+            break
+    if n < 8:
+        psf = cv2.getGaussianKernel(size, size / 6.0)
+        psf = psf @ psf.T
+        return (psf / psf.sum()).astype(np.float32)
+    acc = cv2.GaussianBlur(acc, (3, 3), 0)              # leicht glätten gegen Rausch-PSF
+    return (acc / (acc.sum() + 1e-9)).astype(np.float32)
+
+
+def deconvolve(f, psf=None, iterations=15, star_protect=0.85, log=print):
+    """Dekonvolution (PixInsight/Deconvolution-Stil) — schärft echtes Detail zurück, das Seeing/Optik
+    verschmiert haben. Richardson-Lucy (für Poisson-Statistik korrekt) auf der LUMINANZ, mit aus den
+    Sternen geschätzter PSF (oder übergebener PSF). Wirkt auf LINEARE Daten (vor dem Strecken).
+
+    Wichtig — Stern-Schutz: RL erzeugt an hellen, gesättigten Sternkernen gern dunkle Ringe/Übersch-
+    winger. `star_protect` (Helligkeitsschwelle 0..1) blendet die hellsten Bereiche weich aufs Original
+    zurück → schärferes Nebeldetail OHNE Ring-Artefakte um Sterne. Reine OpenCV/NumPy (FFT-frei)."""
+    if f is None:
+        return f
+    if psf is None:
+        psf = estimate_psf(f)
+    psf = (psf / (psf.sum() + 1e-9)).astype(np.float32)
+    psf_m = psf[::-1, ::-1].copy()
+    lum = _gray(f).astype(np.float32)
+    obs = np.clip(lum, 1e-4, None)
+    est = obs.copy()
+    for i in range(max(1, int(iterations))):
+        conv = cv2.filter2D(est, -1, psf, borderType=cv2.BORDER_REFLECT)
+        relative = obs / np.maximum(conv, 1e-6)
+        est = est * cv2.filter2D(relative, -1, psf_m, borderType=cv2.BORDER_REFLECT)
+        est = np.clip(est, 0, None)
+    # Schärfungs-Verhältnis auf die Farbkanäle übertragen (Farbe bleibt erhalten)
+    ratio = est / np.maximum(lum, 1e-4)
+    ratio = np.clip(ratio, 0.3, 3.0)
+    out = f.astype(np.float32) * ratio[..., None] if f.ndim == 3 else f.astype(np.float32) * ratio
+    # Stern-Schutz: in den hellsten Zonen weich aufs Original zurückblenden (gegen RL-Ringe)
+    if star_protect is not None and star_protect < 1.0:
+        hi = np.clip((lum - star_protect) / max(1e-3, 1.0 - star_protect), 0, 1)
+        hi = cv2.GaussianBlur(hi, (0, 0), 2.0)
+        m = hi[..., None] if out.ndim == 3 else hi
+        out = out * (1 - m) + f.astype(np.float32) * m
+    log(f"    Dekonvolution: Richardson-Lucy {iterations} Iter., PSF {psf.shape[0]}px, Stern-Schutz {star_protect}")
+    return np.clip(out, 0, 1)
+
+
 def _extract_ha_oiii(bgr, unmix=0.20):
     """Hα und OIII aus Dual-Band-OSC SAUBER trennen (normalisiert, [0..1]).
     Übersprechen beim OSC-Sensor: Hα (656 nm) → v. a. Rot (leckt etwas in Grün), OIII (500 nm) →
