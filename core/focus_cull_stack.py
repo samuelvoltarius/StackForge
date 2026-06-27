@@ -71,9 +71,12 @@ def load_gray(path, max_side=1600):
     return gray
 
 
-def develop_raw_to_bgr(path, wb="camera", auto_bright=False, bps=16, half=False):
+def develop_raw_to_bgr(path, wb="camera", auto_bright=False, bps=16, half=False,
+                       demosaic="auto", reconstruct_highlights=False):
     """RAW treu entwickeln (rawpy) und als BGR-Array zurückgeben (cv2-Konvention).
-    Nicht-generativ: nur Demosaicing/WB/Gamma, keine erfundenen Inhalte."""
+    Nicht-generativ: nur Demosaicing/WB/Gamma, keine erfundenen Inhalte.
+    demosaic: 'auto'(=AHD) | 'dht' | 'dcb' | 'vng' | 'ahd' (AMaZE braucht GPL-LibRaw-Build).
+    reconstruct_highlights: ausgebrannte Lichter rekonstruieren (Kanal-Verhältnis + Entsättigen)."""
     import rawpy
     with rawpy.imread(path) as raw:
         kw = dict(output_bps=bps, no_auto_bright=not auto_bright, half_size=half,
@@ -82,9 +85,23 @@ def develop_raw_to_bgr(path, wb="camera", auto_bright=False, bps=16, half=False)
             kw["use_camera_wb"] = True
         elif wb == "auto":
             kw["use_auto_wb"] = True
-        # "daylight": beide False -> Tageslicht-Multiplikatoren
-        rgb = raw.postprocess(**kw)
-    return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+        algo = {"dht": "DHT", "dcb": "DCB", "vng": "VNG", "ahd": "AHD",
+                "amaze": "AMAZE"}.get(str(demosaic).lower())
+        if algo:
+            try:
+                kw["demosaic_algorithm"] = getattr(rawpy.DemosaicAlgorithm, algo)
+            except Exception:
+                pass                                          # nicht verfügbar (GPL-Build) → Default
+        try:
+            rgb = raw.postprocess(**kw)
+        except Exception:                                     # Demosaic nicht unterstützt → Default
+            kw.pop("demosaic_algorithm", None)
+            rgb = raw.postprocess(**kw)
+    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    if reconstruct_highlights:
+        import develop
+        bgr = develop.highlight_reconstruct(bgr)
+    return bgr
 
 
 def develop_all(paths, dev_dir, args):
@@ -105,7 +122,9 @@ def develop_all(paths, dev_dir, args):
             outp = os.path.join(dev_dir, f"{i:04d}_" + os.path.splitext(name)[0] + ".tif")
             print(f"  RAW entwickeln: {name} -> {os.path.basename(outp)}")
             bgr = develop_raw_to_bgr(p, args.raw_wb, args.raw_auto_bright,
-                                     args.raw_bps, args.raw_half)
+                                     args.raw_bps, args.raw_half,
+                                     demosaic=getattr(args, "raw_demosaic", "auto"),
+                                     reconstruct_highlights=getattr(args, "raw_highlights", False))
             cv2.imwrite(outp, bgr, [int(cv2.IMWRITE_TIFF_COMPRESSION), 1])
             return outp
         dst = os.path.join(dev_dir, f"{i:04d}_" + name)
@@ -1109,6 +1128,11 @@ def main():
                     help="RAWs NICHT vorab entwickeln (direkt an ShineStacker geben)")
     ap.add_argument("--raw-wb", choices=["camera", "auto", "daylight"], default="camera",
                     help="Weißabgleich der RAW-Entwicklung (Default camera)")
+    ap.add_argument("--raw-demosaic", choices=["auto", "dht", "dcb", "vng", "ahd"], default="auto",
+                    help="Demosaic-Algorithmus: auto/ahd (Standard), dht (hohe Qualität, frei), "
+                         "dcb (wenig Falschfarbe), vng (weich). AMaZE braucht GPL-LibRaw.")
+    ap.add_argument("--raw-highlights", action="store_true",
+                    help="Ausgebrannte Lichter rekonstruieren (Kanal-Verhältnis + Entsättigen-zu-Weiß)")
     ap.add_argument("--raw-auto-bright", action="store_true",
                     help="Auto-Helligkeit aktivieren (Default aus = treu)")
     ap.add_argument("--raw-bps", type=int, choices=[8, 16], default=16,

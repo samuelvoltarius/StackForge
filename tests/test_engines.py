@@ -304,6 +304,33 @@ class TestStacker(TmpCase):
         after = np.abs(out[0].astype(np.float32) - ref).mean()
         self.assertLess(after, before)
 
+    def test_develop_highlight_reconstruct(self):
+        import develop
+        im = (_rng().rand(80, 90, 3) * 120 + 60).astype(np.uint8)
+        im[30:50, 30:50] = (255, 250, 200)                  # teil-ausgebrannter Fleck (würde magenta)
+        out = develop.highlight_reconstruct(im, thresh=0.9)
+        self.assertEqual(out.shape, im.shape)
+        self.assertEqual(out.dtype, np.uint8)
+        # die ausgebrannte Zone wird neutraler (Kanäle näher beieinander = weniger Farbstich)
+        def chroma(p):
+            f = p.astype(np.float32)
+            return float((f.max(2) - f.min(2)).mean())
+        self.assertLessEqual(chroma(out[30:50, 30:50]), chroma(im[30:50, 30:50]) + 1e-6)
+
+    def test_develop_curve_and_masks(self):
+        import develop
+        lut = develop.tone_curve_lut({0.25: 0.4, 0.75: 0.85}, bits=12)
+        self.assertEqual(len(lut), 4096)
+        self.assertTrue(np.all(np.diff(lut) >= -1e-6))       # monoton (kein Überschwingen)
+        im = (_rng().rand(60, 70, 3) * 255).astype(np.uint8)
+        out = develop.apply_lut(im, lut)
+        self.assertEqual(out.shape, im.shape)
+        gm = develop.gradient_mask((60, 70), 35, 30, 0.0)
+        rm = develop.radial_mask((60, 70), 35, 30, 20, 15)
+        self.assertEqual(gm.shape, (60, 70))
+        self.assertTrue(0.0 <= float(rm.min()) and float(rm.max()) <= 1.0001)
+        self.assertGreater(float(rm[30, 35]), float(rm[0, 0]))   # innen heller als außen
+
     def test_align_local_ecc_and_flow(self):
         import align_local as al
         base = cv2.GaussianBlur((_rng().rand(160, 200, 3) * 255).astype(np.uint8), (0, 0), 1.2)
