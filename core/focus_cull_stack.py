@@ -960,6 +960,15 @@ def run_own_engine(selected_dir, work_dir, args):
     if os.path.isdir(stack_dir):
         shutil.rmtree(stack_dir)
     os.makedirs(stack_dir)
+    if getattr(args, "autocrop", True):
+        # Ausrichtungs-Ränder (schwarz, durch Versatz beim Alignment) automatisch wegschneiden —
+        # gleiche „größtes randvolles Rechteck"-Logik wie beim Panorama.
+        import mosaic
+        cropped = mosaic._autocrop(result)
+        if cropped.shape != result.shape:
+            print(f"  Auto-Zuschnitt: {result.shape[1]}x{result.shape[0]} → {cropped.shape[1]}x{cropped.shape[0]} "
+                  f"(Ausrichtungs-Ränder entfernt)")
+        result = cropped
     base = os.path.splitext(os.path.basename(paths[0]))[0]
     ext = ".tif" if result.dtype == np.uint16 else ".jpg"
     out = os.path.join(stack_dir, f"{args.prefix}{base}_stk{ext}")
@@ -1225,6 +1234,9 @@ def main():
                          "tree=hierarchisch paarweise (1+2,3+4,… gutmütiger bei vielen Frames)")
     ap.add_argument("--detector", choices=["ORB", "SIFT", "AKAZE"], default="ORB",
                     help="Feature-Detektor fürs Alignment (SIFT robuster, langsamer)")
+    ap.add_argument("--autocrop", action=argparse.BooleanOptionalAction, default=True,
+                    help="Schwarze Ausrichtungs-Ränder automatisch wegschneiden (Standard AN; "
+                         "--no-autocrop behält den vollen Rahmen).")
     ap.add_argument("--sharpen", type=float, default=0.0,
                     help="Nachschärfen des Ergebnisses in %% (0 = aus)")
     ap.add_argument("--sharpen-radius", type=float, default=1.0, help="Schärfungs-Radius")
