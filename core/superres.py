@@ -40,9 +40,12 @@ def _get_session(path=None):
     return _session
 
 
-def upscale(bgr01, overlap=8, path=None, log=print):
+def upscale(bgr01, overlap=8, blend=0.65, path=None, log=print):
     """`bgr01` (float 0..1 BGR) per Real-ESRGAN 2× hochskalieren. Gibt das 2×-Bild (BGR float 0..1).
-    Gekachelt (64×64) mit Überlappung; die Kachel-Ausgaben werden gewichtet gemittelt (nahtlos)."""
+    Gekachelt (64×64) mit Überlappung; die Kachel-Ausgaben werden gewichtet gemittelt (nahtlos).
+    blend 0..1: Anteil des KI-Ergebnisses; der Rest kommt vom Lanczos-Upscale des Originals —
+    das holt natürliche Mikro-Textur zurück und dämpft den typischen KI-„Plastik/Lack"-Look
+    (1.0 = voll KI, 0.6–0.7 = natürlicher)."""
     sess = _get_session(path)
     iname = sess.get_inputs()[0].name
     rgb = np.clip(cv2.cvtColor(np.asarray(bgr01, np.float32), cv2.COLOR_BGR2RGB), 0, 1)
@@ -71,4 +74,8 @@ def upscale(bgr01, overlap=8, path=None, log=print):
             acc[oy:oy + _TILE * _SCALE, ox:ox + _TILE * _SCALE] += out * win
             wsum[oy:oy + _TILE * _SCALE, ox:ox + _TILE * _SCALE] += win
     res = acc / np.maximum(wsum, 1e-6)
-    return np.clip(cv2.cvtColor(res, cv2.COLOR_RGB2BGR), 0, 1)
+    out = np.clip(cv2.cvtColor(res, cv2.COLOR_RGB2BGR), 0, 1)
+    if blend < 1.0:                                         # KI-„Plastik" mit Lanczos-Textur mischen
+        lanc = cv2.resize(np.asarray(bgr01, np.float32), (OW, OH), interpolation=cv2.INTER_LANCZOS4)
+        out = np.clip(out * blend + np.clip(lanc, 0, 1) * (1.0 - blend), 0, 1)
+    return out
