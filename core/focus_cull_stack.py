@@ -1296,7 +1296,7 @@ def main():
                     help="Bit-Tiefe der entwickelten TIFFs (Default 16)")
     ap.add_argument("--raw-half", action="store_true",
                     help="RAW in halber Auflösung entwickeln (schneller)")
-    ap.add_argument("--vlm-endpoint", help="OpenAI-kompat. Basis-URL, z.B. http://100.86.70.71:8000/v1")
+    ap.add_argument("--vlm-endpoint", help="OpenAI-kompat. Basis-URL, z.B. http://localhost:8000/v1")
     ap.add_argument("--vlm-model", default="Qwen/Qwen3.6-27B-FP8",
                     help="Vision-Modell-ID (vLLM /v1/models), Default Qwen/Qwen3.6-27B-FP8")
     ap.add_argument("--vlm-key", default=None,

@@ -7,6 +7,7 @@
 ![tests](https://github.com/samuelvoltarius/ForgePix/actions/workflows/tests.yml/badge.svg)
 [![release](https://img.shields.io/github/v/release/samuelvoltarius/ForgePix?include_prereleases)](https://github.com/samuelvoltarius/ForgePix/releases)
 [![license: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![status: beta](https://img.shields.io/badge/status-beta-orange)](CHANGELOG.md)
 
 > **ForgePix Beta** — automatic focus stacking and computational photography for **macro, astro
 > and long‑exposure** series. **Local‑first, AI optional.** It’s usable and tested, but young —
