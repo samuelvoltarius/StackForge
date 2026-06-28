@@ -101,11 +101,16 @@ are dropped automatically (with reasons).
   + AI denoising) and reimports it automatically — the usual post-stack step, without switching tools.
   GraXpert is free (graxpert.com); if it isn't installed, ForgePix tells you where to get it and shows
   the finished linear file to open by hand. Paths under **Setup → External tools** (or auto-detected).
-- **⭐ Starless workflow (with StarNet++):** the fully-automatic "pro path" — **separate the stars →
-  boost the nebula (local contrast, gentle saturation) → add the stars cleanly back via screen blend**.
-  Pulls out much more nebula structure without bloating stars. In **Beginner mode**, "✨ Enhance"
-  does this automatically (if StarNet is present); in **Pro mode** via **Tools → Starless workflow**.
-  StarNet++ is free (starnetastro.com).
+- **⭐ Starless workflow (with StarNet++):** the fully-automatic "pro path". The key rule is that
+  image filters **never touch the stars** — they are separated first and blended back untouched:
+  **stretch → StarNet++ (remove stars) → GraXpert (background + AI denoise) → Cosmic Clarity (AI
+  sharpening, a free BlurXTerminator alternative) on the starless nebula only → boost → stars back
+  via screen blend**. Pulls out much more nebula structure without bloating or recolouring stars.
+  In **Beginner mode**, "✨ Enhance" does this automatically (if the tools are present); in **Pro mode**
+  via **Tools → Starless workflow**. StarNet++ (starnetastro.com), GraXpert (graxpert.com) and
+  Cosmic Clarity (setiastro.com) are all free; set their paths under **Setup → External tools**.
+  ForgePix can also drive **Siril’s bundled Python scripts headless** (e.g. AberrationRemover to round
+  off corner stars). And `--upscale` runs **Real-ESRGAN 2×** super-resolution on any result (local, onnxruntime).
   > **macOS note:** StarNet++ is usually *unsigned* — Gatekeeper blocks the first launch. Unblock it
   > once in Terminal: `xattr -dr com.apple.quarantine <StarNet-folder>` and `chmod +x <…>/starnet++`
   > (or System Settings → Privacy & Security → "Allow Anyway").

@@ -13,6 +13,8 @@
 > Astro und Langzeitserien**. **Lokal nutzbar, KI optional.** Nutzbar und getestet, aber jung —
 > rechne mit gelegentlichen Ecken und [melde Fehler](https://github.com/samuelvoltarius/ForgePix/issues).
 
+![ForgePix Module](docs/images/showcase.jpg)
+
 **Focus Stacking + Astro + Langzeitbelichtung.** Fotos rein, fertiges Bild raus — in bester
 Qualität zum Weiterbearbeiten. Eigenständig, frei (MIT), plattformübergreifend
 (Windows / macOS / Linux).
@@ -132,12 +134,23 @@ Kuratierte Test‑Datensätze (gute **und** absichtlich schlechte Aufnahmen) als
 Astro‑Subs (M 42 / IC 5146, Bayer‑FITS), ein Landschafts‑RAW und eine Makro‑Fokusreihe — einfach
 den jeweiligen Ordner aufs Fenster ziehen.
 
-## Externe Tools (optional)
+## Externe Tools & KI-Backends (alles optional)
 
-Im **Setup‑Menü (⚙) → „Externe Tools"** trägst du Pfade zu **GraXpert**, **StarNet++** und
-**Siril** ein (oder leer = automatisch suchen). Bei Astro/Langzeit/Hybrid kannst du das Ergebnis
-dann **per Ein‑Klick** durch GraXpert (Gradient) oder StarNet++ (starless) schicken — inklusive
-automatischem Reimport. Nichts davon ist Pflicht.
+Im **Setup‑Menü (⚙) → „Externe Tools"** trägst du Pfade zu **GraXpert**, **StarNet++**, **Siril**
+und **Cosmic Clarity** ein (oder leer = automatisch suchen). **Nichts davon ist Pflicht** —
+ForgePix funktioniert komplett lokal auch ohne, und jeder Schritt fällt sauber zurück.
+
+Bei Astro läuft optional die **Profi-Kette** in der richtigen Reihenfolge — und wichtig: die
+Bild-Filter **fassen die Sterne nie an**: Strecken → **StarNet++** (Sterne raus) → **GraXpert**
+(Hintergrund + KI-Entrauschen) → **Cosmic Clarity** (KI-Schärfung, freie BlurXTerminator-
+Alternative) **nur** auf dem sternenlosen Nebel → Boost → die unbearbeiteten Sterne werden wieder
+zugemischt. ForgePix kann auch **Sirils Python-Skripte headless** ausführen (AberrationRemover,
+AutoBGE, …).
+
+Zusätzliche KI, rein lokal über [onnxruntime](https://onnxruntime.ai): **`--upscale`** rechnet
+**Real‑ESRGAN 2×** Super-Resolution aufs Ergebnis (jedes Modul). Schwere Schritte können optional
+auf einem **Remote-GPU-Host** laufen (`FORGEPIX_GRAXPERT_REMOTE`) — Default und Fallback sind aber
+immer lokal.
 
 
 ## Sprachen

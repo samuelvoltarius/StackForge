@@ -118,11 +118,17 @@ Viele Aufnahmen desselben Himmelsausschnitts werden ausgerichtet und **gemittelt
   Tool-Wechsel. GraXpert ist kostenlos (graxpert.com); ist es nicht installiert, sagt ForgePix dir,
   wo du es bekommst, und zeigt das fertige Linearbild zum manuellen Öffnen. Pfade unter **Setup →
   Externe Tools** (oder Auto-Erkennung).
-- **⭐ Starless-Workflow (mit StarNet++):** der „Profi-Weg", voll automatisch — **Sterne trennen →
-  Nebel verstärken (lokaler Kontrast, dezente Sättigung) → Sterne sauber per Screen-Blend zurück**.
-  Holt deutlich mehr Nebelstruktur raus, ohne die Sterne aufzublähen. Im **Anfänger-Modus** macht
-  „✨ Veredeln" das automatisch (wenn StarNet da ist); im **Profi-Modus** über **Werkzeuge →
-  Starless-Workflow**. StarNet++ ist kostenlos (starnetastro.com).
+- **⭐ Starless-Workflow (mit StarNet++):** der „Profi-Weg", voll automatisch. Kern-Regel: die
+  Bild-Filter **fassen die Sterne nie an** — sie werden zuerst getrennt und unbearbeitet wieder
+  zugemischt: **Strecken → StarNet++ (Sterne raus) → GraXpert (Hintergrund + KI-Entrauschen) →
+  Cosmic Clarity (KI-Schärfung, freie BlurXTerminator-Alternative) nur am sternenlosen Nebel →
+  Boost → Sterne per Screen-Blend zurück**. Holt deutlich mehr Nebelstruktur raus, ohne die Sterne
+  aufzublähen oder umzufärben. Im **Anfänger-Modus** macht „✨ Veredeln" das automatisch (wenn die
+  Tools da sind); im **Profi-Modus** über **Werkzeuge → Starless-Workflow**. StarNet++
+  (starnetastro.com), GraXpert (graxpert.com) und Cosmic Clarity (setiastro.com) sind alle
+  kostenlos; Pfade unter **Setup → Externe Tools**. ForgePix kann zusätzlich **Sirils Python-Skripte
+  headless** ausführen (z. B. AberrationRemover für runde Rand-Sterne). Und `--upscale` rechnet
+  **Real-ESRGAN 2×** Super-Resolution aufs Ergebnis (lokal, onnxruntime).
   > **macOS-Hinweis:** StarNet++ ist meist *nicht signiert* — beim ersten Start blockt Gatekeeper.
   > Einmalig im Terminal entsperren: `xattr -dr com.apple.quarantine <StarNet-Ordner>` und
   > `chmod +x <…>/starnet++` (oder Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem erlauben").

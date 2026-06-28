@@ -13,6 +13,8 @@
 > and long‑exposure** series. **Local‑first, AI optional.** It’s usable and tested, but young —
 > expect the occasional rough edge and please [report issues](https://github.com/samuelvoltarius/ForgePix/issues).
 
+![ForgePix modules](docs/images/showcase.jpg)
+
 **Focus Stacking + Astro + Long Exposure.** Drop your photos in, get a finished image out — in
 the best possible quality for further editing. Self‑contained, free (MIT), cross‑platform
 (Windows / macOS / Linux).
@@ -130,12 +132,21 @@ Curated test datasets (good **and** deliberately bad frames) are a
 astro subs (M 42 / IC 5146, Bayer FITS), a landscape RAW and a macro focus series — just drop the
 folder onto the window.
 
-## External tools (optional)
+## External tools & AI backends (all optional)
 
-In the **Setup menu (⚙) → "External tools"** you set paths to **GraXpert**, **StarNet++** and
-**Siril** (or leave empty = auto‑detect). For Astro/Long‑exposure/Hybrid you can then send the
-result through GraXpert (gradient) or StarNet++ (starless) with **one click** — including
-automatic re‑import. None of it is required.
+In the **Setup menu (⚙) → "External tools"** you set paths to **GraXpert**, **StarNet++**,
+**Siril** and **Cosmic Clarity** (or leave empty = auto‑detect). **None of it is required** —
+ForgePix is fully local without any of them, and every step gracefully falls back.
+
+For Astro the optional **pro chain** runs in the right order, and — importantly — image filters
+**never touch the stars**: stretch → **StarNet++** (remove stars) → **GraXpert** (background +
+AI denoise) → **Cosmic Clarity** (AI sharpening, a free BlurXTerminator alternative) on the
+*starless* nebula only → boost → the untouched stars are blended back. ForgePix can also drive
+**Siril’s bundled Python scripts headless** (AberrationRemover, AutoBGE, …).
+
+Extra AI, fully local via [onnxruntime](https://onnxruntime.ai): **`--upscale`** runs
+**Real‑ESRGAN 2×** super‑resolution on the result (any module). Heavy steps can optionally run on
+a **remote GPU host** (`FORGEPIX_GRAXPERT_REMOTE`) — but the default and fallback are always local.
 
 ## Languages
 
